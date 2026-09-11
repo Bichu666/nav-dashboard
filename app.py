@@ -1,164 +1,120 @@
-from datetime import datetime
-from flask import Flask, jsonify, render_template
-import pandas as pd
+import os
+from datetime import datetime, timedelta
+from flask import Flask, redirect, render_template, request, session, url_for
 from twilio.rest import Client
 
-yfinance_available = True
-try:
-  import yfinance as yf
-except ImportError:
-  yfinance_available = False
-
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-nav-key")
 
-# --- Twilio WhatsApp Configuration ---
-ACCOUNT_SID = 'your_twilio_account_sid'
-AUTH_TOKEN = 'your_twilio_auth_token'
-try:
-  twilio_client = Client(ACCOUNT_SID, AUTH_TOKEN)
-except Exception:
-  twilio_client = None
+# Twilio Configuration from Environment Variables
+account_sid = os.environ.get(
+    "TWILIO_ACCOUNT_SID", "AC25437381c6c0d1f97dc83aff9480d580"
+)
+auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
+twilio_phone_number = os.environ.get(
+    "TWILIO_PHONE_NUMBER", "whatsapp:+14155238886"
+)
 
+# Admin WhatsApp number configured to your personal number
+ADMIN_WHATSAPP = "whatsapp:+918078535666"
 
-def send_admin_whatsapp_alert():
-  if twilio_client:
-    try:
-      twilio_client.messages.create(
-          from_='whatsapp:+14155238886',
-          body=(
-              '🔔 *NAV App Alert*: A user just accessed the application'
-              ' dashboard!'
-          ),
-          to='whatsapp:+91YOUR_ADMIN_PHONE_NUMBER',
-      )
-    except Exception as e:
-      print(f'WhatsApp notification error: {e}')
+# In-memory session tracking for tokens and 7-day access windows
+# Structure: { phone_number: expiry_datetime }
+active_sessions = {}
+# Structure: { token: { "phone": phone_number, "expires": datetime } }
+pending_tokens = {}
 
 
-def get_market_data():
-  """Fetches live Sensex and parses full fund returns & NAV data from NAV.xlsx."""
-  current_time = datetime.now().strftime('%d-%b-%Y, %I:%M:%S %p')
+@app.route("/", methods=["GET", "POST"])
+def login():
+  if request.method == "POST":
+    phone = request.form.get("phone").strip()
+    formatted_phone = phone if phone.startswith("+") else f"+91{phone}"
 
-  sensex_data = {
-      'price': 74902.59,
-      'change': -634.78,
-      'is_positive': False,
-      'time': current_time,
-      'history': [
-          {'date': '2026-09-10', 'close': 74902.59, 'change': +620.67, 'is_positive': True},
-          {'date': '2026-09-09', 'close': 74764.23, 'change': -138.37, 'is_positive': False},
-          {'date': '2026-09-08', 'close': 75577.58, 'change': +813.35, 'is_positive': True},
-          {'date': '2026-09-07', 'close': 76132.81, 'change': +555.23, 'is_positive': True},
-          {'date': '2026-09-04', 'close': 76515.43, 'change': +382.62, 'is_positive': True},
-      ],
-  }
+    # Check if user already has an active 7-day access window
+    if formatted_phone in active_sessions:
+      if datetime.now() < active_sessions[formatted_phone]:
+        session["user"] = formatted_phone
+        return redirect(url_for("dashboard"))
 
-  if yfinance_available:
-    try:
-      sensex = yf.Ticker('^BSESN')
-      df = sensex.history(period='7d')
-      if len(df) >= 2:
-        cp = float(df['Close'].iloc[-1])
-        pc = float(df['Close'].iloc[-2])
-        chg = round(cp - pc, 2)
-        sensex_data['price'] = round(cp, 2)
-        sensex_data['change'] = chg
-        sensex_data['is_positive'] = chg >= 0
-    except Exception:
-      pass
+    # Generate a secure random token for approval
+    import secrets
 
-  # Parse NAV.xlsx dynamically
-  try:
-    excel_df = pd.read_excel('NAV.xlsx', sheet_name='NEW NAV ')
-  except Exception:
-    excel_df = None
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.now() + timedelta(hours=1)
+    pending_tokens[token] = {"phone": formatted_phone, "expires": expiry}
 
-  def parse_rows(start_idx, end_idx):
-    funds_list = []
-    if excel_df is None:
-      return funds_list
-    for idx in range(start_idx, end_idx):
-      row = excel_df.iloc[idx]
-      name = row.iloc[1]
-      if pd.isna(name):
-        continue
+    # Build approval and rejection URLs pointing back to the live app
+    # (Render will automatically handle the host domain)
+    base_url = request.host_url.rstrip("/")
+    approve_link = f"{base_url}/approve/{token}"
+    reject_link = f"{base_url}/reject/{token}"
 
-      def fmt_pct(val):
-        if pd.isna(val):
-          return '-'
-        try:
-          return f'{float(val)*100:.2f}%'
-        except:
-          return str(val)
+    # Send WhatsApp notification to Admin
+    if auth_token:
+      try:
+        client = Client(account_sid, auth_token)
+        message_body = (
+            f"🔐 *NAV Dashboard Access Request*\n\n"
+            f"User Phone: {formatted_phone}\n\n"
+            f"Click below to approve (Valid for 1 hour):\n{approve_link}\n\n"
+            f"Click below to reject:\n{reject_link}"
+        )
+        client.messages.create(
+            from_=twilio_phone_number,
+            body=message_body,
+            to=ADMIN_WHATSAPP,
+        )
+      except Exception as e:
+        print(f"Twilio Error: {e}")
 
-      def fmt_val(val):
-        if pd.isna(val):
-          return '-'
-        try:
-          return f'{float(val):.2f}'
-        except:
-          return str(val)
+    return render_template("pending.html", phone=formatted_phone)
 
-      todays_nav = float(row.iloc[15]) if not pd.isna(row.iloc[15]) else 0.0
-
-      funds_list.append({
-          'name': name,
-          'inception': fmt_pct(row.iloc[4]),
-          'm1': fmt_pct(row.iloc[5]),
-          'm6': fmt_pct(row.iloc[6]),
-          'y1': fmt_pct(row.iloc[7]),
-          'y2': fmt_pct(row.iloc[8]),
-          'y3': fmt_pct(row.iloc[9]),
-          'y4': fmt_pct(row.iloc[10]),
-          'y5': fmt_pct(row.iloc[11]),
-          'y7': fmt_pct(row.iloc[12]),
-          'y10': fmt_pct(row.iloc[13]),
-          'highest_nav': fmt_val(row.iloc[14]),
-          'nav': round(todays_nav, 2),
-      })
-    return funds_list
-
-  equity_funds = parse_rows(1, 35)
-  balanced_funds = parse_rows(36, 43)
-  debt_funds = parse_rows(44, 51)
-
-  return sensex_data, equity_funds, balanced_funds, debt_funds
+  return render_template("login.html")
 
 
-@app.route('/api/sensex')
-def sensex_api():
-  data, _, _, _ = get_market_data()
-  return jsonify(data)
+@app.route("/approve/<token>")
+def approve(token):
+  if token not in pending_tokens:
+    return "Invalid or already used approval link.", 400
 
+  token_data = pending_tokens[token]
+  if datetime.now() > token_data["expires"]:
+    del pending_tokens[token]
+    return "This approval link has expired (1-hour limit reached).", 400
 
-@app.route('/')
-def user_dashboard():
-  send_admin_whatsapp_alert()
-  sensex, eq, bal, dbt = get_market_data()
-  return render_template(
-      'index.html',
-      is_admin=False,
-      sensex=sensex,
-      history=sensex['history'],
-      equity_funds=eq,
-      balanced_funds=bal,
-      debt_funds=dbt,
+  phone = token_data["phone"]
+  # Grant 7 days of recurring access
+  active_sessions[phone] = datetime.now() + timedelta(days=7)
+
+  # Clean up token
+  del pending_tokens[token]
+
+  return (
+      "<h3>Access Approved Successfully!</h3><p>The user has been granted 7"
+      " days of access to the NAV Dashboard.</p>"
   )
 
 
-@app.route('/admin')
-def admin_dashboard():
-  sensex, eq, bal, dbt = get_market_data()
-  return render_template(
-      'index.html',
-      is_admin=True,
-      sensex=sensex,
-      history=sensex['history'],
-      equity_funds=eq,
-      balanced_funds=bal,
-      debt_funds=dbt,
-  )
+@app.route("/reject/<token>")
+def reject(token):
+  if token in pending_tokens:
+    del pending_tokens[token]
+    return "<h3>Access Request Rejected.</h3>"
+  return "Invalid or already processed link.", 400
 
 
-if __name__ == '__main__':
-  app.run(host='127.0.0.1', port=5000, debug=True, use_reloader=False)
+@app.route("/dashboard")
+def dashboard():
+  user = session.get("user")
+  if not user or user not in active_sessions:
+    return redirect(url_for("login"))
+  if datetime.now() > active_sessions[user]:
+    session.pop("user", None)
+    return redirect(url_for("login"))
+
+  return render_template("dashboard.html", user=user)
+
+
+if __name__ == "__main__":
+  app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
