@@ -6,10 +6,8 @@ from twilio.rest import Client
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "super-secret-nav-key")
 
-# Twilio Configuration from Environment Variables
-account_sid = os.environ.get(
-    "TWILIO_ACCOUNT_SID", "AC25437381c6c0d1f97dc83aff9480d580"
-)
+# Twilio Configuration read purely from Environment Variables (Best Practice)
+account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
 auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
 twilio_phone_number = os.environ.get(
     "TWILIO_PHONE_NUMBER", "whatsapp:+14155238886"
@@ -19,9 +17,7 @@ twilio_phone_number = os.environ.get(
 ADMIN_WHATSAPP = "whatsapp:+918078535666"
 
 # In-memory session tracking for tokens and 7-day access windows
-# Structure: { phone_number: expiry_datetime }
 active_sessions = {}
-# Structure: { token: { "phone": phone_number, "expires": datetime } }
 pending_tokens = {}
 
 
@@ -45,13 +41,12 @@ def login():
     pending_tokens[token] = {"phone": formatted_phone, "expires": expiry}
 
     # Build approval and rejection URLs pointing back to the live app
-    # (Render will automatically handle the host domain)
     base_url = request.host_url.rstrip("/")
     approve_link = f"{base_url}/approve/{token}"
     reject_link = f"{base_url}/reject/{token}"
 
     # Send WhatsApp notification to Admin
-    if auth_token:
+    if account_sid and auth_token:
       try:
         client = Client(account_sid, auth_token)
         message_body = (
