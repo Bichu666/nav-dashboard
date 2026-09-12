@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
 
 app = Flask(__name__)
 app.secret_key = "nav_dashboard_secure_key"
@@ -10,6 +10,13 @@ PENDING_USERS = []
 VISITOR_LOGS = []
 FEEDBACK_LIST = []
 EXCEL_FILE = "NAV.xlsx"
+
+# Storage for Old NAV files (month-wise from 2024 onwards) and Today's NAV
+OLD_NAV_FILES = {}
+TODAY_NAV_FILE = {"name": "No file uploaded yet", "path": ""}
+
+UPLOAD_FOLDER = "static/uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def load_categorized_nav_data():
     categorized_data = {"Equity Funds": [], "Balanced Funds": [], "Debt Funds": []}
@@ -40,19 +47,6 @@ def load_categorized_nav_data():
                 
             fund_obj = {
                 "fund_name": str(fund_name).strip(),
-                "inception_date": str(row.iloc[2]).strip(),
-                "benchmark": str(row.iloc[3]).strip(),
-                "since_inception": row.iloc[4],
-                "m1": row.iloc[5],
-                "m6": row.iloc[6],
-                "y1": row.iloc[7],
-                "y2": row.iloc[8],
-                "y3": row.iloc[9],
-                "y4": row.iloc[10],
-                "y5": row.iloc[11],
-                "y7": row.iloc[12],
-                "y10": row.iloc[13],
-                "highest_nav": row.iloc[14],
                 "latest_nav": row.iloc[15]
             }
             if current_category in categorized_data:
@@ -109,11 +103,14 @@ def dashboard():
         nav_data=nav_data, 
         sensex=sensex, 
         sensex_history=sensex_history,
+        old_nav_files=OLD_NAV_FILES,
+        today_nav_file=TODAY_NAV_FILE,
         admin_name="Bijoosh Padmakumar"
     )
 
 @app.route("/admin", methods=["GET", "POST"])
 def admin_panel():
+    global TODAY_NAV_FILE
     if request.method == "POST":
         action = request.form.get("action")
         mobile = request.form.get("mobile")
@@ -125,10 +122,28 @@ def admin_panel():
         elif action == "deny" and mobile in PENDING_USERS:
             PENDING_USERS.remove(mobile)
             
+        # Handle Master Excel Update
         if "excel_file" in request.files:
             file = request.files["excel_file"]
             if file.filename != '':
                 file.save(EXCEL_FILE)
+
+        # Handle Today's NAV Image/File Upload
+        if "today_nav_file" in request.files:
+            t_file = request.files["today_nav_file"]
+            if t_file.filename != '':
+                filepath = os.path.join(UPLOAD_FOLDER, t_file.filename)
+                t_file.save(filepath)
+                TODAY_NAV_FILE = {"name": t_file.filename, "path": t_file.filename}
+
+        # Handle Old Month-wise NAV Image/File Upload (2024 to present)
+        if "old_nav_month" in request.form and "old_nav_file" in request.files:
+            month_year = request.form.get("old_nav_month")
+            o_file = request.files["old_nav_file"]
+            if month_year and o_file.filename != '':
+                filepath = os.path.join(UPLOAD_FOLDER, o_file.filename)
+                o_file.save(filepath)
+                OLD_NAV_FILES[month_year] = o_file.filename
 
     return render_template(
         "admin.html", 
@@ -136,8 +151,14 @@ def admin_panel():
         approved_users=APPROVED_USERS, 
         visitor_logs=VISITOR_LOGS,
         feedback_list=FEEDBACK_LIST,
+        old_nav_files=OLD_NAV_FILES,
+        today_nav_file=TODAY_NAV_FILE,
         admin_name="Bijoosh Padmakumar"
     )
+
+@app.route("/download/<filename>")
+def download_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
 @app.route("/feedback", methods=["POST"])
 def feedback():
