@@ -41,6 +41,80 @@
         </form>
     </div>
 
+    <!-- Today's NAV File / Image Upload Section -->
+    <div class="card">
+        <h3>Upload Today’s NAV File / Image</h3>
+        <p><small>Upload today's snapshot image or PDF so users can download it instantly from their dashboard.</small></p>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <input type="file" name="today_nav_file" accept="image/*,.pdf" required>
+            <button type="submit">Upload Today's NAV</button>
+        </form>
+        {% if today_nav_file.name %}
+            <p style="margin-top: 10px;"><small>Current Active Today NAV: <strong>{{ today_nav_file.name }}</strong></small></p>
+        {% endif %}
+    </div>
+
+    <!-- Month-Wise Old NAV Archive Upload Section (2024 to Present) -->
+    <div class="card">
+        <h3>Upload Month-Wise Old NAV Archive (2024 to Up-to-date Images)</h3>
+        <p><small>Upload month-wise statements/images so users can view and download previous archives.</small></p>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <div style="margin-bottom: 10px;">
+                <label><strong>Select Month & Year:</strong></label><br>
+                <select name="old_nav_month" style="padding: 8px; margin-top: 5px; border-radius: 4px;" required>
+                    <option value="">-- Choose Month --</option>
+                    <!-- 2024 Months -->
+                    <option value="January 2024">January 2024</option>
+                    <option value="February 2024">February 2024</option>
+                    <option value="March 2024">March 2024</option>
+                    <option value="April 2024">April 2024</option>
+                    <option value="May 2024">May 2024</option>
+                    <option value="June 2024">June 2024</option>
+                    <option value="July 2024">July 2024</option>
+                    <option value="August 2024">August 2024</option>
+                    <option value="September 2024">September 2024</option>
+                    <option value="October 2024">October 2024</option>
+                    <option value="November 2024">November 2024</option>
+                    <option value="December 2024">December 2024</option>
+                    <!-- 2025 Months -->
+                    <option value="January 2025">January 2025</option>
+                    <option value="February 2025">February 2025</option>
+                    <option value="March 2025">March 2025</option>
+                    <option value="April 2025">April 2025</option>
+                    <option value="May 2025">May 2025</option>
+                    <option value="June 2025">June 2025</option>
+                    <option value="July 2025">July 2025</option>
+                    <option value="August 2025">August 2025</option>
+                    <option value="September 2025">September 2025</option>
+                    <option value="October 2025">October 2025</option>
+                    <option value="November 2025">November 2025</option>
+                    <option value="December 2025">December 2025</option>
+                    <!-- 2026 Months -->
+                    <option value="January 2026">January 2026</option>
+                    <option value="February 2026">February 2026</option>
+                    <option value="March 2026">March 2026</option>
+                    <option value="April 2026">April 2026</option>
+                    <option value="May 2026">May 2026</option>
+                    <option value="June 2026">June 2026</option>
+                    <option value="July 2026">July 2026</option>
+                    <option value="August 2026">August 2026</option>
+                    <option value="September 2026">September 2026</option>
+                </select>
+            </div>
+            <input type="file" name="old_nav_file" accept="image/*,.pdf" required>
+            <button type="submit">Upload Historical NAV</button>
+        </form>
+        
+        <h4 style="margin-top: 20px;">Currently Uploaded Historical Files:</h4>
+        <ul>
+            {% for month, filename in old_nav_files.items() %}
+                <li><strong>{{ month }}</strong>: {{ filename }} (<a href="/download/{{ filename }}" target="_blank">Download</a>)</li>
+            {% else %}
+                <li>No old NAV files uploaded yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
     <!-- Pending Access Requests -->
     <div class="card">
         <h3>Pending User Access Approvals</h3>
