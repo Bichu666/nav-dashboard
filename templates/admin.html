@@ -2,33 +2,66 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Approval Panel</title>
-    <!-- Auto-refreshes every 5 seconds to show new user requests instantly -->
+    <title>NAV Admin - Approval Dashboard</title>
+    <!-- Auto-refreshes every 5 seconds to show new user requests live -->
     <meta http-equiv="refresh" content="5">
 </head>
-<body style="font-family: Arial, sans-serif; margin: 40px;">
-    <h2>Admin Approval Panel</h2>
-    <p>Live pending requests from users trying to log in:</p>
-    
-    {% if requests %}
-        <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 50%;">
-            <tr style="background-color: #f2f2f2;">
-                <th>Phone Number</th>
-                <th>Action</th>
-            </tr>
-            {% for phone in requests %}
-            <tr>
-                <td>{{ phone }}</td>
-                <td style="text-align: center;">
-                    <a href="{{ url_for('admin_approve', phone=phone) }}">
-                        <button style="background-color: #28a745; color: white; padding: 6px 12px; border: none; cursor: pointer;">Approve</button>
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p style="color: green;">No pending requests right now.</p>
-    {% endif %}
+<body style="font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0;">
+
+    <!-- Top Navigation Bar -->
+    <div style="background-color: #343a40; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0; font-size: 20px;">NAV Dashboard - Admin Control Panel</h2>
+        <span style="background-color: #28a745; padding: 5px 10px; border-radius: 4px; font-size: 14px;">Live Queue Active</span>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="padding: 30px; max-width: 900px; margin: auto;">
+        
+        <!-- Summary Card -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
+            <h3 style="margin-top: 0; color: #333;">Pending Approvals Folder</h3>
+            <p style="color: #666; margin-bottom: 0;">
+                Users requesting entry will appear below instantly. Click <strong>Approve</strong> to let them into the main dashboard right away.
+            </p>
+        </div>
+
+        <!-- Pending Table Section -->
+        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h4 style="margin-top: 0; border-bottom: 2px solid #f2f2f2; padding-bottom: 10px; color: #495057;">
+                Waiting Queue ({{ requests | length }} requests)
+            </h4>
+
+            {% if requests %}
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa; text-align: left; border-bottom: 2px solid #dee2e6;">
+                            <th style="padding: 12px; color: #495057;">User Phone / Identifier</th>
+                            <th style="padding: 12px; color: #495057; text-align: center;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for phone in requests %}
+                        <tr style="border-bottom: 1px solid #dee2e6;">
+                            <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #007bff;">{{ phone }}</td>
+                            <td style="padding: 12px; text-align: center;">
+                                <a href="{{ url_for('admin_approve', phone=phone) }}">
+                                    <button style="background-color: #28a745; color: white; padding: 8px 18px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold;">
+                                        Approve Access
+                                    </button>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div style="text-align: center; padding: 40px; color: #28a745;">
+                    <p style="font-size: 18px; margin: 0;">No pending requests right now. All caught up!</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
 </body>
 </html>
