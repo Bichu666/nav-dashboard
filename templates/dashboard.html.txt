@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NAV Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f7f6; margin: 0; padding: 40px; display: flex; justify-content: center; }
+        .dashboard-container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        .metric-card { background: #eef2f3; padding: 20px; border-radius: 6px; margin: 20px 0; font-size: 28px; font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <h2>Live NAV Dashboard</h2>
+        <p>Welcome, {{ user }}</p>
+        <div class="metric-card">
+            Current NAV Value: ₹{{ nav_value }}
+        </div>
+    </div>
+</body>
+</html>
