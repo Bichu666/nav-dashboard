@@ -4,17 +4,16 @@
     <meta charset="UTF-8">
     <title>Approval Pending</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-        .card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 400px; }
-        h2 { color: #333; }
-        p { color: #666; line-height: 1.5; }
+        body { font-family: Arial, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        h2 { color: #f0ad4e; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Approval Request Sent</h2>
-        <p>An authentication link has been sent via WhatsApp to the administrator for phone number <strong>{{ phone }}</strong>.</p>
-        <p>Once approved, you will have access to the dashboard.</p>
+        <h2>Approval Pending</h2>
+        <p>An approval request has been sent via WhatsApp to the admin for number <strong>{{ phone }}</strong>.</p>
+        <p>Please check WhatsApp and click the approval link to access your dashboard.</p>
     </div>
 </body>
 </html>
