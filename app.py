@@ -11,22 +11,56 @@ VISITOR_LOGS = []
 FEEDBACK_LIST = []
 EXCEL_FILE = "NAV.xlsx"
 
-def fetch_live_sensex():
-    # Live market indicator data wrapper
+def load_categorized_nav_data():
+    categorized_data = {"Equity Funds": [], "Balanced Funds": [], "Debt Funds": []}
+    if not os.path.exists(EXCEL_FILE):
+        return categorized_data
+    
     try:
-        return {"current": "81,450.20", "change": "-125.40", "status": "down"}
-    except:
-        return {"current": "81,000.00", "change": "0.00", "status": "neutral"}
-
-def load_dashboard_data():
-    data = []
-    if os.path.exists(EXCEL_FILE):
-        try:
-            df = pd.read_excel(EXCEL_FILE)
-            data = df.to_dict(orient="records")
-        except Exception as e:
-            print("Excel read error:", e)
-    return data
+        df = pd.read_excel(EXCEL_FILE, sheet_name='NEW NAV ')
+        current_category = "Equity Funds"
+        
+        for i in range(len(df)):
+            row = df.iloc[i]
+            col0 = str(row.iloc[0]).strip().upper()
+            
+            if "EQUITY" in col0 or "E Q U I T Y" in col0:
+                current_category = "Equity Funds"
+                continue
+            elif "BALANCED" in col0:
+                current_category = "Balanced Funds"
+                continue
+            elif "DEBT" in col0:
+                current_category = "Debt Funds"
+                continue
+                
+            fund_name = row.iloc[1]
+            if pd.isna(fund_name):
+                continue
+                
+            fund_obj = {
+                "fund_name": str(fund_name).strip(),
+                "inception_date": str(row.iloc[2]).strip(),
+                "benchmark": str(row.iloc[3]).strip(),
+                "since_inception": row.iloc[4],
+                "m1": row.iloc[5],
+                "m6": row.iloc[6],
+                "y1": row.iloc[7],
+                "y2": row.iloc[8],
+                "y3": row.iloc[9],
+                "y4": row.iloc[10],
+                "y5": row.iloc[11],
+                "y7": row.iloc[12],
+                "y10": row.iloc[13],
+                "highest_nav": row.iloc[14],
+                "latest_nav": row.iloc[15]
+            }
+            if current_category in categorized_data:
+                categorized_data[current_category].append(fund_obj)
+    except Exception as e:
+        print("Excel processing error:", e)
+        
+    return categorized_data
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -59,8 +93,8 @@ def dashboard():
     if not user or user not in APPROVED_USERS:
         return redirect(url_for("login"))
     
-    nav_data = load_dashboard_data()
-    sensex = fetch_live_sensex()
+    nav_data = load_categorized_nav_data()
+    sensex = {"current": "81,450.20", "change": "-125.40", "status": "down"}
     
     sensex_history = [
         {"date": "11 Sep 2026", "points": "81,450.20", "status": "down"},
