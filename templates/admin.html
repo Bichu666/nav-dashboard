@@ -2,65 +2,125 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NAV Admin - Approval Dashboard</title>
-    <!-- Auto-refreshes every 5 seconds to show new user requests live -->
-    <meta http-equiv="refresh" content="5">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; padding: 20px; margin: 0; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: white; padding: 15px 25px; border-radius: 8px; margin-bottom: 20px; }
+        .header-bar a { color: #38bdf8; text-decoration: none; margin-left: 15px; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+        th { background: #0f172a; color: white; }
+        .btn-approve { background: #22c55e; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-deny { background: #ef4444; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        input[type="file"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-right: 10px; }
+        button[type="submit"] { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button[type="submit"]:hover { background: #1d4ed8; }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 0;">
+<body>
 
-    <!-- Top Navigation Bar -->
-    <div style="background-color: #343a40; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="margin: 0; font-size: 20px;">NAV Dashboard - Admin Control Panel</h2>
-        <span style="background-color: #28a745; padding: 5px 10px; border-radius: 4px; font-size: 14px;">Live Queue Active</span>
+    <div class="header-bar">
+        <div>
+            <h2>NAV Admin Control Panel</h2>
+            <small>Administrator: <strong>{{ admin_name }}</strong></small>
+        </div>
+        <div>
+            <a href="/dashboard">View User Dashboard</a>
+            <a href="/logout">Logout</a>
+        </div>
     </div>
 
-    <!-- Main Content Area -->
-    <div style="padding: 30px; max-width: 900px; margin: auto;">
-        
-        <!-- Summary Card -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 25px;">
-            <h3 style="margin-top: 0; color: #333;">Pending Approvals Folder</h3>
-            <p style="color: #666; margin-bottom: 0;">
-                Users requesting entry will appear below instantly. Click <strong>Approve</strong> to let them into the main dashboard right away.
-            </p>
-        </div>
+    <!-- Master Excel Upload Section -->
+    <div class="card">
+        <h3>Upload Master / Daily NAV Excel File (NAV.xlsx)</h3>
+        <p><small>Upload your updated spreadsheet here to instantly sync fund performance values across the entire application.</small></p>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <input type="file" name="excel_file" accept=".xlsx" required>
+            <button type="submit">Upload & Sync Data</button>
+        </form>
+    </div>
 
-        <!-- Pending Table Section -->
-        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h4 style="margin-top: 0; border-bottom: 2px solid #f2f2f2; padding-bottom: 10px; color: #495057;">
-                Waiting Queue ({{ requests | length }} requests)
-            </h4>
+    <!-- Pending Access Requests -->
+    <div class="card">
+        <h3>Pending User Access Approvals</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Visitor Mobile Number</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mobile in pending_users %}
+                <tr>
+                    <td><strong>{{ mobile }}</strong></td>
+                    <td>
+                        <form action="/admin" method="POST" style="display:inline;">
+                            <input type="hidden" name="mobile" value="{{ mobile }}">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn-approve">Approve Access</button>
+                        </form>
+                        <form action="/admin" method="POST" style="display:inline; margin-left: 5px;">
+                            <input type="hidden" name="mobile" value="{{ mobile }}">
+                            <input type="hidden" name="action" value="deny">
+                            <button type="submit" class="btn-deny">Deny</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align: center; color: #64748b;">No pending approval requests at the moment.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-            {% if requests %}
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                    <thead>
-                        <tr style="background-color: #f8f9fa; text-align: left; border-bottom: 2px solid #dee2e6;">
-                            <th style="padding: 12px; color: #495057;">User Phone / Identifier</th>
-                            <th style="padding: 12px; color: #495057; text-align: center;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for phone in requests %}
-                        <tr style="border-bottom: 1px solid #dee2e6;">
-                            <td style="padding: 12px; font-size: 16px; font-weight: bold; color: #007bff;">{{ phone }}</td>
-                            <td style="padding: 12px; text-align: center;">
-                                <a href="{{ url_for('admin_approve', phone=phone) }}">
-                                    <button style="background-color: #28a745; color: white; padding: 8px 18px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold;">
-                                        Approve Access
-                                    </button>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div style="text-align: center; padding: 40px; color: #28a745;">
-                    <p style="font-size: 18px; margin: 0;">No pending requests right now. All caught up!</p>
-                </div>
-            {% endif %}
-        </div>
+    <!-- Visitor Log History -->
+    <div class="card">
+        <h3>Visitor Log History (Logged Mobile Numbers)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Mobile Number</th>
+                    <th>Attempt / Login Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in visitor_logs %}
+                <tr>
+                    <td>{{ log.mobile }}</td>
+                    <td>{{ log.time }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align: center; color: #64748b;">No visitor entries logged yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
+    <!-- User Feedback & Ratings -->
+    <div class="card">
+        <h3>User Feedback & Ratings</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>User / Mobile</th>
+                    <th>Rating</th>
+                    <th>Comment / Suggestion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fb in feedback_list %}
+                <tr>
+                    <td>{{ fb.user }}</td>
+                    <td>⭐ {{ fb.rating }} / 5</td>
+                    <td>{{ fb.comment }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align: center; color: #64748b;">No feedback received yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
 </body>
