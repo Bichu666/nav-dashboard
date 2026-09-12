@@ -1,15 +1,16 @@
 {
+  "background_color": "#ff0000",
+  "dir": "ltr",
+  "display": "standalone",
   "name": "NAV Dashboard",
+  "orientation": "any",
+  "scope": "/",
   "short_name": "NAV",
   "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#007bff",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/2950/2950660.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+  "theme_color": "#ffffff",
+  "lang": "en",
+  "categories": [
+    "business",
+    "finance"
   ]
 }
