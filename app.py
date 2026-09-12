@@ -5,7 +5,6 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 # In-memory storage for pending requests and active user sessions
-# For a persistent app across restarts, you could later plug in SQLite/PostgreSQL
 pending_requests = []
 approved_users = set()
 
@@ -20,7 +19,6 @@ def login():
         if not formatted_phone.startswith('+'):
             formatted_phone = '+' + formatted_phone
             
-        # Add user to the pending queue if not already there or active
         if formatted_phone not in pending_requests and formatted_phone not in approved_users:
             pending_requests.append(formatted_phone)
             
@@ -30,12 +28,10 @@ def login():
 
 @app.route('/admin')
 def admin_panel():
-    # Simple admin view showing all pending login requests
     return render_template('admin.html', requests=pending_requests)
 
 @app.route('/admin/approve/<path:phone>')
 def admin_approve(phone):
-    # Admin clicks approve on screen
     if phone in pending_requests:
         pending_requests.remove(phone)
     approved_users.add(phone)
@@ -43,7 +39,6 @@ def admin_approve(phone):
 
 @app.route('/check-status')
 def check_status():
-    # Polls or checks if the user has been approved by the admin yet
     phone = request.args.get('phone')
     if phone in approved_users:
         session['authenticated_user'] = phone
