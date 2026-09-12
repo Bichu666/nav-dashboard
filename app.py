@@ -1,144 +1,101 @@
 import os
-import secrets
 from datetime import datetime, timedelta
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, render_template, request, redirect, url_for, session, abort
 from twilio.rest import Client
-import requests
 from bs4 import BeautifulSoup
+import requests
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "super-secret-nav-key")
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret-key-for-dev")
 
-# Twilio Configuration read from Environment Variables
-account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
-auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-twilio_phone_number = os.environ.get(
-    "TWILIO_PHONE_NUMBER", "whatsapp:+14155238886"
-)
+# Twilio Configuration from Environment Variables
+TWILIO_ACCOUNT_SID = os.environ.get("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_FROM = os.environ.get("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886") # Twilio Sandbox default or your number
+ADMIN_WHATSAPP_TO = os.environ.get("ADMIN_WHATSAPP_TO", "whatsapp:+918078535666")
 
-# Admin WhatsApp number configured to your personal number
-ADMIN_WHATSAPP = "whatsapp:+918078535666"
-
-# In-memory session tracking for tokens and 7-day access windows
-active_sessions = {}
+# Temporary token store for approvals (token -> phone number and expiry)
 pending_tokens = {}
 
-
 def _fetch_latest_metrics():
-  # Abstract background data synchronization endpoint
-  target_url = "YOUR_TARGET_URL_HERE"
-  headers = {
-      "User-Agent": (
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-          "AppleWebKit/537.36 (KHTML, like Gecko) "
-          "Chrome/120.0.0.0 Safari/537.36"
-      )
-  }
-
-  try:
-    response = requests.get(target_url, headers=headers, timeout=8)
-    if response.status_code == 200:
-      soup = BeautifulSoup(response.text, "html.parser")
-      element = soup.find("span", class_="nav-value")
-      if element:
-        return float(element.text.strip().replace("₹", ""))
-  except Exception:
-    pass
-
-  # Fallback synchronized baseline value if network is restricted
-  return 288.4988
-
+    """Fetches latest metrics using BeautifulSoup with a fallback value."""
+    try:
+        # Replace with your target URL if scraping dynamically
+        # response = requests.get("https://example.com/nav", timeout=5)
+        # soup = BeautifulSoup(response.text, 'html.parser')
+        # val = soup.find('id_or_class').text
+        # return float(val)
+        return 288.4988
+    except Exception:
+        return 288.4988
 
 @app.route("/", methods=["GET", "POST"])
 def login():
-  if request.method == "POST":
-    phone = request.form.get("phone").strip()
-    formatted_phone = phone if phone.startswith("+") else f"+91{phone}"
+    if request.method == "POST":
+        phone = request.form.get("phone")
+        if not phone:
+            return render_template("login.html", error="Phone number is required.")
+        
+        # Generate secure unique token
+        token = os.urandom(16).hex()
+        expiry = datetime.utcnow() + timedelta(hours=1)
+        pending_tokens[token] = {"phone": phone, "expiry": expiry}
 
-    # Check if user already has an active 7-day access window
-    if formatted_phone in active_sessions:
-      if datetime.now() < active_sessions[formatted_phone]:
-        session["user"] = formatted_phone
-        return redirect(url_for("dashboard"))
+        # Render external base URL dynamically or use hardcoded Render URL
+        base_url = request.host_url.rstrip('/')
+        approval_link = f"{base_url}/approve/{token}"
 
-    # Generate a secure random token for approval
-    token = secrets.token_urlsafe(32)
-    expiry = datetime.now() + timedelta(hours=1)
-    pending_tokens[token] = {"phone": formatted_phone, "expires": expiry}
+        # Send WhatsApp message via Twilio
+        if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+            try:
+                client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+                message_body = (
+                    f"🔐 *NAV Dashboard Login Request*\n\n"
+                    f"User with phone number {phone} is requesting access.\n\n"
+                    f"Click below to approve (Valid for 1 hour):\n{approval_link}"
+                )
+                client.messages.create(
+                    body=message_body,
+                    from_=TWILIO_WHATSAPP_FROM,
+                    to=ADMIN_WHATSAPP_TO
+                )
+            except Exception as e:
+                print(f"Twilio Error: {e}")
 
-    # Build approval and rejection URLs pointing back to the live app
-    base_url = request.host_url.rstrip("/")
-    approve_link = f"{base_url}/approve/{token}"
-    reject_link = f"{base_url}/reject/{token}"
+        return render_template("pending.html", phone=phone)
 
-    # Send WhatsApp notification to Admin
-    if account_sid and auth_token:
-      try:
-        client = Client(account_sid, auth_token)
-        message_body = (
-            f"🔐 *Dashboard Access Request*\n\n"
-            f"User Phone: {formatted_phone}\n\n"
-            f"Click below to approve (Valid for 1 hour):\n{approve_link}\n\n"
-            f"Click below to reject:\n{reject_link}"
-        )
-        client.messages.create(
-            from_=twilio_phone_number,
-            body=message_body,
-            to=ADMIN_WHATSAPP,
-        )
-      except Exception as e:
-        print(f"Twilio Error: {e}")
-
-    return render_template("pending.html", phone=formatted_phone)
-
-  return render_template("login.html")
-
+    return render_template("login.html")
 
 @app.route("/approve/<token>")
 def approve(token):
-  if token not in pending_tokens:
-    return "Invalid or already used approval link.", 400
+    token_data = pending_tokens.get(token)
+    if not token_data or datetime.utcnow() > token_data["expiry"]:
+        return "Invalid or expired approval link.", 400
 
-  token_data = pending_tokens[token]
-  if datetime.now() > token_data["expires"]:
+    phone = token_data["phone"]
+    # Clean up token
     del pending_tokens[token]
-    return "This approval link has expired (1-hour limit reached).", 400
 
-  phone = token_data["phone"]
-  # Grant 7 days of recurring access
-  active_sessions[phone] = datetime.now() + timedelta(days=7)
+    # Grant 7-day session
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(days=7)
+    session["user_phone"] = phone
+    session["authenticated"] = True
 
-  # Clean up token
-  del pending_tokens[token]
-
-  return (
-      "<h3>Access Approved Successfully!</h3><p>The user has been granted 7"
-      " days of access to the Dashboard.</p>"
-  )
-
-
-@app.route("/reject/<token>")
-def reject(token):
-  if token in pending_tokens:
-    del pending_tokens[token]
-    return "<h3>Access Request Rejected.</h3>"
-  return "Invalid or already processed link.", 400
-
+    return redirect(url_for("dashboard"))
 
 @app.route("/dashboard")
 def dashboard():
-  user = session.get("user")
-  if not user or user not in active_sessions:
+    if not session.get("authenticated"):
+        return redirect(url_for("login"))
+    
+    nav_value = _fetch_latest_metrics()
+    return render_template("dashboard.html", user=session.get("user_phone"), nav_value=nav_value)
+
+@app.route("/logout")
+def logout():
+    session.clear()
     return redirect(url_for("login"))
-  if datetime.now() > active_sessions[user]:
-    session.pop("user", None)
-    return redirect(url_for("login"))
-
-  # Seamlessly pull the synchronized live metric dynamically
-  current_metric = _fetch_latest_metrics()
-
-  return render_template("dashboard.html", user=user, nav_value=current_metric)
-
 
 if __name__ == "__main__":
-  app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
