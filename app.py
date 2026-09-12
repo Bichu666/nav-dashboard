@@ -5,12 +5,11 @@ from twilio.rest import Client
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
-# Twilio configuration from environment variables
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 
-# Matched to your joined Twilio Sandbox session number
-TWILIO_WHATSAPP_NUMBER = 'whatsapp:+17372508034'
+# Must be the universal Twilio WhatsApp Sandbox number
+TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
@@ -18,17 +17,13 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 def login():
     if request.method == 'POST':
         user_phone = request.form.get('phone')
-        
-        # Format phone number for WhatsApp
         formatted_phone = user_phone.strip()
         if not formatted_phone.startswith('+'):
             formatted_phone = '+' + formatted_phone
             
-        # Generate temporary approval link
         approval_link = url_for('approve', phone=formatted_phone, _external=True)
         
         try:
-            # Send WhatsApp approval notification using the Sandbox number
             message = twilio_client.messages.create(
                 body=f"Hello! Click the following secure link to log into your NAV Dashboard: {approval_link}",
                 from_=TWILIO_WHATSAPP_NUMBER,
