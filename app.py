@@ -1,4 +1,5 @@
 import os
+import json
 from flask import Flask, render_template, request, redirect, url_for, session
 from twilio.rest import Client
 
@@ -25,12 +26,17 @@ def login():
         approval_link = url_for('approve', phone=formatted_phone, _external=True)
         
         try:
+            # Using Twilio's default sandbox template SID and variables to bypass ContentSid error
             message = twilio_client.messages.create(
-                body=f"Hello! Click the following secure link to log into your NAV Dashboard: {approval_link}",
                 from_=TWILIO_WHATSAPP_NUMBER,
-                to=f"whatsapp:{formatted_phone}"
+                to=f"whatsapp:{formatted_phone}",
+                content_sid="HXb5b62575e6e4ff6129ad7c8efe1f983e",
+                content_variables=json.dumps({
+                    "1": "NAV Dashboard Login", 
+                    "2": approval_link
+                })
             )
-            print(f"Twilio message sent successfully: {message.sid}")
+            print(f"Twilio template message sent successfully: {message.sid}")
         except Exception as e:
             print(f"Twilio API Error: {e}")
             
