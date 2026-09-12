@@ -1,16 +1,13 @@
 import os
-import json
 from flask import Flask, render_template, request, redirect, url_for, session
-from twilio.rest import Client
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
-
-twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+# In-memory storage for pending requests and active user sessions
+# For a persistent app across restarts, you could later plug in SQLite/PostgreSQL
+pending_requests = []
+approved_users = set()
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -23,34 +20,35 @@ def login():
         if not formatted_phone.startswith('+'):
             formatted_phone = '+' + formatted_phone
             
-        approval_link = url_for('approve', phone=formatted_phone, _external=True)
-        
-        try:
-            # Using Twilio's default sandbox template SID and variables to bypass ContentSid error
-            message = twilio_client.messages.create(
-                from_=TWILIO_WHATSAPP_NUMBER,
-                to=f"whatsapp:{formatted_phone}",
-                content_sid="HXb5b62575e6e4ff6129ad7c8efe1f983e",
-                content_variables=json.dumps({
-                    "1": "NAV Dashboard Login", 
-                    "2": approval_link
-                })
-            )
-            print(f"Twilio template message sent successfully: {message.sid}")
-        except Exception as e:
-            print(f"Twilio API Error: {e}")
+        # Add user to the pending queue if not already there or active
+        if formatted_phone not in pending_requests and formatted_phone not in approved_users:
+            pending_requests.append(formatted_phone)
             
         return render_template('pending.html', phone=formatted_phone)
         
     return render_template('login.html')
 
-@app.route('/approve')
-def approve():
+@app.route('/admin')
+def admin_panel():
+    # Simple admin view showing all pending login requests
+    return render_template('admin.html', requests=pending_requests)
+
+@app.route('/admin/approve/<path:phone>')
+def admin_approve(phone):
+    # Admin clicks approve on screen
+    if phone in pending_requests:
+        pending_requests.remove(phone)
+    approved_users.add(phone)
+    return redirect(url_for('admin_panel'))
+
+@app.route('/check-status')
+def check_status():
+    # Polls or checks if the user has been approved by the admin yet
     phone = request.args.get('phone')
-    if phone:
+    if phone in approved_users:
         session['authenticated_user'] = phone
         return redirect(url_for('dashboard'))
-    return "Invalid approval request", 400
+    return render_template('pending.html', phone=phone, waiting=True)
 
 @app.route('/dashboard')
 def dashboard():
@@ -60,7 +58,9 @@ def dashboard():
 
 @app.route('/logout')
 def logout():
-    session.pop('authenticated_user', None)
+    user = session.pop('authenticated_user', None)
+    if user in approved_users:
+        approved_users.remove(user)
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
