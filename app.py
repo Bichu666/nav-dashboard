@@ -7,8 +7,6 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-
-# Must be the universal Twilio WhatsApp Sandbox number
 TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -17,6 +15,9 @@ twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 def login():
     if request.method == 'POST':
         user_phone = request.form.get('phone')
+        if not user_phone:
+            return "Phone number is required", 400
+            
         formatted_phone = user_phone.strip()
         if not formatted_phone.startswith('+'):
             formatted_phone = '+' + formatted_phone
