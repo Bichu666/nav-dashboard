@@ -3,21 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>NAV Dashboard</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .dashboard-card { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
-        .metric { font-size: 2.5em; color: #25D366; font-weight: bold; margin: 20px 0; }
-        .logout { display: inline-block; margin-top: 20px; color: #d9534f; text-decoration: none; font-weight: bold; }
-        .logout:hover { text-decoration: underline; }
-    </style>
 </head>
 <body>
-    <div class="dashboard-card">
-        <h2>NAV Dashboard</h2>
-        <p>Welcome, <strong>{{ user }}</strong></p>
-        <div class="metric">{{ nav_value }}</div>
-        <p>Latest synchronized NAV metric</p>
-        <a href="/logout" class="logout">Logout</a>
+    <div style="text-align: center; margin-top: 100px;">
+        <h2>Welcome to NAV Dashboard</h2>
+        <p>Logged in as: <strong>{{ user }}</strong></p>
+        <a href="{{ url_for('logout') }}"><button style="padding: 10px 20px;">Logout</button></a>
     </div>
 </body>
 </html>
