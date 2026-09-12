@@ -8,8 +8,9 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 # Twilio configuration from environment variables
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-# This should be set to 'whatsapp:+14155238886' in your Render environment variables
-TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
+
+# Hardcoded directly to your active Twilio Sandbox trial number to guarantee message delivery
+TWILIO_WHATSAPP_NUMBER = 'whatsapp:+17372508034'
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
