@@ -9,8 +9,8 @@ app.secret_key = os.environ.get('SECRET_KEY', 'your_secret_key_here')
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
 
-# Universal Twilio WhatsApp Sandbox number that you already joined
-TWILIO_WHATSAPP_NUMBER = 'whatsapp:+14155238886'
+# Matched to your joined Twilio Sandbox session number
+TWILIO_WHATSAPP_NUMBER = 'whatsapp:+17372508034'
 
 twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
