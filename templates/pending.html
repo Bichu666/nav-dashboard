@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Approval Pending</title>
+    <!-- Auto-refresh every 5 seconds to check if admin approved -->
+    <meta http-equiv="refresh" content="5">
 </head>
-<body>
-    <div style="text-align: center; margin-top: 100px;">
-        <h2>Approval Pending</h2>
-        <p>An approval request has been sent via WhatsApp to: <strong>{{ phone }}</strong></p>
-        <p>Please check your WhatsApp and click the approval link to access your dashboard.</p>
-    </div>
+<body style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
+    <h2>Approval Pending</h2>
+    <p>Login request sent for phone: <strong>{{ phone }}</strong></p>
+    <p>Please wait while the admin reviews and approves your request on the dashboard...</p>
+    <p style="font-size: 12px; color: gray;">(This page will automatically log you in once approved)</p>
+    <br>
+    <a href="{{ url_for('check_status', phone=phone) }}"><button style="padding: 8px 15px;">Check Status Now</button></a>
 </body>
 </html>
