@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Approval Panel</title>
+    <!-- Auto-refreshes every 5 seconds to show new user requests instantly -->
+    <meta http-equiv="refresh" content="5">
+</head>
+<body style="font-family: Arial, sans-serif; margin: 40px;">
+    <h2>Admin Approval Panel</h2>
+    <p>Live pending requests from users trying to log in:</p>
+    
+    {% if requests %}
+        <table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 50%;">
+            <tr style="background-color: #f2f2f2;">
+                <th>Phone Number</th>
+                <th>Action</th>
+            </tr>
+            {% for phone in requests %}
+            <tr>
+                <td>{{ phone }}</td>
+                <td style="text-align: center;">
+                    <a href="{{ url_for('admin_approve', phone=phone) }}">
+                        <button style="background-color: #28a745; color: white; padding: 6px 12px; border: none; cursor: pointer;">Approve</button>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p style="color: green;">No pending requests right now.</p>
+    {% endif %}
+</body>
+</html>
