@@ -2,12 +2,201 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NAV Dashboard</title>
+    <title>NAV & Portfolio Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+        header { background: #1e293b; color: #fff; padding: 15px 25px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .sensex-box { background: #334155; padding: 10px 15px; border-radius: 6px; font-size: 14px; }
+        .red { color: #f87171; font-weight: bold; }
+        .green { color: #4ade80; font-weight: bold; }
+        h3.section-title { margin-top: 30px; color: #1e293b; border-bottom: 2px solid #cbd5e1; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 10px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+        th { background: #0f172a; color: #fff; }
+        .footer-section { margin-top: 30px; background: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+        .whatsapp-btn { background: #22c55e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
-    <h2>Welcome to NAV Dashboard</h2>
-    <p>Successfully logged in as: <strong>{{ user }}</strong></p>
-    <br>
-    <a href="{{ url_for('logout') }}"><button style="padding: 10px 20px; background-color: #dc3545; color: white; border: none; cursor: pointer;">Logout</button></a>
+<body>
+
+    <header>
+        <div>
+            <h2>NAV & Portfolio Dashboard</h2>
+            <small>Managed by: {{ admin_name }}</small>
+        </div>
+        <div class="sensex-box">
+            <span>Live Sensex: <strong>{{ sensex.current }}</strong></span> 
+            <span class="{% if sensex.status == 'down' %}red{% else %}green{% endif %}">({{ sensex.change }})</span>
+        </div>
+    </header>
+
+    <div style="margin-top: 15px; background: #fff; padding: 15px; border-radius: 8px;">
+        <h3>Previous 5 Days Market Index</h3>
+        <ul>
+            {% for item in sensex_history %}
+                <li>{{ item.date }} — <strong>{{ item.points }}</strong> <span class="{% if item.status == 'down' %}red{% else %}green{% endif %}">({{ item.status }})</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Render Equity Funds -->
+    <h3 class="section-title">Equity Funds (34 Funds)</h3>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fund Name</th>
+                    <th>Benchmark Name</th>
+                    <th>Inception Date</th>
+                    <th>1M</th>
+                    <th>6M</th>
+                    <th>1Y</th>
+                    <th>2Y</th>
+                    <th>3Y</th>
+                    <th>4Y</th>
+                    <th>5Y</th>
+                    <th>7Y</th>
+                    <th>10Y</th>
+                    <th>Highest NAV</th>
+                    <th>Latest NAV</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in nav_data['Equity Funds'] %}
+                <tr>
+                    <td>{{ row.fund_name }}</td>
+                    <td>{{ row.benchmark }}</td>
+                    <td>{{ row.inception_date }}</td>
+                    <td>{{ row.m1 }}</td>
+                    <td>{{ row.m6 }}</td>
+                    <td>{{ row.y1 }}</td>
+                    <td>{{ row.y2 }}</td>
+                    <td>{{ row.y3 }}</td>
+                    <td>{{ row.y4 }}</td>
+                    <td>{{ row.y5 }}</td>
+                    <td>{{ row.y7 }}</td>
+                    <td>{{ row.y10 }}</td>
+                    <td>{{ row.highest_nav }}</td>
+                    <td><strong>{{ row.latest_nav }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Render Balanced Funds -->
+    <h3 class="section-title">Balanced Funds (7 Funds)</h3>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fund Name</th>
+                    <th>Benchmark Name</th>
+                    <th>Inception Date</th>
+                    <th>1M</th>
+                    <th>6M</th>
+                    <th>1Y</th>
+                    <th>2Y</th>
+                    <th>3Y</th>
+                    <th>4Y</th>
+                    <th>5Y</th>
+                    <th>7Y</th>
+                    <th>10Y</th>
+                    <th>Highest NAV</th>
+                    <th>Latest NAV</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in nav_data['Balanced Funds'] %}
+                <tr>
+                    <td>{{ row.fund_name }}</td>
+                    <td>{{ row.benchmark }}</td>
+                    <td>{{ row.inception_date }}</td>
+                    <td>{{ row.m1 }}</td>
+                    <td>{{ row.m6 }}</td>
+                    <td>{{ row.y1 }}</td>
+                    <td>{{ row.y2 }}</td>
+                    <td>{{ row.y3 }}</td>
+                    <td>{{ row.y4 }}</td>
+                    <td>{{ row.y5 }}</td>
+                    <td>{{ row.y7 }}</td>
+                    <td>{{ row.y10 }}</td>
+                    <td>{{ row.highest_nav }}</td>
+                    <td><strong>{{ row.latest_nav }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Render Debt Funds -->
+    <h3 class="section-title">Debt Funds (7 Funds)</h3>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fund Name</th>
+                    <th>Benchmark Name</th>
+                    <th>Inception Date</th>
+                    <th>1M</th>
+                    <th>6M</th>
+                    <th>1Y</th>
+                    <th>2Y</th>
+                    <th>3Y</th>
+                    <th>4Y</th>
+                    <th>5Y</th>
+                    <th>7Y</th>
+                    <th>10Y</th>
+                    <th>Highest NAV</th>
+                    <th>Latest NAV</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in nav_data['Debt Funds'] %}
+                <tr>
+                    <td>{{ row.fund_name }}</td>
+                    <td>{{ row.benchmark }}</td>
+                    <td>{{ row.inception_date }}</td>
+                    <td>{{ row.m1 }}</td>
+                    <td>{{ row.m6 }}</td>
+                    <td>{{ row.y1 }}</td>
+                    <td>{{ row.y2 }}</td>
+                    <td>{{ row.y3 }}</td>
+                    <td>{{ row.y4 }}</td>
+                    <td>{{ row.y5 }}</td>
+                    <td>{{ row.y7 }}</td>
+                    <td>{{ row.y10 }}</td>
+                    <td>{{ row.highest_nav }}</td>
+                    <td><strong>{{ row.latest_nav }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-section">
+        <div>
+            <h3>Feedback & Suggestions</h3>
+            <form action="/feedback" method="POST">
+                <select name="rating">
+                    <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                    <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                    <option value="3">⭐⭐⭐ (3/5)</option>
+                    <option value="2">⭐⭐ (2/5)</option>
+                    <option value="1">⭐ (1/5)</option>
+                </select><br><br>
+                <textarea name="comment" placeholder="Leave your feedback here..." rows="3" cols="30" required></textarea><br>
+                <button type="submit" style="margin-top: 5px; padding: 6px 12px;">Submit Feedback</button>
+            </form>
+        </div>
+        <div>
+            <h3>Support & Contact</h3>
+            <p>Need assistance from the administrator?</p>
+            <a class="whatsapp-btn" href="https://wa.me/919876543210?text=Hello%20Admin,%20I%20need%20help%20with%20the%20NAV%20Dashboard" target="_blank">Chat on WhatsApp</a>
+            <br><br>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
 </body>
 </html>
