@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; padding: 20px; margin: 0; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: white; padding: 15px 25px; border-radius: 8px; margin-bottom: 20px; }
+        .header-bar a { color: #38bdf8; text-decoration: none; margin-left: 15px; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+        th { background: #0f172a; color: white; }
+        .btn-approve { background: #22c55e; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .btn-deny { background: #ef4444; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        input[type="file"] { padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; margin-right: 10px; }
+        button[type="submit"] { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header-bar">
+        <div>
+            <h2>NAV Admin Control Panel</h2>
+            <small>Administrator: <strong>{{ admin_name }}</strong></small>
+        </div>
+        <div>
+            <a href="/dashboard">View User Dashboard</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Upload Master Excel File (NAV.xlsx)</h3>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <input type="file" name="excel_file" accept=".xlsx" required>
+            <button type="submit">Upload & Sync Data</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Upload Today’s NAV File / Image</h3>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <input type="file" name="today_nav_file" accept="image/*,.pdf" required>
+            <button type="submit">Upload Today's NAV</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Upload Month-Wise Old NAV Archive (2024 - 2028)</h3>
+        <form action="/admin" method="POST" enctype="multipart/form-data">
+            <div style="margin-bottom: 10px;">
+                <select name="old_nav_month" style="padding: 8px; border-radius: 4px; width: 250px;" required>
+                    <option value="">-- Choose Month & Year --</option>
+                    
+                    <!-- 2024 -->
+                    <optgroup label="2024">
+                        <option value="January 2024">January 2024</option>
+                        <option value="February 2024">February 2024</option>
+                        <option value="March 2024">March 2024</option>
+                        <option value="April 2024">April 2024</option>
+                        <option value="May 2024">May 2024</option>
+                        <option value="June 2024">June 2024</option>
+                        <option value="July 2024">July 2024</option>
+                        <option value="August 2024">August 2024</option>
+                        <option value="September 2024">September 2024</option>
+                        <option value="October 2024">October 2024</option>
+                        <option value="November 2024">November 2024</option>
+                        <option value="December 2024">December 2024</option>
+                    </optgroup>
+
+                    <!-- 2025 -->
+                    <optgroup label="2025">
+                        <option value="January 2025">January 2025</option>
+                        <option value="February 2025">February 2025</option>
+                        <option value="March 2025">March 2025</option>
+                        <option value="April 2025">April 2025</option>
+                        <option value="May 2025">May 2025</option>
+                        <option value="June 2025">June 2025</option>
+                        <option value="July 2025">July 2025</option>
+                        <option value="August 2025">August 2025</option>
+                        <option value="September 2025">September 2025</option>
+                        <option value="October 2025">October 2025</option>
+                        <option value="November 2025">November 2025</option>
+                        <option value="December 2025">December 2025</option>
+                    </optgroup>
+
+                    <!-- 2026 -->
+                    <optgroup label="2026">
+                        <option value="January 2026">January 2026</option>
+                        <option value="February 2026">February 2026</option>
+                        <option value="March 2026">March 2026</option>
+                        <option value="April 2026">April 2026</option>
+                        <option value="May 2026">May 2026</option>
+                        <option value="June 2026">June 2026</option>
+                        <option value="July 2026">July 2026</option>
+                        <option value="August 2026">August 2026</option>
+                        <option value="September 2026">September 2026</option>
+                        <option value="October 2026">October 2026</option>
+                        <option value="November 2026">November 2026</option>
+                        <option value="December 2026">December 2026</option>
+                    </optgroup>
+
+                    <!-- 2027 -->
+                    <optgroup label="2027">
+                        <option value="January 2027">January 2027</option>
+                        <option value="February 2027">February 2027</option>
+                        <option value="March 2027">March 2027</option>
+                        <option value="April 2027">April 2027</option>
+                        <option value="May 2027">May 2027</option>
+                        <option value="June 2027">June 2027</option>
+                        <option value="July 2027">July 2027</option>
+                        <option value="August 2027">August 2027</option>
+                        <option value="September 2027">September 2027</option>
+                        <option value="October 2027">October 2027</option>
+                        <option value="November 2027">November 2027</option>
+                        <option value="December 2027">December 2027</option>
+                    </optgroup>
+
+                    <!-- 2028 -->
+                    <optgroup label="2028">
+                        <option value="January 2028">January 2028</option>
+                        <option value="February 2028">February 2028</option>
+                        <option value="March 2028">March 2028</option>
+                        <option value="April 2028">April 2028</option>
+                        <option value="May 2028">May 2028</option>
+                        <option value="June 2028">June 2028</option>
+                        <option value="July 2028">July 2028</option>
+                        <option value="August 2028">August 2028</option>
+                        <option value="September 2028">September 2028</option>
+                        <option value="October 2028">October 2028</option>
+                        <option value="November 2028">November 2028</option>
+                        <option value="December 2028">December 2028</option>
+                    </optgroup>
+                </select>
+            </div>
+            <input type="file" name="old_nav_file" accept="image/*,.pdf" required>
+            <button type="submit">Upload Historical NAV</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Pending User Access Approvals</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Mobile Number</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mobile in pending_users %}
+                <tr>
+                    <td><strong>{{ mobile }}</strong></td>
+                    <td>
+                        <form action="/admin" method="POST" style="display:inline;">
+                            <input type="hidden" name="mobile" value="{{ mobile }}">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn-approve">Approve</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="2" style="text-align: center; color: #64748b;">No pending requests.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

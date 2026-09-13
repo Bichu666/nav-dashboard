@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NAV Update Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
+        header { background: #1e293b; color: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .sensex-box { background: #334155; padding: 10px 15px; border-radius: 6px; font-size: 14px; }
+        .red { color: #ef4444; font-weight: bold; }
+        .green { color: #22c55e; font-weight: bold; }
+        .top-actions { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 20px; margin-bottom: 20px; }
+        .action-btn { background: #0f172a; color: white; padding: 8px 12px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .action-btn:hover { background: #1e293b; }
+        h2.section-heading { margin-top: 30px; text-align: center; color: #0f172a; font-size: 24px; }
+        .funds-container { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; align-items: flex-start; }
+        .fund-card { flex: 1; min-width: 300px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 20px; }
+        .fund-card-header { padding: 12px 15px; font-weight: bold; font-size: 16px; border-bottom: 2px solid #e2e8f0; }
+        .equity-header { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+        .balanced-header { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+        .debt-header { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .fund-row { display: flex; justify-content: space-between; padding: 10px 15px; border-bottom: 1px solid #f1f5f9; font-size: 13px; align-items: center; }
+        .fund-row:last-child { border-bottom: none; }
+        .fund-name { color: #334155; max-width: 60%; }
+        .fund-nav { font-weight: bold; font-family: monospace; }
+        .equity-nav { color: #dc2626; }
+        .balanced-nav { color: #2563eb; }
+        .debt-nav { color: #d97706; }
+        .footer-section { margin-top: 30px; background: #fff; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .whatsapp-btn { background: #22c55e; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block; }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>NAV UPDATE</h1>
+            <small>Admin: <strong>{{ admin_name }}</strong></small>
+        </div>
+        <div class="sensex-box">
+            <span>Sensex Value Live: <strong>{{ sensex.current }}</strong></span> 
+            <span class="{% if sensex.status == 'down' %}red{% else %}green{% endif %}">({{ sensex.change }})</span>
+        </div>
+    </header>
+
+    <div class="top-actions">
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+            <div>
+                <strong>Today’s NAV:</strong>
+                {% if today_nav_file.path %}
+                    <a href="/download/{{ today_nav_file.path }}" class="action-btn" style="background: #16a34a; margin-left: 5px;">📥 Download Today's NAV</a>
+                {% else %}
+                    <span style="color: #64748b; font-size: 13px; margin-left: 5px;">Not uploaded yet</span>
+                {% endif %}
+            </div>
+            <div>
+                <strong>Old NAV Archive:</strong>
+                <select id="oldNavSelect" style="padding: 6px; border-radius: 4px; margin-left: 5px;">
+                    <option value="">-- Select Month --</option>
+                    {% for month, filename in old_nav_files.items() %}
+                        <option value="/download/{{ filename }}">{{ month }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="let val=document.getElementById('oldNavSelect').value; if(val) window.open(val, '_blank'); else alert('Please select a month first');" style="padding: 6px 12px; background: #0f172a; color: white; border: none; border-radius: 4px; cursor: pointer; margin-left: 5px;">📥 Download</button>
+            </div>
+            <div>
+                <a href="https://api.whatsapp.com/send?text=Check%20out%20the%20live%20NAV%20Dashboard!" class="action-btn" target="_blank" style="background: #2563eb;">🔗 Share via WhatsApp</a>
+            </div>
+        </div>
+    </div>
+
+    <div style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;">
+        <h3>Sensex Points Previous 5 Days</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+            {% for item in sensex_history %}
+                <li>{{ item.date }} — <strong>{{ item.points }}</strong> <span class="{% if item.status == 'down' %}red{% else %}green{% endif %}">({{ item.status }})</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <h2 class="section-heading">All Fund Details</h2>
+
+    <div class="funds-container">
+        <div class="fund-card">
+            <div class="fund-card-header equity-header">Equity Funds</div>
+            <div>
+                {% for row in nav_data['Equity Funds'] %}
+                <div class="fund-row">
+                    <span class="fund-name">{{ row.fund_name }}</span>
+                    <span class="fund-nav equity-nav">NAV: {{ row.latest_nav }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="fund-card">
+            <div class="fund-card-header balanced-header">Balanced Funds</div>
+            <div>
+                {% for row in nav_data['Balanced Funds'] %}
+                <div class="fund-row">
+                    <span class="fund-name">{{ row.fund_name }}</span>
+                    <span class="fund-nav balanced-nav">NAV: {{ row.latest_nav }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="fund-card">
+            <div class="fund-card-header debt-header">Debt Funds</div>
+            <div>
+                {% for row in nav_data['Debt Funds'] %}
+                <div class="fund-row">
+                    <span class="fund-name">{{ row.fund_name }}</span>
+                    <span class="fund-nav debt-nav">NAV: {{ row.latest_nav }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-section">
+        <div>
+            <h3>User Feedback</h3>
+            <form action="/feedback" method="POST">
+                <select name="rating" style="padding: 6px; border-radius: 4px;">
+                    <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                    <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                    <option value="3">⭐⭐⭐ (3/5)</option>
+                </select><br><br>
+                <textarea name="comment" placeholder="Write feedback here..." rows="3" cols="30" style="padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1;" required></textarea><br>
+                <button type="submit" style="margin-top: 8px; padding: 8px 16px; background: #0f172a; color: white; border: none; border-radius: 4px; cursor: pointer;">Submit</button>
+            </form>
+        </div>
+        <div>
+            <h3>Contact Admin</h3>
+            <a class="whatsapp-btn" href="https://wa.me/919876543210" target="_blank">💬 WhatsApp / Call</a>
+            <br><br>
+            <a href="/logout" style="color: #ef4444; font-weight: bold; text-decoration: none;">🚪 Logout</a>
+        </div>
+    </div>
+</body>
+</html>
