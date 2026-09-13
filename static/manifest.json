@@ -1,0 +1,11 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Financial NAV Dashboard",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "NAV Dashboard",
+  "start_url": "/",
+  "theme_color": "#ffffff"
+}
