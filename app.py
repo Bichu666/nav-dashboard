@@ -1,29 +1,26 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, send_from_directory
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'nav-dashboard-secret-key')
 
-# Explicit routes to serve PWA files directly from root URL for PWABuilder
+# --- PWA Static Asset Routes ---
 @app.route('/manifest.json')
 def serve_manifest():
-    return send_from_directory('static', 'manifest.json')
+    return send_from_directory('static', 'manifest.json', mimetype='application/json')
 
 @app.route('/pwabuilder-sw.js')
-def serve_sw():
-    return send_from_directory('static', 'pwabuilder-sw.js')
+def serve_service_worker():
+    return send_from_directory('static', 'pwabuilder-sw.js', mimetype='application/javascript')
 
+# --- Existing App Routes ---
 @app.route('/')
-def index():
-    return render_template('login.html')
+def home():
+    # Replace this with your actual home/dashboard route logic
+    return render_template('index.html')
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login')
 def login():
-    if request.method == 'POST':
-        phone = request.form.get('phone')
-        # Add your admin approval / login logic here
-        return redirect(url_for('index'))
-    return render_template('login.html')
+    # Replace this with your actual login route logic
+    return "Login Page"
 
 if __name__ == '__main__':
     app.run(debug=True)
