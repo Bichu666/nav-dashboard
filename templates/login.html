@@ -2,26 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login - NAV Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAV Dashboard Login</title>
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#ffffff">
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f9; }
+        .login-container { text-align: center; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input { padding: 10px; font-size: 16px; margin-bottom: 20px; width: 250px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px 20px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background-color: #0056b3; }
-        .error { color: red; font-size: 14px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div class="login-card">
+    <div class="login-container">
         <h2>NAV Dashboard Login</h2>
-        {% if error %}
-            <div class="error">{{ error }}</div>
-        {% endif %}
-        <form method="POST">
-            <input type="text" name="mobile" placeholder="Enter Mobile Number" required>
-            <button type="submit">Login</button>
+        <form action="/login" method="POST">
+            <input type="text" name="phone" placeholder="+918078535666" required><br>
+            <button type="submit">Request Approval</button>
         </form>
     </div>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/pwabuilder-sw.js')
+                    .then(reg => console.log('Service Worker registered!', reg))
+                    .catch(err => console.log('Service Worker registration failed: ', err));
+            });
+        }
+    </script>
 </body>
 </html>

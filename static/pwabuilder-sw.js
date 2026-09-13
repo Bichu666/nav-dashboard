@@ -1,11 +1,8 @@
 // This is the "Offline page" service worker
-
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/5.1.2/workbox-sw.js');
 
-const CACHE = "pwabuilder-page";
-
-// TODO: replace the following with the correct offline fallback page i.e.: const offlineFallbackPage = "offline.html";
-const offlineFallbackPage = "ToDo-replace-this-name.html";
+const CACHE = "nav-dashboard-cache";
+const offlineFallbackPage = "/login";
 
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
@@ -15,8 +12,7 @@ self.addEventListener("message", (event) => {
 
 self.addEventListener('install', async (event) => {
   event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.add(offlineFallbackPage))
+    caches.open(CACHE).then((cache) => cache.add(offlineFallbackPage))
   );
 });
 
@@ -29,18 +25,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       try {
         const preloadResp = await event.preloadResponse;
-
         if (preloadResp) {
           return preloadResp;
         }
-
-        const networkResp = await fetch(event.request);
-        return networkResp;
+        return await fetch(event.request);
       } catch (error) {
-
         const cache = await caches.open(CACHE);
-        const cachedResp = await cache.match(offlineFallbackPage);
-        return cachedResp;
+        return await cache.match(offlineFallbackPage);
       }
     })());
   }
