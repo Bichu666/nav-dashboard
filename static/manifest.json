@@ -3,15 +3,10 @@
   "dir": "ltr",
   "display": "standalone",
   "name": "NAV Dashboard",
+  "orientation": "any",
+  "scope": "/",
   "short_name": "NAV Dashboard",
   "start_url": "/",
-  "scope": "/",
   "theme_color": "#ffffff",
-  "orientation": "any",
-  "lang": "en",
-  "categories": [
-    "business",
-    "finance"
-  ],
   "description": "White-labeled financial NAV dashboard with admin access control."
 }
