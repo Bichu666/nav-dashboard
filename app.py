@@ -1,39 +1,18 @@
-from flask import Flask, render_template, jsonify, send_from_directory
+from flask import Flask, render_template, send_from_directory
+import os
 
 app = Flask(__name__)
 
-# --- PWA Manifest Route (Direct JSON) ---
-@app.route('/manifest.json')
-def serve_manifest():
-    return jsonify({
-        "name": "NAV Financial Dashboard",
-        "short_name": "NAV App",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#ffffff",
-        "theme_color": "#000000",
-        "icons": [
-            {
-                "src": "/static/icon.png",
-                "sizes": "192x192",
-                "type": "image/png"
-            }
-        ]
-    })
-
-# --- Service Worker Route ---
-@app.route('/pwabuilder-sw.js')
-def serve_service_worker():
-    return send_from_directory('static', 'pwabuilder-sw.js', mimetype='application/javascript')
-
-# --- Existing App Routes ---
+# Route for your financial dashboard homepage
 @app.route('/')
 def home():
+    # Replace this with your actual dashboard rendering code or template
     return render_template('index.html')
 
-@app.route('/login')
-def login():
-    return "Login Page"
+# Route to serve manifest.json for PWA / Android Trusted Web Activity
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('.', 'manifest.json')
 
 if __name__ == '__main__':
     app.run(debug=True)
