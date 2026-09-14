@@ -8,10 +8,10 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
-# Route to serve manifest.json from the 'static' directory
+# Route to reliably serve manifest.json from the static directory
 @app.route('/manifest.json')
 def serve_manifest():
-    return send_from_directory('static', 'manifest.json')
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'manifest.json')
 
 if __name__ == '__main__':
     app.run(debug=True)
