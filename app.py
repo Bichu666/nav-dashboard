@@ -10,13 +10,13 @@ def home():
 @app.route('/login', methods=['POST'])
 def login():
     try:
-        # Safely extract form data or JSON payload without throwing undefined errors
+        # Safely extract form data or JSON payload
         data = request.form if request.form else (request.json or {})
         
-        # Check for multiple possible field names ('phone', 'mobile', or 'sense') to prevent crashes
+        # Extract phone or mobile number safely
         phone_number = data.get('phone', data.get('mobile', data.get('sense', '')))
         
-        # Clean the phone string if it exists, otherwise use a placeholder
+        # Clean the phone string if it exists
         if phone_number:
             clean_phone = str(phone_number).replace('+', '').strip()
         else:
@@ -24,11 +24,11 @@ def login():
         
         print(f"Processing login for: {clean_phone}")
         
-        # Successfully render the visual dashboard template
-        return render_template('dashboard.html', phone=clean_phone)
+        # Pass BOTH phone and sense to dashboard.html to prevent UndefinedError
+        return render_template('dashboard.html', phone=clean_phone, sense=clean_phone)
         
     except Exception as e:
-        # Catch and report any unexpected runtime errors clearly
+        # Catch and report any runtime errors clearly
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
