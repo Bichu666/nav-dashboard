@@ -4,27 +4,31 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # Renders your main login or dashboard interface
+    # Renders your main login page (index.html)
     return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
 def login():
     try:
-        # Get phone number from form data or JSON request
-        data = request.form if request.form else request.json
-        phone_number = data.get('phone', '') if data else ''
+        # Safely extract form data or JSON payload without throwing undefined errors
+        data = request.form if request.form else (request.json or {})
         
-        # Safely sanitize phone input to remove symbols like '+'
-        clean_phone = phone_number.replace('+', '').strip()
+        # Check for multiple possible field names ('phone', 'mobile', or 'sense') to prevent crashes
+        phone_number = data.get('phone', data.get('mobile', data.get('sense', '')))
         
-        # Log the activity
-        print(f"Processing login for phone: {clean_phone}")
+        # Clean the phone string if it exists, otherwise use a placeholder
+        if phone_number:
+            clean_phone = str(phone_number).replace('+', '').strip()
+        else:
+            clean_phone = "User"
         
-        # Render the dashboard template upon successful login instead of raw JSON
+        print(f"Processing login for: {clean_phone}")
+        
+        # Successfully render the visual dashboard template
         return render_template('dashboard.html', phone=clean_phone)
         
     except Exception as e:
-        # Catch any runtime error and return a clean message
+        # Catch and report any unexpected runtime errors clearly
         return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == '__main__':
