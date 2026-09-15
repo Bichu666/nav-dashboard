@@ -1,0 +1,82 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.bichu.navdashboard"
+4    android:versionCode="1"
+5    android:versionName="1" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="21"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:4:5-67
+11-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:4:22-64
+12
+13    <permission
+13-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:22:5-24:47
+14        android:name="com.bichu.navdashboard.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+14-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:23:9-81
+15        android:protectionLevel="signature" />
+15-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:24:9-44
+16
+17    <uses-permission android:name="com.bichu.navdashboard.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+17-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:26:5-97
+17-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:26:22-94
+18
+19    <application
+19-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:6:5-22:19
+20        android:allowBackup="true"
+20-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:7:9-35
+21        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+21-->[androidx.core:core:1.9.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\128b8bb97203f6a98303cc29a7b59d63\transformed\core-1.9.0\AndroidManifest.xml:28:18-86
+22        android:extractNativeLibs="true"
+23        android:label="@string/app_name"
+23-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:8:9-41
+24        android:supportsRtl="true"
+24-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:9:9-35
+25        android:theme="@style/AppTheme" >
+25-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:10:9-40
+26        <activity
+26-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:12:9-20:20
+27            android:name="com.bichu.navdashboard.LauncherActivity"
+27-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:13:13-45
+28            android:exported="true"
+28-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:14:13-36
+29            android:theme="@style/Theme.AppCompat.Light.NoActionBar" >
+29-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:15:13-69
+30            <intent-filter>
+30-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:16:13-19:29
+31                <action android:name="android.intent.action.MAIN" />
+31-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:17:17-69
+31-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:17:25-66
+32
+33                <category android:name="android.intent.category.LAUNCHER" />
+33-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:18:17-77
+33-->C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:18:27-74
+34            </intent-filter>
+35        </activity>
+36
+37        <provider
+37-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:24:9-32:20
+38            android:name="androidx.startup.InitializationProvider"
+38-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:25:13-67
+39            android:authorities="com.bichu.navdashboard.androidx-startup"
+39-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:26:13-68
+40            android:exported="false" >
+40-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:27:13-37
+41            <meta-data
+41-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:29:13-31:52
+42                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+42-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:30:17-75
+43                android:value="androidx.startup" />
+43-->[androidx.emoji2:emoji2:1.2.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5571b8760d366230afb74e449f6ff095\transformed\jetified-emoji2-1.2.0\AndroidManifest.xml:31:17-49
+44            <meta-data
+44-->[androidx.lifecycle:lifecycle-process:2.4.1] C:\Users\USER\.gradle\caches\8.11.1\transforms\4e460c0b441b16fc4c81f0b87ee54d07\transformed\jetified-lifecycle-process-2.4.1\AndroidManifest.xml:31:13-33:52
+45                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+45-->[androidx.lifecycle:lifecycle-process:2.4.1] C:\Users\USER\.gradle\caches\8.11.1\transforms\4e460c0b441b16fc4c81f0b87ee54d07\transformed\jetified-lifecycle-process-2.4.1\AndroidManifest.xml:32:17-78
+46                android:value="androidx.startup" />
+46-->[androidx.lifecycle:lifecycle-process:2.4.1] C:\Users\USER\.gradle\caches\8.11.1\transforms\4e460c0b441b16fc4c81f0b87ee54d07\transformed\jetified-lifecycle-process-2.4.1\AndroidManifest.xml:33:17-49
+47        </provider>
+48    </application>
+49
+50</manifest>

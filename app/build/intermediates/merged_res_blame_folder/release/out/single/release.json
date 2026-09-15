@@ -1,0 +1,18 @@
+[
+    {
+        "merged": "com.bichu.navdashboard.app-merged_res-21:/xml_shortcuts.xml.flat",
+        "source": "com.bichu.navdashboard.app-main-22:/xml/shortcuts.xml"
+    },
+    {
+        "merged": "com.bichu.navdashboard.app-merged_res-21:/layout_activity_main.xml.flat",
+        "source": "com.bichu.navdashboard.app-main-22:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.bichu.navdashboard.app-merged_res-21:/xml_filepaths.xml.flat",
+        "source": "com.bichu.navdashboard.app-main-22:/xml/filepaths.xml"
+    },
+    {
+        "merged": "com.bichu.navdashboard.app-merged_res-21:/drawable-anydpi_shortcut_legacy_background.xml.flat",
+        "source": "com.bichu.navdashboard.app-main-22:/drawable-anydpi/shortcut_legacy_background.xml"
+    }
+]
