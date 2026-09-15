@@ -36,8 +36,11 @@ public class LauncherActivity extends AppCompatActivity {
             }
         });
 
-        // Load your Render web dashboard URL
-        webView.loadUrl("https://nav-dashboard-1.onrender.com");
+        // Clear old cache to prevent loading stale responses/JSON messages
+        webView.clearCache(true);
+
+        // Load the root Render URL to properly display index.html
+        webView.loadUrl("https://nav-dashboard-d4ch.onrender.com/");
     }
 
     @Override
