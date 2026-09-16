@@ -1,55 +1,54 @@
+/*
+ * Copyright 2020 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.bichu.navdashboard;
 
+import android.content.pm.ActivityInfo;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.view.KeyEvent;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import androidx.appcompat.app.AppCompatActivity;
 
-public class LauncherActivity extends AppCompatActivity {
-    private WebView webView;
+
+
+public class LauncherActivity
+        extends com.google.androidbrowserhelper.trusted.LauncherActivity {
+    
+
+    
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        webView = findViewById(R.id.webview);
-        WebSettings webSettings = webView.getSettings();
-        
-        // Enable full mobile optimization features
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
-        webSettings.setDatabaseEnabled(true);
-        webSettings.setLoadWithOverviewMode(true);
-        webSettings.setUseWideViewPort(true);
-        webSettings.setSupportZoom(false);
-        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-        // Keep navigation inside the app wrapper instead of external browser
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                view.loadUrl(url);
-                return true;
-            }
-        });
-
-        // Clear old cache to prevent loading stale responses/JSON messages
-        webView.clearCache(true);
-
-        // Load the root Render URL to properly display index.html
-        webView.loadUrl("https://nav-dashboard-d4ch.onrender.com/");
+        // Setting an orientation crashes the app due to the transparent background on Android 8.0
+        // Oreo and below. We only set the orientation on Oreo and above. This only affects the
+        // splash screen and Chrome will still respect the orientation.
+        // See https://github.com/GoogleChromeLabs/bubblewrap/issues/496 for details.
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        } else {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        }
     }
 
     @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        // Handle back button navigation inside WebView history
-        if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
-            webView.goBack();
-            return true;
-        }
-        return super.onKeyDown(keyCode, event);
+    protected Uri getLaunchingUrl() {
+        // Get the original launch Url.
+        Uri uri = super.getLaunchingUrl();
+
+        
+
+        return uri;
     }
 }

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="shortcut_background">#F5F5F5</color>
-    <string name="app_name">Nav Dashboard</string>
-    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-    </style>
-</resources>
