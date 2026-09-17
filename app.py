@@ -1,11 +1,15 @@
 import sqlite3
+import os
 from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
+# Use /tmp directory for Render's read-only file system compatibility
+DB_PATH = '/tmp/database.db'
+
 # Initialize Database
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -31,7 +35,7 @@ def check_status():
     if not phone:
         return redirect(url_for('index'))
         
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # Check if the mobile number already exists in the database
@@ -53,6 +57,35 @@ def check_status():
         return "Welcome to your Dashboard!"
     else:
         return render_template('pending.html')
+
+# --- Admin Routes ---
+
+@app.route('/admin')
+def admin():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, phone, status FROM users')
+    users = cursor.fetchall()
+    conn.close()
+    return render_template('admin.html', users=users)
+
+@app.route('/approve/<int:user_id>', methods=['POST'])
+def approve(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET status = 'approved' WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('admin'))
+
+@app.route('/delete/<int:user_id>', methods=['POST'])
+def delete(user_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('admin'))
 
 if __name__ == '__main__':
     app.run(debug=True)

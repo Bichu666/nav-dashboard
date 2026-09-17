@@ -2,49 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
-    <!-- PWA Manifest Link -->
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <style>
-        body { font-family: Arial, sans-serif; background: #f8fafc; padding: 20px; margin: 0; }
-        .header-bar { display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: white; padding: 15px; }
-        .header-bar a { color: #38bdf8; text-decoration: none; margin-left: 15px; }
-        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
-        th { background: #0f172a; color: white; }
-        .btn-approve { background: #22c55e; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        .btn-deny { background: #ef4444; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; 
+            background-color: #f8f9fa; 
+            margin: 0; 
+            padding: 20px;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 24px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+        }
+        h2 { color: #333; margin-top: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background-color: #f8f9fa; color: #555; }
+        .status-pending { color: #d9534f; font-weight: 600; }
+        .status-approved { color: #28a745; font-weight: 600; }
+        .btn { 
+            padding: 8px 12px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            color: white; 
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .btn-approve { background-color: #007bff; }
+        .btn-approve:hover { background-color: #0056b3; }
+        .btn-delete { background-color: #dc3545; margin-left: 8px; }
+        .btn-delete:hover { background-color: #c82333; }
     </style>
 </head>
 <body>
-    <div class="header-bar">
-        <h2>Admin Panel - NAV Dashboard</h2>
-        <div>
-            <a href="{{ url_for('index') }}">Back to Dashboard</a>
-        </div>
+    <div class="container">
+        <h2>Admin Control Panel</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Mobile Number</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user[0] }}</td>
+                    <td>{{ user[1] }}</td>
+                    <td class="{% if user[2] == 'pending' %}status-pending{% else %}status-approved{% endif %}">
+                        {{ user[2] | capitalize }}
+                    </td>
+                    <td>
+                        {% if user[2] == 'pending' %}
+                        <form action="{{ url_for('approve', user_id=user[0]) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-approve">Approve</button>
+                        </form>
+                        {% endif %}
+                        <form action="{{ url_for('delete', user_id=user[0]) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn btn-delete">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #777;">No users found in the database.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <div style="max-width: 600px; margin: 30px auto;" class="card">
-        <h3>30-Day Expiration Control</h3>
-        {% if message %}
-            <p style="color: green; font-weight: bold;">{{ message }}</p>
-        {% endif %}
-        <p>Current Approval Expiration: <strong>{{ expiration_date }}</strong></p>
-        <p>Days Remaining: <strong>{{ days_left }} days</strong></p>
-
-        <form method="POST">
-            <label for="password">Enter Admin Password to Renew for 30 Days:</label><br><br>
-            <input type="password" name="password" required style="padding: 8px; width: 80%; margin-bottom: 10px;"><br>
-            <button type="submit" class="btn-approve">Renew Approval (30 Days)</button>
-        </form>
-    </div>
-
-    <!-- Service Worker Registration Script -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register("{{ url_for('static', filename='pwabuilder-sw.js') }}");
-      }
-    </script>
 </body>
 </html>
