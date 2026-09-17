@@ -1,40 +1,22 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    # Renders your main login page (index.html)
+    # Renders the login page where users enter their phone number
     return render_template('index.html')
 
-@app.route('/login', methods=['POST'])
-def login():
-    try:
-        # Safely extract form data or JSON payload
-        data = request.form if request.form else (request.json or {})
+@app.route('/check_status', methods=['POST', 'GET'])
+def check_status():
+    if request.method == 'POST':
+        phone = request.form.get('phone')
+        # Add your backend logic here (e.g., database lookup, OTP generation, etc.)
         
-        # Check for multiple possible field names ('phone', 'mobile', or 'sense')
-        phone_number = data.get('phone', data.get('mobile', data.get('sense', '')))
+        # For now, return a success response or render a confirmation page
+        return f"Approval requested successfully for mobile number: {phone}"
         
-        # Clean the phone string if it exists, otherwise use a placeholder
-        if phone_number:
-            clean_phone = str(phone_number).replace('+', '').strip()
-        else:
-            clean_phone = "User"
-        
-        print(f"Processing login for: {clean_phone}")
-        
-        # Pass both phone and sense to dashboard.html
-        return render_template('dashboard.html', phone=clean_phone, sense=clean_phone)
-        
-    except Exception as e:
-        # Catch and report any runtime errors clearly
-        return jsonify({"status": "error", "message": str(e)}), 400
-
-@app.route('/logout')
-def logout():
-    # Redirect user back to the home/login page
     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)

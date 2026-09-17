@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.nav.dashboard.twa.app-merged_res-6:/drawable-anydpi_shortcut_legacy_background.xml.flat",
+        "source": "com.nav.dashboard.twa.app-main-8:/drawable-anydpi/shortcut_legacy_background.xml"
+    },
+    {
+        "merged": "com.nav.dashboard.twa.app-merged_res-6:/xml_shortcuts.xml.flat",
+        "source": "com.nav.dashboard.twa.app-main-8:/xml/shortcuts.xml"
+    },
+    {
+        "merged": "com.nav.dashboard.twa.app-merged_res-6:/xml_filepaths.xml.flat",
+        "source": "com.nav.dashboard.twa.app-main-8:/xml/filepaths.xml"
+    }
+]

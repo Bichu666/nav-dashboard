@@ -1,0 +1,9 @@
+com.nav.dashboard.twa.app-core-1.1.0-0 C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\res
+com.nav.dashboard.twa.app-browser-1.5.0-1 C:\Users\USER\.gradle\caches\8.11.1\transforms\da30e910e98d65e14a870c49af1f81e4\transformed\browser-1.5.0\res
+com.nav.dashboard.twa.app-pngs-2 C:\Users\USER\Desktop\nav_app\app\build\generated\res\pngs\debug
+com.nav.dashboard.twa.app-resValues-3 C:\Users\USER\Desktop\nav_app\app\build\generated\res\resValues\debug
+com.nav.dashboard.twa.app-packageDebugResources-4 C:\Users\USER\Desktop\nav_app\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.nav.dashboard.twa.app-packageDebugResources-5 C:\Users\USER\Desktop\nav_app\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.nav.dashboard.twa.app-merged_res-6 C:\Users\USER\Desktop\nav_app\app\build\intermediates\merged_res\debug
+com.nav.dashboard.twa.app-debug-7 C:\Users\USER\Desktop\nav_app\app\src\debug\res
+com.nav.dashboard.twa.app-main-8 C:\Users\USER\Desktop\nav_app\app\src\main\res

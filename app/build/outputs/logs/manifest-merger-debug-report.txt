@@ -1,0 +1,84 @@
+-- Merging decision tree log ---
+manifest
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:2:1-27:12
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:2:1-27:12
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:2:1-27:12
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:2:1-27:12
+MERGED from [androidx.browser:browser:1.5.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\da30e910e98d65e14a870c49af1f81e4\transformed\browser-1.5.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:17:1-26:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\89f7a3702dba32b505260236c65e024a\transformed\versionedparcelable-1.1.0\AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5664392da070245909b8c035aeff1363\transformed\interpolator-1.0.0\AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\926623ac93cb45b8b2ff74634cedb42c\transformed\lifecycle-runtime-2.0.0\AndroidManifest.xml:17:1-22:12
+	package
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+	android:versionName
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+	android:versionCode
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+	xmlns:android
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:4:5-67
+	android:name
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:4:22-64
+application
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:6:5-25:19
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:6:5-25:19
+MERGED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:24:5-89
+MERGED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:24:5-89
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\89f7a3702dba32b505260236c65e024a\transformed\versionedparcelable-1.1.0\AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\89f7a3702dba32b505260236c65e024a\transformed\versionedparcelable-1.1.0\AndroidManifest.xml:24:5-25:19
+	android:extractNativeLibs
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+	android:appComponentFactory
+		ADDED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:24:18-86
+	android:supportsRtl
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:11:9-35
+	android:label
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:9:9-40
+	android:roundIcon
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:10:9-62
+	android:icon
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:8:9-57
+	android:allowBackup
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:7:9-35
+	android:theme
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:12:9-77
+activity#com.nav.dashboard.twa.MainActivity
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:14:9-23:20
+	android:label
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:17:13-44
+	android:exported
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:16:13-36
+	android:theme
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:18:13-81
+	android:name
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:15:13-41
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:19:13-22:29
+action#android.intent.action.MAIN
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:20:17-69
+	android:name
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:20:25-66
+category#android.intent.category.LAUNCHER
+ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:21:17-77
+	android:name
+		ADDED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml:21:27-74
+uses-sdk
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+MERGED from [androidx.browser:browser:1.5.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\da30e910e98d65e14a870c49af1f81e4\transformed\browser-1.5.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.browser:browser:1.5.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\da30e910e98d65e14a870c49af1f81e4\transformed\browser-1.5.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.core:core:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\995626ae9ec326bf852fab981283954a\transformed\core-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\89f7a3702dba32b505260236c65e024a\transformed\versionedparcelable-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\89f7a3702dba32b505260236c65e024a\transformed\versionedparcelable-1.1.0\AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5664392da070245909b8c035aeff1363\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\5664392da070245909b8c035aeff1363\transformed\interpolator-1.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\926623ac93cb45b8b2ff74634cedb42c\transformed\lifecycle-runtime-2.0.0\AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.0.0] C:\Users\USER\.gradle\caches\8.11.1\transforms\926623ac93cb45b8b2ff74634cedb42c\transformed\lifecycle-runtime-2.0.0\AndroidManifest.xml:20:5-44
+	android:targetSdkVersion
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from C:\Users\USER\Desktop\nav_app\app\src\main\AndroidManifest.xml
