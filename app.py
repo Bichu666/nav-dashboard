@@ -11,10 +11,8 @@ def home():
 def check_status():
     if request.method == 'POST':
         phone = request.form.get('phone')
-        # Add your backend logic here (e.g., database lookup, OTP generation, etc.)
-        
-        # For now, return a success response or render a confirmation page
-        return f"Approval requested successfully for mobile number: {phone}"
+        # Render the pending template and pass the phone number to it
+        return render_template('pending.html', phone=phone)
         
     return redirect(url_for('home'))
 
