@@ -28,8 +28,11 @@ init_db()
 def index():
     return render_template('index.html')
 
-@app.route('/check_status', methods=['POST'])
+@app.route('/check_status', methods=['GET', 'POST'])
 def check_status():
+    if request.method == 'GET':
+        return redirect(url_for('index'))
+        
     phone = request.form.get('phone')
     
     if not phone:
