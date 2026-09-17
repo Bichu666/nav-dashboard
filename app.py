@@ -54,7 +54,7 @@ def check_status():
     
     # Direct user based on approval status
     if status == 'approved':
-        return "Welcome to your Dashboard!"
+        return render_template('dashboard.html')
     else:
         return render_template('pending.html')
 
