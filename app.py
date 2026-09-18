@@ -14,11 +14,11 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        mobile = request.form.get('mobile')
-        password = request.form.get('password')
+        mobile = request.form.get('mobile', '').strip()
+        password = request.form.get('password', '').strip()
         
-        # Check if login matches admin credentials
-        if mobile == ADMIN_MOBILE and password == ADMIN_PASSWORD:
+        # Check if login matches admin credentials (checking both full format and raw numbers)
+        if (mobile == ADMIN_MOBILE or mobile == "807853566") and password == ADMIN_PASSWORD:
             session['user'] = mobile
             session['is_admin'] = True
             return redirect(url_for('dashboard'))
@@ -36,7 +36,7 @@ def dashboard():
         return redirect(url_for('login'))
     
     # Route to appropriate dashboard based on role
-    if session.get('is_admin'):
+    if session.get('is_admin') == True:
         return render_template('dashboard.html')
     else:
         return render_template('user_dashboard.html')
