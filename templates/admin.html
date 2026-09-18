@@ -2,35 +2,95 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - NAV Portal</title>
-    <!-- Correct Flask static file linking -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Admin Dashboard - NAV Updates</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <div class="card shadow p-4">
-            <h2 class="mb-4">Admin Control Panel</h2>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>ID</th>
-                            <th>Mobile Number</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Data rows will render here -->
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">No users found in the database.</td>
-                        </tr>
-                    </tbody>
-                </table>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>NAV UPDATE (ADMIN)</h1>
+            <div class="user-info">
+                <span>Admin: {{ session.get('user') }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
             </div>
+        </header>
+
+        <!-- Master Excel Upload -->
+        <section class="card">
+            <h2>Upload Master Excel file (All Funds)</h2>
+            <div class="form-group-inline">
+                <input type="file">
+                <button class="btn-upload">Upload Master</button>
+            </div>
+        </section>
+
+        <!-- Upload Old & Today NAV -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <section class="card">
+                <h2>Upload Old NAV (2024 - Present)</h2>
+                <div class="form-group-inline" style="margin-bottom: 10px;">
+                    <select><option>2024</option><option>2025</option><option>2026</option></select>
+                    <select><option>January</option><option>February</option></select>
+                </div>
+                <div class="form-group-inline">
+                    <input type="file">
+                    <button class="btn-upload">Upload Month NAV</button>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Upload Today's NAV (JPEG Format)</h2>
+                <div class="form-group-inline" style="margin-bottom: 10px;">
+                    <input type="file">
+                    <button class="btn-upload">Upload Today NAV</button>
+                </div>
+                <p style="font-size: 13px; color: #666;">Sharing option: Mail / WhatsApp</p>
+            </section>
         </div>
+
+        <!-- Sensex Bar -->
+        <div class="sensex-bar">
+            <strong>Sensex point Previous 5 days:</strong> 
+            <span>14 Sep: 74781.76 (-120.63) | 15 Sep: 74003.82 (-777.94) | 16 Sep: 74336.45 (+332.63) | 17 Sep: 74314.59 (-21.86) | 18 Sep: 74421.04 (+106.45)</span>
+        </div>
+
+        <!-- Fund Details Grid -->
+        <section class="card">
+            <h2>All Fund details</h2>
+            <div class="funds-grid">
+                <div class="fund-column">
+                    <h3>Equity Funds (34)</h3>
+                    <p>Maximiser Fund - NAV: 291.8471</p>
+                </div>
+                <div class="fund-column">
+                    <h3>Balanced Funds (7)</h3>
+                    <p>Highest NAV Fund B - NAV: 21.9974</p>
+                </div>
+                <div class="fund-column">
+                    <h3>Debt Funds (7)</h3>
+                    <p>Income Fund - NAV: 33.2628</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Admin Approval Panel (Visible only to Admin) -->
+        <section class="card">
+            <h2>Admin Folder: Visitor Activity & Login Approvals</h2>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr style="border-bottom: 1px solid #ddd; text-align: left;">
+                    <th style="padding: 8px;">Mobile / Client</th>
+                    <th style="padding: 8px;">Action</th>
+                    <th style="padding: 8px;">Status</th>
+                    <th style="padding: 8px;">Timestamp</th>
+                </tr>
+                <tr>
+                    <td style="padding: 8px;">+91 9876543210</td>
+                    <td style="padding: 8px;">Requested Login Access</td>
+                    <td style="padding: 8px;"><span style="background: orange; color: white; padding: 2px 6px; border-radius: 3px;">Pending</span></td>
+                    <td style="padding: 8px;">18 Sep 2026, 09:30 AM</td>
+                </tr>
+            </table>
+        </section>
     </div>
 </body>
 </html>
