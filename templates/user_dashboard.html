@@ -7,17 +7,19 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <header class="header">
             <h1>NAV UPDATE</h1>
-            <div class="user-info">
-                <span>Welcome, User ({{ session.get('user') }})</span>
-                <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+            <div class="user-info" style="font-size: 13px; color: #555;">
+                <span>Sensex value live: 74421.04 (+106.45)</span>
+                <span style="margin-left: 15px;">Welcome, User</span>
+                <a href="{{ url_for('logout') }}" class="btn-logout" style="margin-left: 10px;">Logout</a>
             </div>
         </header>
 
-        <!-- Master Excel section completely removed for Users -->
+        <!-- Master Excel section omitted for users -->
 
-        <!-- Download Old & Today NAV Sections (Replaced Uploads with Downloads) -->
+        <!-- Download Old & Today NAV Sections -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <section class="card">
                 <h2>Download Old NAV Records</h2>
@@ -50,20 +52,64 @@
             <div class="funds-grid">
                 <div class="fund-column">
                     <h3>Equity Funds (34)</h3>
-                    <p>Maximiser Fund - NAV: 291.8471</p>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="margin-bottom: 6px;"><a href="#" onclick="openModal('Maximiser Fund', 'November 19, 2001', 'S&P BSE 100', '14.75%', '2.22%', '-0.51%', '2.06%', '0.00%', '8.49%', '10.71%', '10.18%', '12.05%', '9.80%', '313.3828', '293.8471'); return false;" style="text-decoration: none; color: #0066cc;">Maximiser Fund</a> <span style="float: right;">NAV: 293.8471</span></li>
+                    </ul>
                 </div>
                 <div class="fund-column">
                     <h3>Balanced Funds (7)</h3>
-                    <p>Highest NAV Fund B - NAV: 21.9974</p>
+                    <p style="font-size: 13px; color: #555;">Highest NAV Fund B - NAV: 21.9974</p>
                 </div>
                 <div class="fund-column">
                     <h3>Debt Funds (7)</h3>
-                    <p>Income Fund - NAV: 33.2628</p>
+                    <p style="font-size: 13px; color: #555;">Income Fund - NAV: 33.2628</p>
                 </div>
             </div>
         </section>
-
-        <!-- Admin Approval Panel is disabled/omitted completely for regular users -->
+        <!-- Admin approval panel hidden -->
     </div>
+
+    <!-- Fund Details Modal Popup -->
+    <div id="fundModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; width: 450px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <div style="background: #2c3e50; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="modalTitle" style="margin: 0; font-size: 16px;">Fund Name</h3>
+                <button onclick="closeModal()" style="background: none; border: none; color: white; font-size: 18px; cursor: pointer;">&times;</button>
+            </div>
+            <div style="padding: 20px; font-size: 14px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr><td style="padding: 6px 0; color: #666;">Inception Date:</td><td id="mInception" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">Benchmark:</td><td id="mBenchmark" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">Since Inception:</td><td id="mSince" style="text-align: right; font-weight: bold; color: green;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">1 Month:</td><td id="m1M" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">6 Months:</td><td id="m6M" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">1 Year:</td><td id="m1Y" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">3 Years:</td><td id="m3Y" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">5 Years:</td><td id="m5Y" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">Highest Value:</td><td id="mHigh" style="text-align: right; font-weight: bold;">-</td></tr>
+                    <tr><td style="padding: 6px 0; color: #666;">Latest NAV:</td><td id="mLatest" style="text-align: right; font-weight: bold;">-</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal(name, inc, bench, since, m1, m6, y1, y2, y3, y4, y5, y7, y10, high, latest) {
+            document.getElementById('modalTitle').innerText = name;
+            document.getElementById('mInception').innerText = inc;
+            document.getElementById('mBenchmark').innerText = bench;
+            document.getElementById('mSince').innerText = since;
+            document.getElementById('m1M').innerText = m1;
+            document.getElementById('m6M').innerText = m6;
+            document.getElementById('m1Y').innerText = y1;
+            document.getElementById('m3Y').innerText = y3;
+            document.getElementById('mHigh').innerText = high;
+            document.getElementById('mLatest').innerText = latest;
+            document.getElementById('fundModal').style.display = 'flex';
+        }
+        function closeModal() {
+            document.getElementById('fundModal').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
