@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAV Update - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .nav-title { font-weight: 800; letter-spacing: 1px; font-family: serif; }
+        .fund-card { cursor: pointer; transition: background 0.15s ease; }
+        .fund-card:hover { background-color: #f8f9fa; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <div class="container my-4">
+        
+        <!-- FLASH MESSAGES -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show py-2" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- TOP HEADER -->
+        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-3 flex-wrap">
+            <h1 class="nav-title text-dark display-5 mb-0">NAV UPDATE</h1>
+            <div class="text-end">
+                <h5 class="mb-1">Sensex value live: 
+                    <strong class="text-{{ 'success' if sensex.is_up else 'danger' }}">
+                        {{ sensex.current }} ({{ '+' if sensex.is_up else '' }}{{ sensex.change }})
+                    </strong>
+                    <small class="text-muted fs-6">[{{ sensex.time }}]</small>
+                </h5>
+                <p class="text-muted mb-0">Admin - <strong>{{ admin_name }}</strong></p>
+            </div>
+            <div>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-dark btn-sm">Logout</a>
+            </div>
+        </div>
+
+        <!-- ADMIN CONTROLS: UPLOAD MASTER EXCEL -->
+        <div class="card shadow-sm mb-4 bg-white border">
+            <div class="card-body py-2">
+                <form action="{{ url_for('upload_excel') }}" method="POST" enctype="multipart/form-data" class="row align-items-center">
+                    <div class="col-md-4">
+                        <span class="fw-bold text-dark">Upload Master Excel file (All Funds)</span>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="file" name="master_excel" class="form-control form-control-sm" accept=".xlsx, .xls" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-dark btn-sm w-100">Upload Master</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ROW: UPLOAD OLD NAV & TODAY'S NAV -->
+        <div class="row g-4 mb-4">
+            <!-- Upload Old NAV (2024 to uptodate, month-wise with multiple file support) -->
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title text-secondary mb-3">Upload Old NAV (2024 - Present)</h4>
+                        <form action="{{ url_for('upload_old_nav') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <select name="nav_year" class="form-select form-select-sm" required>
+                                        {% for yr in old_nav_archive.keys() %}
+                                        <option value="{{ yr }}">{{ yr }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select name="nav_month" class="form-select form-select-sm" required>
+                                        {% for m in ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+                                        <option value="{{ m }}">{{ m }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <input type="file" name="old_nav_file" class="form-control" accept=".jpeg, .jpg, .png, .pdf" multiple required>
+                                <button type="submit" class="btn btn-outline-secondary">Upload Month NAV</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Today's NAV & Sharing Option -->
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title text-success mb-3">Upload Today's NAV (JPEG Format)</h4>
+                        <form action="{{ url_for('upload_today_nav') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                            <div class="input-group input-group-sm">
+                                <input type="file" name="nav_image" class="form-control" accept="image/jpeg, image/jpg, image/png" required>
+                                <button type="submit" class="btn btn-success">Upload Today NAV</button>
+                            </div>
+                        </form>
+                        
+                        {% if nav_image %}
+                        <div class="mb-2">
+                            <a href="{{ url_for('static', filename='uploads/' + nav_image) }}" download class="btn btn-dark btn-sm w-100 mb-2" onclick="logAction('Downloaded Today NAV JPEG')">
+                                📥 Download Latest NAV Snapshot (JPEG)
+                            </a>
+                        </div>
+                        {% endif %}
+
+                        <h6 class="text-secondary small mt-2">Sharing option: Mail / WhatsApp</h6>
+                        <div class="d-flex gap-2">
+                            <a href="https://api.whatsapp.com/send?text=Check%20out%20todays%20NAV%20update:%20http://127.0.0.1:5000/" target="_blank" class="btn btn-outline-success btn-sm flex-fill" onclick="logAction('Shared via WhatsApp')">Share via WhatsApp</a>
+                            <a href="mailto:?subject=Today NAV Update&body=Check out todays NAV update snapshot." class="btn btn-outline-primary btn-sm flex-fill" onclick="logAction('Shared via Email')">Share via Email</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SENSEX PREVIOUS 5 DAYS -->
+        <div class="card shadow-sm mb-4 bg-white">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                    <span class="text-dark fw-bold">Sensex point Previous 5 days:</span>
+                    <div class="d-flex gap-3 flex-wrap">
+                        {% for h in sensex.history %}
+                        <span class="small">
+                            {{ h.date }}: <strong>{{ h.value }}</strong>
+                            <span class="text-{{ 'success' if h.is_up else 'danger' }} fw-bold">
+                                ({{ '+' if h.is_up else '' }}{{ h.change }})
+                            </span>
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ALL FUND DETAILS -->
+        <div class="mb-5">
+            <h3 class="mb-3 text-dark border-bottom pb-2">All Fund details</h3>
+            <div class="card shadow-sm p-3">
+                <div class="row">
+                    <!-- Equity Funds -->
+                    <div class="col-lg-4 border-end">
+                        <h5 class="text-danger fw-bold mb-3">Equity Funds (34)</h5>
+                        <div style="max-height: 420px; overflow-y: auto;" class="pe-2">
+                            {% for fund in equity_funds %}
+                            <div class="p-2 border-bottom fund-card d-flex justify-content-between align-items-center" 
+                                 data-bs-toggle="modal" data-bs-target="#fundModal" 
+                                 data-name="{{ fund.name }}" data-inception="{{ fund.inception_date }}" data-bench="{{ fund.benchmark }}" 
+                                 data-since="{{ fund.since_inception }}" data-m1="{{ fund.m1 }}" data-m6="{{ fund.m6 }}" 
+                                 data-y1="{{ fund.y1 }}" data-y2="{{ fund.y2 }}" data-y3="{{ fund.y3 }}" data-y4="{{ fund.y4 }}" 
+                                 data-y5="{{ fund.y5 }}" data-y7="{{ fund.y7 }}" data-y10="{{ fund.y10 }}" data-highest="{{ fund.highest_value }}" data-nav="{{ fund.latest_nav }}">
+                                <span class="small text-dark fw-semibold">{{ fund.name }}</span>
+                                <span class="small fw-bold text-{{ 'success' if fund.is_above_base else 'danger' }}">
+                                    NAV: {{ fund.latest_nav }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small">No Equity funds uploaded yet. Use master Excel upload above.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Balanced Funds -->
+                    <div class="col-lg-4 border-end">
+                        <h5 class="text-primary fw-bold mb-3">Balanced Funds (7)</h5>
+                        <div style="max-height: 420px; overflow-y: auto;" class="pe-2">
+                            {% for fund in balanced_funds %}
+                            <div class="p-2 border-bottom fund-card d-flex justify-content-between align-items-center" 
+                                 data-bs-toggle="modal" data-bs-target="#fundModal" 
+                                 data-name="{{ fund.name }}" data-inception="{{ fund.inception_date }}" data-bench="{{ fund.benchmark }}" 
+                                 data-since="{{ fund.since_inception }}" data-m1="{{ fund.m1 }}" data-m6="{{ fund.m6 }}" 
+                                 data-y1="{{ fund.y1 }}" data-y2="{{ fund.y2 }}" data-y3="{{ fund.y3 }}" data-y4="{{ fund.y4 }}" 
+                                 data-y5="{{ fund.y5 }}" data-y7="{{ fund.y7 }}" data-y10="{{ fund.y10 }}" data-highest="{{ fund.highest_value }}" data-nav="{{ fund.latest_nav }}">
+                                <span class="small text-dark fw-semibold">{{ fund.name }}</span>
+                                <span class="small fw-bold text-{{ 'success' if fund.is_above_base else 'danger' }}">
+                                    NAV: {{ fund.latest_nav }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small">No Balanced funds uploaded yet.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Debt Funds -->
+                    <div class="col-lg-4">
+                        <h5 class="text-dark fw-bold mb-3">Debt Funds (7)</h5>
+                        <div style="max-height: 420px; overflow-y: auto;" class="pe-2">
+                            {% for fund in debt_funds %}
+                            <div class="p-2 border-bottom fund-card d-flex justify-content-between align-items-center" 
+                                 data-bs-toggle="modal" data-bs-target="#fundModal" 
+                                 data-name="{{ fund.name }}" data-inception="{{ fund.inception_date }}" data-bench="{{ fund.benchmark }}" 
+                                 data-since="{{ fund.since_inception }}" data-m1="{{ fund.m1 }}" data-m6="{{ fund.m6 }}" 
+                                 data-y1="{{ fund.y1 }}" data-y2="{{ fund.y2 }}" data-y3="{{ fund.y3 }}" data-y4="{{ fund.y4 }}" 
+                                 data-y5="{{ fund.y5 }}" data-y7="{{ fund.y7 }}" data-y10="{{ fund.y10 }}" data-highest="{{ fund.highest_value }}" data-nav="{{ fund.latest_nav }}">
+                                <span class="small text-dark fw-semibold">{{ fund.name }}</span>
+                                <span class="small fw-bold text-{{ 'success' if fund.is_above_base else 'danger' }}">
+                                    NAV: {{ fund.latest_nav }}
+                                </span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted small">No Debt funds uploaded yet.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN FOLDER: VISITOR LOGS & LOGIN APPROVALS -->
+        <div class="card shadow-sm mb-5">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0 fs-6">Admin Folder: Visitor Activity & Login Approvals</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0 small align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mobile Number / Client</th>
+                                <th>Action Performed</th>
+                                <th>Status / Approval</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in visitors %}
+                            <tr>
+                                <td><strong>{{ v.mobile }}</strong></td>
+                                <td>{{ v.action }}</td>
+                                <td>
+                                    {% if v.status == 'Pending' %}
+                                        <span class="badge bg-warning text-dark mb-1">Pending</span>
+                                        <div class="d-flex gap-1">
+                                            <form action="{{ url_for('approve_user', log_id=v.id) }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-success btn-sm py-0 px-2" style="font-size: 11px;">Accept</button>
+                                            </form>
+                                            <form action="{{ url_for('reject_user', log_id=v.id) }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-danger btn-sm py-0 px-2" style="font-size: 11px;">Reject</button>
+                                            </form>
+                                        </div>
+                                    {% elif v.status == 'Approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ v.timestamp }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- USER FEEDBACK & CONTACT ADMIN -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title text-dark mb-3">User Feedback and Suggestion</h4>
+                        <form action="{{ url_for('submit_feedback') }}" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label small text-muted">Rate your experience:</label>
+                                <select name="rating" class="form-select form-select-sm mb-2" required>
+                                    <option value="5">★★★★★ (5/5 - Excellent)</option>
+                                    <option value="4">★★★★☆ (4/5 - Very Good)</option>
+                                    <option value="3">★★★☆☆ (3/5 - Good)</option>
+                                </select>
+                                <textarea name="message" class="form-control form-control-sm" rows="2" placeholder="Suggestions or feedback..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-dark btn-sm">Submit Feedback</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h4 class="card-title text-dark mb-3">Contact Admin</h4>
+                        <p class="text-muted mb-1">Administrator: <strong>{{ admin_name }}</strong></p>
+                        <p class="text-muted small mb-3">WhatsApp / Mobile call support line.</p>
+                        <a href="tel:+91807853566" class="btn btn-outline-dark btn-sm" onclick="logAction('Called Admin')">Call / WhatsApp Support</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FUND POPUP MODAL -->
+    <div class="modal fade" id="fundModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title" id="modalFundName">Fund Details</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ul class="list-group list-group-flush small">
+              <li class="list-group-item d-flex justify-content-between"><span>Inception Date:</span> <strong id="modalInception"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Benchmark:</span> <strong id="modalBench"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Since Inception:</span> <strong id="modalSince"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>1 Month:</span> <strong id="modalM1"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>6 Months:</span> <strong id="modalM6"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>1 Year:</span> <strong id="modalY1"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>2 Years:</span> <strong id="modalY2"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>3 Years:</span> <strong id="modalY3"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>4 Years:</span> <strong id="modalY4"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>5 Years:</span> <strong id="modalY5"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>7 Years:</span> <strong id="modalY7"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>10 Years:</span> <strong id="modalY10"></strong></li>
+              <li class="list-group-item d-flex justify-content-between"><span>Highest Value:</span> <strong id="modalHighest"></strong></li>
+              <li class="list-group-item d-flex justify-content-between bg-light"><span>Latest NAV:</span> <strong id="modalNav"></strong></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function logAction(actionName) {
+            navigator.sendBeacon('/track_action', new URLSearchParams({'action': actionName}));
+        }
+
+        const fundModal = document.getElementById('fundModal');
+        fundModal.addEventListener('show.bs.modal', function (event) {
+            const card = event.relatedTarget;
+            const fundName = card.getAttribute('data-name');
+            document.getElementById('modalFundName').textContent = fundName;
+            document.getElementById('modalInception').textContent = card.getAttribute('data-inception');
+            document.getElementById('modalBench').textContent = card.getAttribute('data-bench');
+
+            function formatPercentageField(elementId, valStr) {
+                const el = document.getElementById(elementId);
+                if (!valStr || valStr === '-' || isNaN(valStr)) {
+                    el.textContent = valStr || '-';
+                    el.className = '';
+                    return;
+                }
+                const num = parseFloat(valStr);
+                const pct = (num * 100).toFixed(2) + '%';
+                el.textContent = pct;
+                
+                if (num <= 0) {
+                    el.className = 'text-danger fw-bold';
+                } else {
+                    el.className = 'text-success fw-bold';
+                }
+            }
+
+            formatPercentageField('modalSince', card.getAttribute('data-since'));
+            formatPercentageField('modalM1', card.getAttribute('data-m1'));
+            formatPercentageField('modalM6', card.getAttribute('data-m6'));
+            formatPercentageField('modalY1', card.getAttribute('data-y1'));
+            formatPercentageField('modalY2', card.getAttribute('data-y2'));
+            formatPercentageField('modalY3', card.getAttribute('data-y3'));
+            formatPercentageField('modalY4', card.getAttribute('data-y4'));
+            formatPercentageField('modalY5', card.getAttribute('data-y5'));
+            formatPercentageField('modalY7', card.getAttribute('data-y7'));
+            formatPercentageField('modalY10', card.getAttribute('data-y10'));
+
+            document.getElementById('modalHighest').textContent = card.getAttribute('data-highest');
+
+            const navStr = card.getAttribute('data-nav');
+            const navEl = document.getElementById('modalNav');
+            navEl.textContent = navStr;
+            const navVal = parseFloat(navStr);
+            if (!isNaN(navVal) && navVal < 10.0) {
+                navEl.className = 'text-danger fw-bold';
+            } else {
+                navEl.className = 'text-success fw-bold';
+            }
+            
+            logAction('Viewed fund details: ' + fundName);
+        });
+    </script>
+</body>
+</html>
