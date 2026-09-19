@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, redirect, url_for, session
 app = Flask(__name__)
 app.secret_key = 'nav_portal_secret_key'
 
-# Admin credentials
 ADMIN_MOBILE = "+91807853566"
 ADMIN_PASSWORD = "Bichu@5419"
 
@@ -17,16 +16,17 @@ def login():
         mobile = request.form.get('mobile', '').strip()
         password = request.form.get('password', '').strip()
         
-        # Check if login matches admin credentials (checking both full format and raw numbers)
-        if (mobile == ADMIN_MOBILE or mobile == "807853566") and password == ADMIN_PASSWORD:
+        session.clear()
+        
+        # Explicit admin check
+        if mobile == ADMIN_MOBILE and password == ADMIN_PASSWORD:
             session['user'] = mobile
             session['is_admin'] = True
-            return redirect(url_for('dashboard'))
         else:
-            # Regular user session
             session['user'] = mobile
             session['is_admin'] = False
-            return redirect(url_for('dashboard'))
+            
+        return redirect(url_for('dashboard'))
             
     return render_template('login.html')
 
@@ -34,12 +34,7 @@ def login():
 def dashboard():
     if 'user' not in session:
         return redirect(url_for('login'))
-    
-    # Route to appropriate dashboard based on role
-    if session.get('is_admin') == True:
-        return render_template('dashboard.html')
-    else:
-        return render_template('user_dashboard.html')
+    return render_template('dashboard.html')
 
 @app.route('/logout')
 def logout():
