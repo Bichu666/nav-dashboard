@@ -3,24 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <title>Login - NAV Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f2f2f2; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: white; padding: 30px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        .login-card h2 { margin-bottom: 20px; color: #333; font-size: 20px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; font-weight: bold; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        .btn-login { width: 100%; background: #2c3e50; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-login:hover { background: #1a252f; }
+    </style>
 </head>
 <body>
-    <div class="container" style="max-width: 400px; margin-top: 100px;">
-        <div class="card" style="text-align: center;">
-            <h2>Welcome</h2>
-            <p style="margin-bottom: 20px; color: #666;">Enter your credentials to continue</p>
-            
-            <form method="POST" action="{{ url_for('login') }}">
-                <div style="margin-bottom: 15px;">
-                    <input type="text" name="mobile" placeholder="Mobile Number (+91...)" required style="width: 100%; padding: 10px;">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <input type="password" name="password" placeholder="Password" required style="width: 100%; padding: 10px;">
-                </div>
-                <button type="submit" class="btn-upload" style="width: 100%; padding: 10px;">Login / Request Access</button>
-            </form>
-        </div>
+    <div class="login-card">
+        <h2>NAV Dashboard Login</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label>Mobile Number</label>
+                <input type="text" name="mobile" class="form-control" placeholder="Enter mobile number" required>
+            </div>
+            <div class="form-group">
+                <label>Password (Required for Admin)</label>
+                <input type="password" name="password" class="form-control" placeholder="Enter password">
+            </div>
+            <button type="submit" class="btn-login">Login</button>
+        </form>
     </div>
 </body>
 </html>
