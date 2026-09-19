@@ -7,26 +7,16 @@
         * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; background-color: #f2f2f2; margin: 0; padding: 15px; color: #333; }
         .container { max-width: 1250px; margin: 0 auto; }
-        
-        /* Header style matching screenshot */
         .header { display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 12px 25px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
-        .header h1 { margin: 0; font-size: 24px; color: #222; font-weight: bold; letter-spacing: 0.5px; }
+        .header h1 { margin: 0; font-size: 24px; color: #222; font-weight: bold; }
         .user-info { font-size: 13px; color: #444; display: flex; align-items: center; }
         .btn-logout { background: #fff; border: 1px solid #ccc; color: #333; padding: 4px 12px; border-radius: 3px; text-decoration: none; margin-left: 15px; font-size: 12px; cursor: pointer; }
-        .btn-logout:hover { background: #f8f9fa; }
-
-        /* Card blocks */
         .card { background: #ffffff; padding: 15px 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
         .card h2 { margin-top: 0; font-size: 14px; color: #444; margin-bottom: 10px; font-weight: normal; }
-        
         .form-group-inline { display: flex; gap: 10px; align-items: center; }
         .btn-upload { background: #334d33; color: white; border: none; padding: 6px 14px; border-radius: 3px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .btn-upload:hover { background: #263b26; }
-        
-        /* Sensex ticker bar */
-        .sensex-bar { background: #eef2f7; padding: 10px 15px; border-radius: 4px; font-size: 12px; margin-bottom: 15px; border: 1px solid #dcdcdc; color: #333; }
-        
-        /* Funds layout */
+        .btn-download { background: #2980b9; color: white; border: none; padding: 6px 14px; border-radius: 3px; text-decoration: none; font-size: 12px; display: inline-block; }
+        .sensex-bar { background: #eef2f7; padding: 10px 15px; border-radius: 4px; font-size: 12px; margin-bottom: 15px; border: 1px solid #dcdcdc; }
         .funds-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 20px; }
         .fund-column h3 { font-size: 14px; color: #900; margin-top: 0; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
         .fund-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
@@ -42,22 +32,26 @@
         <header class="header">
             <h1>NAV UPDATE</h1>
             <div class="user-info">
-                <span>Sensex value live: 74421.04 (+106.45) (19 Sep 2026, 01:25:58)</span>
-                <span style="margin-left: 20px;">Admin - BIJOOSH PADMAKUMAR</span>
+                <span>Sensex value live: 74421.04 (+106.45)</span>
+                {% if session.get('is_admin') %}
+                    <span style="margin-left: 20px; font-weight: bold;">Admin - BIJOOSH PADMAKUMAR</span>
+                {% else %}
+                    <span style="margin-left: 20px;">Welcome, User</span>
+                {% endif %}
                 <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
             </div>
         </header>
 
-        <!-- Master Excel Upload -->
+        {% if session.get('is_admin') %}
+        <!-- ADMIN CONTROLS -->
         <section class="card">
             <h2>Upload Master Excel file (All Funds)</h2>
             <div class="form-group-inline" style="justify-content: space-between;">
-                <div style="font-size: 13px; color: #666;">Choose File No file chosen</div>
+                <span style="font-size: 13px; color: #666;">Choose File No file chosen</span>
                 <button class="btn-upload">Upload Master</button>
             </div>
         </section>
 
-        <!-- Upload Old & Today NAV -->
         <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 15px;">
             <section class="card">
                 <h2>Upload Old NAV (2024 - Present)</h2>
@@ -73,27 +67,39 @@
 
             <section class="card">
                 <h2>Upload Today's NAV (JPEG Format)</h2>
-                <div class="form-group-inline" style="margin-bottom: 10px;">
-                    <span style="font-size: 13px; color: #666;">Choose File No file chosen</span>
-                </div>
-                <div style="display: flex; justify-content: flex-end;">
-                    <button class="btn-upload">Upload Today NAV</button>
-                </div>
+                <div class="form-group-inline" style="margin-bottom: 10px;"><span style="font-size: 13px; color: #666;">Choose File No file chosen</span></div>
+                <div style="display: flex; justify-content: flex-end;"><button class="btn-upload">Upload Today NAV</button></div>
                 <div style="font-size: 12px; color: #666; margin-top: 5px;">Share via Email</div>
             </section>
         </div>
+        {% else %}
+        <!-- USER CONTROLS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <section class="card">
+                <h2>Download Old NAV Records</h2>
+                <div class="form-group-inline" style="margin-bottom: 10px;">
+                    <select style="padding: 4px; font-size: 12px;"><option>2024</option><option>2025</option><option>2026</option></select>
+                    <select style="padding: 4px; font-size: 12px;"><option>January</option><option>February</option></select>
+                </div>
+                <a href="#" class="btn-download">Download Month NAV</a>
+            </section>
+            <section class="card">
+                <h2>Download Today's NAV (JPEG)</h2>
+                <div style="margin-top: 20px;"><a href="#" class="btn-download">Download Today NAV</a></div>
+            </section>
+        </div>
+        {% endif %}
 
         <!-- Sensex Bar -->
         <div class="sensex-bar">
             <strong>Sensex point Previous 5 days:</strong> 
-            <span>14 Sep: 74781.76 (-120.63) &nbsp;|&nbsp; 15 Sep: 74003.82 (-777.94) &nbsp;|&nbsp; 16 Sep: 74336.45 (+332.63) &nbsp;|&nbsp; 17 Sep: 74314.59 (-21.86) &nbsp;|&nbsp; 18 Sep: 74421.04 (+106.45)</span>
+            <span>14 Sep: 74781.76 (-120.63) | 15 Sep: 74003.82 (-777.94) | 16 Sep: 74336.45 (+332.63) | 17 Sep: 74314.59 (-21.86) | 18 Sep: 74421.04 (+106.45)</span>
         </div>
 
-        <!-- Fund Details Grid -->
+        <!-- All Funds Grid -->
         <section class="card">
             <h2>All Fund details</h2>
             <div class="funds-grid">
-                <!-- Equity Funds -->
                 <div class="fund-column">
                     <h3>Equity Funds (34)</h3>
                     <ul class="fund-list">
@@ -110,8 +116,6 @@
                         <li><span>Opportunities Fund</span> <span class="nav-val">NAV: 61.2144</span></li>
                     </ul>
                 </div>
-
-                <!-- Balanced Funds -->
                 <div class="fund-column">
                     <h3>Balanced Funds (7)</h3>
                     <ul class="fund-list">
@@ -124,8 +128,6 @@
                         <li><span>Multi Asset Fund</span> <span class="nav-val">NAV: 18.9000</span></li>
                     </ul>
                 </div>
-
-                <!-- Debt Funds -->
                 <div class="fund-column">
                     <h3>Debt Funds (7)</h3>
                     <ul class="fund-list">
@@ -142,11 +144,11 @@
         </section>
     </div>
 
-    <!-- Fund Details Modal Popup -->
+    <!-- Popup Modal -->
     <div id="fundModal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: white; width: 420px; border-radius: 4px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
             <div style="background: #2b2b2b; color: white; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 id="modalTitle" style="margin: 0; font-size: 14px; color: white; border: none; padding: 0;">Fund Name</h3>
+                <h3 id="modalTitle" style="margin: 0; font-size: 14px; color: white;">Fund Name</h3>
                 <button onclick="closeModal()" style="background: none; border: none; color: white; font-size: 16px; cursor: pointer;">&times;</button>
             </div>
             <div style="padding: 15px 20px; font-size: 13px;">
@@ -157,12 +159,6 @@
                     <tr><td style="padding: 5px 0; color: #666;">1 Month:</td><td id="m1M" style="text-align: right; font-weight: bold;">-</td></tr>
                     <tr><td style="padding: 5px 0; color: #666;">6 Months:</td><td id="m6M" style="text-align: right; font-weight: bold;">-</td></tr>
                     <tr><td style="padding: 5px 0; color: #666;">1 Year:</td><td id="m1Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">2 Years:</td><td id="m2Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">3 Years:</td><td id="m3Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">4 Years:</td><td id="m4Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">5 Years:</td><td id="m5Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">7 Years:</td><td id="m7Y" style="text-align: right; font-weight: bold;">-</td></tr>
-                    <tr><td style="padding: 5px 0; color: #666;">10 Years:</td><td id="m10Y" style="text-align: right; font-weight: bold;">-</td></tr>
                     <tr><td style="padding: 5px 0; color: #666;">Highest Value:</td><td id="mHigh" style="text-align: right; font-weight: bold;">-</td></tr>
                     <tr><td style="padding: 5px 0; color: #666;">Latest NAV:</td><td id="mLatest" style="text-align: right; font-weight: bold;">-</td></tr>
                 </table>
@@ -179,12 +175,6 @@
             document.getElementById('m1M').innerText = m1;
             document.getElementById('m6M').innerText = m6;
             document.getElementById('m1Y').innerText = y1;
-            document.getElementById('m2Y').innerText = y2;
-            document.getElementById('m3Y').innerText = y3;
-            document.getElementById('m4Y').innerText = y4;
-            document.getElementById('m5Y').innerText = y5;
-            document.getElementById('m7Y').innerText = y7;
-            document.getElementById('m10Y').innerText = y10;
             document.getElementById('mHigh').innerText = high;
             document.getElementById('mLatest').innerText = latest;
             document.getElementById('fundModal').style.display = 'flex';
