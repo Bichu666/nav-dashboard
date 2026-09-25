@@ -1,0 +1,13 @@
+{
+  "manifestUrl": "http://127.0.0.1:5000/manifest.json",
+  "app-name": "NAV Dashboard",
+  "short-name": "NAV",
+  "packageId": "com.bichu.navdashboard",
+  "host": "nav-dashboard-1.onrender.com",
+  "iconUrl": "https://via.placeholder.com/512.png",
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "android"
+  },
+  "lastGenerated": 1
+}

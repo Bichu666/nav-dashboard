@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Login - NAV Updates</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <div class="panel" style="width: 450px; text-align: center;">
+        <h2 style="color: #ff9800; font-size: 28px; margin-bottom: 10px;">NAV Portal Login</h2>
+        <p style="color: #aaa; margin-bottom: 25px; font-size: 16px;">Please enter your credentials to access the user portal</p>
+        
+        <form action="{{ url_for('login') }}" method="POST">
+            <div style="text-align: left; margin-bottom: 15px;">
+                <label style="font-size: 15px; color: #ccc; display: block; margin-bottom: 6px;">User Name</label>
+                <input type="text" name="username" placeholder="Enter your full name" required>
+            </div>
+            <div style="text-align: left; margin-bottom: 25px;">
+                <label style="font-size: 15px; color: #ccc; display: block; margin-bottom: 6px;">Mobile Number</label>
+                <input type="tel" name="mobile" placeholder="Enter mobile number" required>
+            </div>
+            <button type="submit" class="btn-publish-nav" style="width: 100%; margin-top: 0;">Access User Portal</button>
+        </form>
+    </div>
+</body>
+</html>

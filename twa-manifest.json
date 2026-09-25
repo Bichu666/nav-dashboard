@@ -1,0 +1,25 @@
+{
+  "host": "nav-dashboard-1.onrender.com",
+  "name": "NAV Dashboard",
+  "shortName": "NAV",
+  "startUrl": "/",
+  "backgroundColor": "#000000",
+  "themeColor": "#000000",
+  "display": "standalone",
+  "orientation": "default",
+  "scope": "/",
+  "iconUrl": "https://nav-dashboard-1.onrender.com/static/icon.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "my-release-key.jks",
+    "alias": "my-key-alias"
+  },
+  "launcherName": "NAV",
+  "appId": "com.nav.dashboard.twa",
+  "generateManifest": true,
+  "fallbackType": "customtab",
+  "features": {},
+  "alphaDependencies": false,
+  "enableNotifications": false,
+  "url": "https://nav-dashboard-1.onrender.com/"
+}
