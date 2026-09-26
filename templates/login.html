@@ -4,22 +4,66 @@
     <meta charset="UTF-8">
     <title>User Login - NAV Updates</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+        }
+        .login-card {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            width: 400px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        .login-card h2 {
+            color: #ff9800;
+            margin-bottom: 25px;
+            font-size: 26px;
+        }
+        .login-input {
+            width: 100%;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 12px;
+            margin-bottom: 20px;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        .login-btn {
+            width: 100%;
+            background: #00897b;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .login-btn:hover {
+            background: #00796b;
+        }
+    </style>
 </head>
-<body style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <div class="panel" style="width: 450px; text-align: center;">
-        <h2 style="color: #ff9800; font-size: 28px; margin-bottom: 10px;">NAV Portal Login</h2>
-        <p style="color: #aaa; margin-bottom: 25px; font-size: 16px;">Please enter your credentials to access the user portal</p>
-        
+<body>
+    <div class="login-card">
+        <h2>User Login</h2>
         <form action="{{ url_for('login') }}" method="POST">
-            <div style="text-align: left; margin-bottom: 15px;">
-                <label style="font-size: 15px; color: #ccc; display: block; margin-bottom: 6px;">User Name</label>
-                <input type="text" name="username" placeholder="Enter your full name" required>
-            </div>
-            <div style="text-align: left; margin-bottom: 25px;">
-                <label style="font-size: 15px; color: #ccc; display: block; margin-bottom: 6px;">Mobile Number</label>
-                <input type="tel" name="mobile" placeholder="Enter mobile number" required>
-            </div>
-            <button type="submit" class="btn-publish-nav" style="width: 100%; margin-top: 0;">Access User Portal</button>
+            <input type="text" name="username" placeholder="Full Name" class="login-input" required>
+            <input type="text" name="mobile" placeholder="Mobile Number (+91...)" class="login-input" required>
+            <button type="submit" class="login-btn">Login / Register</button>
         </form>
     </div>
 </body>

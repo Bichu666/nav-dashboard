@@ -1,28 +1,36 @@
-os = __import__('os')
+import os
 import pandas as pd
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
+app.permanent_session_lifetime = timedelta(days=30)
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# In-memory user database simulation for approvals
 REGISTERED_USERS = [
-    {'id': 1, 'name': 'Rahul Sharma', 'mobile': '+91 9876543210', 'status': 'Pending'},
-    {'id': 2, 'name': 'Priya Nair', 'mobile': '+91 9876522888', 'status': 'Approved'}
+    {'id': 1, 'name': 'Rahul Sharma', 'mobile': '+91 9876543210', 'status': 'Pending', 'approved_at': None},
+    {'id': 2, 'name': 'Priya Nair', 'mobile': '+91 9876522888', 'status': 'Approved', 'approved_at': datetime.now().isoformat()}
 ]
+
+def check_user_validity(user):
+    if user['status'] == 'Approved' and user.get('approved_at'):
+        approved_date = datetime.fromisoformat(user['approved_at'])
+        if datetime.now() - approved_date > timedelta(days=30):
+            user['status'] = 'Pending'
+            user['approved_at'] = None
 
 def get_recent_sensex():
     try:
         sensex = yf.Ticker("^BSESN")
         df = sensex.history(period="10d")
         if df.empty:
-            raise ValueError("Empty dataframe from yfinance")
+            raise ValueError("Empty dataframe")
         recent_5 = df.tail(5)
         
         trend_data = []
@@ -31,22 +39,12 @@ def get_recent_sensex():
         for index, row in recent_5.iterrows():
             date_str = index.strftime('%d %b')
             close_val = round(row['Close'], 2)
-            
-            change_pct = 0.0
-            if prev_close is not None:
-                change_pct = round(((close_val - prev_close) / prev_close) * 100, 2)
-            
-            trend_data.append({
-                'date': date_str,
-                'value': close_val,
-                'change': change_pct
-            })
+            change_pct = round(((close_val - prev_close) / prev_close) * 100, 2) if prev_close else 0.0
+            trend_data.append({'date': date_str, 'value': close_val, 'change': change_pct})
             prev_close = close_val
-            
         return trend_data
     except Exception as e:
         print(f"Error fetching Sensex data: {e}")
-        # Guaranteed fallback data so the box is never blank on Render
         return [
             {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
             {'date': '22 Sep', 'value': 74528.08, 'change': -0.44},
@@ -57,8 +55,7 @@ def get_recent_sensex():
 
 def format_pct(val):
     try:
-        f = float(val)
-        return round(f * 100, 2)
+        return round(float(val) * 100, 2)
     except:
         return val
 
@@ -71,7 +68,7 @@ def parse_fund_excel(filename):
             df = df.dropna(subset=[df.columns[0]])
             for _, row in df.iterrows():
                 val = str(row.iloc[0]).strip()
-                if val and val.lower() != 'nan' and val.lower() != 'funds':
+                if val and val.lower() not in ['nan', 'funds']:
                     fund_list.append({
                         "fund": val,
                         "inception": str(row.iloc[1]) if len(row) > 1 else "",
@@ -103,82 +100,118 @@ def login():
         username = request.form.get('username')
         mobile = request.form.get('mobile')
         if username and mobile:
+            session.permanent = True
             session['username'] = username
             session['mobile'] = mobile
             
-            # Check if user exists, if not add as Pending
-            existing_user = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
-            if not existing_user:
-                new_user = {
+            user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+            if not user_record:
+                user_record = {
                     'id': len(REGISTERED_USERS) + 1,
                     'name': username,
                     'mobile': mobile,
-                    'status': 'Pending'
+                    'status': 'Pending',
+                    'approved_at': None
                 }
-                REGISTERED_USERS.append(new_user)
-                session['status'] = 'Pending'
-                return redirect(url_for('pending_approval'))
+                REGISTERED_USERS.append(user_record)
             else:
-                session['status'] = existing_user['status']
-                if existing_user['status'] == 'Pending':
-                    return redirect(url_for('pending_approval'))
+                check_user_validity(user_record)
+
+            if user_record['status'] == 'Pending':
+                return redirect(url_for('pending_approval'))
                 
             return redirect(url_for('user_dashboard'))
     return render_template('login.html')
 
 @app.route('/pending-approval')
 def pending_approval():
+    mobile = session.get('mobile', '')
+    user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+    
+    if user_record and user_record['status'] == 'Approved':
+        return redirect(url_for('user_dashboard'))
+        
     return render_template('pending_approval.html', username=session.get('username', 'User'))
 
 @app.route('/user-dashboard')
 def user_dashboard():
-    # Enforce approval gate
     mobile = session.get('mobile', '')
     user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
-    if user_record and user_record['status'] == 'Pending':
-        return redirect(url_for('pending_approval'))
-
-    username = session.get('username', 'Client')
-    sensex_trend = get_recent_sensex()
-    equity_data = parse_fund_excel('equity_funds.xlsx')
-    balancer_data = parse_fund_excel('balancer_funds.xlsx')
-    debt_data = parse_fund_excel('debt_funds.xlsx')
+    
+    if user_record:
+        check_user_validity(user_record)
+        if user_record['status'] == 'Pending':
+            return redirect(url_for('pending_approval'))
+            
+    if not user_record:
+        return redirect(url_for('login'))
 
     return render_template(
         'user_dashboard.html',
-        username=username,
+        username=session.get('username', 'Client'),
         mobile=mobile,
-        sensex_trend=sensex_trend,
-        equity_data=equity_data,
-        balancer_data=balancer_data,
-        debt_data=debt_data
+        sensex_trend=get_recent_sensex(),
+        equity_data=parse_fund_excel('equity_funds.xlsx'),
+        balancer_data=parse_fund_excel('balancer_funds.xlsx'),
+        debt_data=parse_fund_excel('debt_funds.xlsx')
     )
+
+@app.route('/admin-login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        mobile_input = request.form.get('mobile')
+        password_input = request.form.get('password')
+        
+        if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
+            session.permanent = True
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Invalid Admin Credentials', 'danger')
+    return render_template('admin_login.html')
+
+@app.route('/admin')
+def admin_redirect():
+    if session.get('is_admin'):
+        return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin_login'))
 
 @app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
-    sensex_trend = get_recent_sensex()
-    equity_data = parse_fund_excel('equity_funds.xlsx')
-    balancer_data = parse_fund_excel('balancer_funds.xlsx')
-    debt_data = parse_fund_excel('debt_funds.xlsx')
-
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+        
+    for user in REGISTERED_USERS:
+        check_user_validity(user)
+        
     return render_template(
         'admin_dashboard.html',
-        sensex_trend=sensex_trend,
+        sensex_trend=get_recent_sensex(),
         users=REGISTERED_USERS,
-        equity_data=equity_data,
-        balancer_data=balancer_data,
-        debt_data=debt_data
+        equity_data=parse_fund_excel('equity_funds.xlsx'),
+        balancer_data=parse_fund_excel('balancer_funds.xlsx'),
+        debt_data=parse_fund_excel('debt_funds.xlsx'),
+        current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
     )
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+        
     for user in REGISTERED_USERS:
         if user['id'] == user_id:
             user['status'] = status.capitalize()
+            if status.capitalize() == 'Approved':
+                user['approved_at'] = datetime.now().isoformat()
+            else:
+                user['approved_at'] = None
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/upload-master-category', methods=['POST'])
 def upload_master_category():
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
     category = request.form.get('category')
     file_key = f'{category}_file'
     if file_key in request.files:
@@ -186,11 +219,13 @@ def upload_master_category():
         if file.filename != '':
             filename = f'{category}_funds.xlsx'
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            flash(f'{category.capitalize()} funds excel updated successfully!', 'success')
+            flash(f'{category.capitalize()} funds updated successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
 @app.route('/upload-nav', methods=['POST'])
 def upload_nav():
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
     if 'nav_image' in request.files:
         file = request.files['nav_image']
         if file.filename != '':
@@ -201,8 +236,9 @@ def upload_nav():
 
 @app.route('/upload-archive', methods=['POST'])
 def upload_archive():
-    files = request.files.getlist('archive_files')
-    for file in files:
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+    for file in request.files.getlist('archive_files'):
         if file.filename != '':
             filename = secure_filename(file.filename)
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))

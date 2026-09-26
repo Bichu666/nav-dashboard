@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
+    <!-- Auto-refresh every 1 minute (60 seconds) to check for pending user requests -->
+    <meta http-equiv="refresh" content="60">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -12,14 +14,14 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center</span>
+                <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
             </div>
             <div class="header-right">
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
-                <p class="admin-identity">Admin: Bijoosh Padmakumar</p>
+                <p class="admin-identity">Admin Portal Active</p>
                 <p class="session-badge">Lifetime Admin Session Active</p>
             </div>
         </header>
@@ -50,21 +52,21 @@
 
             <!-- Bulk Archive Uploads -->
             <div class="panel archive-panel">
-                <h3>Bulk Month-Wise Archive Uploads</h3>
+                <h3>Bulk Month-Wise Archive Uploads (2024 to Present)</h3>
                 <form action="{{ url_for('upload_archive') }}" method="POST" enctype="multipart/form-data">
                     <div class="archive-controls-row">
                         <div>
-                            <label>Year</label>
+                            <label>Select Year</label>
                             <select name="archive_year"><option>2024</option><option>2025</option><option>2026</option></select>
                         </div>
                         <div>
-                            <label>Month</label>
+                            <label>Select Month</label>
                             <select name="archive_month"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
                         </div>
                     </div>
                     <div class="file-pick-row">
-                        <input type="file" name="archive_files" multiple required>
-                        <button type="submit" class="btn-batch">Upload Archive</button>
+                        <input type="file" name="archive_files" multiple class="file-input-hidden" required>
+                        <button type="submit" class="btn-batch">Upload Archive Batch</button>
                     </div>
                 </form>
             </div>
@@ -73,8 +75,8 @@
             <div class="panel nav-image-panel">
                 <h3>Upload Today's Latest NAV Image (JPEG)</h3>
                 <form action="{{ url_for('upload_nav') }}" method="POST" enctype="multipart/form-data">
-                    <input type="file" name="nav_image" accept="image/jpeg" required>
-                    <button type="submit" class="btn-publish-nav">Publish NAV Image</button>
+                    <input type="file" name="nav_image" accept="image/jpeg" class="file-input-styled" required>
+                    <button type="submit" class="btn-publish-nav">Publish Todays NAV Image</button>
                 </form>
             </div>
         </div>
@@ -109,14 +111,14 @@
             </div>
         </div>
 
-        <!-- User Approvals Section Showing Real Usernames & Mobile Numbers -->
+        <!-- User Approvals Section -->
         <div class="panel approval-panel">
-            <h3>Registered Users & Access Approvals</h3>
+            <h3>User Approval & Unique Visitors</h3>
             <table class="approval-table">
                 <thead>
                     <tr>
-                        <th>User Name</th>
-                        <th>Mobile Number</th>
+                        <th>Registered User Accounts</th>
+                        <th>Mobile number</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -124,14 +126,14 @@
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td><b>{{ user.name }}</b></td>
+                        <td>{{ user.name }} (ID: {{ user.id }})</td>
                         <td>{{ user.mobile }}</td>
                         <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                         <td>
                             <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
                                 <button type="submit" class="btn-app">Approve</button>
                             </form>
-                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Declined') }}" method="POST" style="display:inline;">
+                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;">
                                 <button type="submit" class="btn-dec">Decline</button>
                             </form>
                         </td>
@@ -146,7 +148,7 @@
             
             <!-- Equity Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Equity Funds (Click any fund for full details)</div>
+                <div class="section-title-bar">Equity Funds</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -176,7 +178,7 @@
 
             <!-- Balancer Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Balancer Funds (Click any fund for full details)</div>
+                <div class="section-title-bar">Balancer Funds</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -206,7 +208,7 @@
 
             <!-- Debt Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Debt Funds (Click any fund for full details)</div>
+                <div class="section-title-bar">Debt Funds</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -237,7 +239,7 @@
         </div>
 
         <footer class="portal-footer">
-            <p>Contact Admin Whatsapp / Email Support</p>
+            <p>Admin Portal - NAV Updates</p>
         </footer>
 
     </div>
@@ -246,7 +248,7 @@
     <div id="fundModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0; font-size: 24px;">Fund Name</h2>
+            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0;">Fund Name</h2>
             <div class="modal-info-grid">
                 <div><strong>Inception Date:</strong> <span id="modal-inception"></span></div>
                 <div><strong>Benchmark Name:</strong> <span id="modal-benchmark"></span></div>
@@ -277,6 +279,7 @@
         </div>
     </div>
 
+    <!-- JavaScript for Clock & Modal -->
     <script>
         function updateClock() {
             const now = new Date();
@@ -294,9 +297,16 @@
             document.getElementById('modal-benchmark').innerText = data.benchmark;
 
             const fields = [
-                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
+                {id: 'm-since', val: data.since},
+                {id: 'm-1m', val: data.m1},
+                {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1},
+                {id: 'm-2y', val: data.y2},
+                {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4},
+                {id: 'm-5y', val: data.y5},
+                {id: 'm-7y', val: data.y7},
+                {id: 'm-10y', val: data.y10}
             ];
 
             fields.forEach(f => {
@@ -313,6 +323,7 @@
 
             document.getElementById('m-high').innerText = data.high;
             document.getElementById('m-latest').innerText = data.latest;
+
             document.getElementById('fundModal').style.display = 'flex';
         }
 
@@ -322,7 +333,9 @@
 
         window.onclick = function(event) {
             let modal = document.getElementById('fundModal');
-            if (event.target == modal) closeModal();
+            if (event.target == modal) {
+                closeModal();
+            }
         }
     </script>
 </body>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Admin Login - NAV Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <div class="panel" style="width: 400px; text-align: center;">
+        <h2 style="color: #ff9800;">Admin Authentication</h2>
+        <form method="POST">
+            <input type="text" name="mobile" placeholder="Admin Mobile" required style="width: 100%; padding: 10px; margin-bottom: 15px; background: #262626; color: #fff; border: 1px solid #555; border-radius: 4px;">
+            <input type="password" name="password" placeholder="Password" required style="width: 100%; padding: 10px; margin-bottom: 15px; background: #262626; color: #fff; border: 1px solid #555; border-radius: 4px;">
+            <button type="submit" class="btn-batch" style="width: 100%;">Login as Admin</button>
+        </form>
+    </div>
+</body>
+</html>
