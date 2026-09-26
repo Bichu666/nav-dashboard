@@ -3,7 +3,6 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -22,6 +21,8 @@ def get_recent_sensex():
     try:
         sensex = yf.Ticker("^BSESN")
         df = sensex.history(period="10d")
+        if df.empty:
+            raise ValueError("Empty dataframe from yfinance")
         recent_5 = df.tail(5)
         
         trend_data = []
@@ -45,12 +46,13 @@ def get_recent_sensex():
         return trend_data
     except Exception as e:
         print(f"Error fetching Sensex data: {e}")
+        # Guaranteed fallback data so the box is never blank on Render
         return [
-            {'date': '17 Sep', 'value': 74314.59, 'change': 0.0},
-            {'date': '18 Sep', 'value': 74294.96, 'change': -0.03},
-            {'date': '21 Sep', 'value': 74858.99, 'change': 0.76},
-            {'date': '23 Sep', 'value': 74828.25, 'change': -0.04},
+            {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
+            {'date': '22 Sep', 'value': 74528.08, 'change': -0.44},
+            {'date': '23 Sep', 'value': 74828.25, 'change': 0.4},
             {'date': '24 Sep', 'value': 73580.54, 'change': -1.67},
+            {'date': '25 Sep', 'value': 73895.74, 'change': 0.43},
         ]
 
 def format_pct(val):
@@ -103,21 +105,40 @@ def login():
         if username and mobile:
             session['username'] = username
             session['mobile'] = mobile
-            # Register user if not already in list
-            if not any(u['mobile'] == mobile for u in REGISTERED_USERS):
-                REGISTERED_USERS.append({
+            
+            # Check if user exists, if not add as Pending
+            existing_user = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+            if not existing_user:
+                new_user = {
                     'id': len(REGISTERED_USERS) + 1,
                     'name': username,
                     'mobile': mobile,
                     'status': 'Pending'
-                })
+                }
+                REGISTERED_USERS.append(new_user)
+                session['status'] = 'Pending'
+                return redirect(url_for('pending_approval'))
+            else:
+                session['status'] = existing_user['status']
+                if existing_user['status'] == 'Pending':
+                    return redirect(url_for('pending_approval'))
+                
             return redirect(url_for('user_dashboard'))
     return render_template('login.html')
 
+@app.route('/pending-approval')
+def pending_approval():
+    return render_template('pending_approval.html', username=session.get('username', 'User'))
+
 @app.route('/user-dashboard')
 def user_dashboard():
-    username = session.get('username', 'Client')
+    # Enforce approval gate
     mobile = session.get('mobile', '')
+    user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+    if user_record and user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+
+    username = session.get('username', 'Client')
     sensex_trend = get_recent_sensex()
     equity_data = parse_fund_excel('equity_funds.xlsx')
     balancer_data = parse_fund_excel('balancer_funds.xlsx')
