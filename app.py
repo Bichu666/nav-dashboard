@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -244,6 +244,30 @@ def upload_archive():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
     flash('Archive files uploaded successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+
+# New routes to support listing and viewing individual archive/old NAV images on screen
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+    year = request.args.get('year', '')
+    month = request.args.get('month', '')
+    
+    # Filter files in UPLOAD_FOLDER matching the selected year and month (or all uploaded archive files)
+    try:
+        all_files = os.listdir(app.config['UPLOAD_FOLDER'])
+        # Simple match if file contains year and month string (e.g., '2024' and 'Jan')
+        matched_files = [f for f in all_files if year in f and month.lower() in f.lower() and f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf'))]
+        
+        # If no specific tag match, fallback to returning all non-excel files as options for selection
+        if not matched_files:
+            matched_files = [f for f in all_files if not f.endswith('.xlsx')]
+            
+        return jsonify({'success': True, 'files': matched_files})
+    except Exception as e:
+        return jsonify({'success': False, 'files': []})
+
+@app.route('/view-archive-file/<filename>')
+def view_archive_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)

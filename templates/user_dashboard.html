@@ -125,32 +125,43 @@
             </div>
         </div>
 
-        <!-- Bulk Month-Wise Archive Downloads -->
+        <!-- Bulk Month-Wise Archive Downloads / On-Screen Viewer -->
         <div class="panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333;">
-            <h3 style="color: #ffb74d;">Bulk Month-Wise Archive Downloads (Old NAV Folder)</h3>
+            <h3 style="color: #ffb74d;">Old NAV Image Viewer (Month & Date Wise)</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; align-items: center; margin-top: 15px;">
                 <div>
                     <label style="display: block; font-size: 14px; color: #aaa; margin-bottom: 5px;">Select Year</label>
-                    <select style="width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 4px; font-size: 15px;">
-                        <option>2024</option><option>2025</option><option>2026</option>
+                    <select id="filter-year" style="width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 4px; font-size: 15px;">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
                     </select>
                 </div>
                 <div>
                     <label style="display: block; font-size: 14px; color: #aaa; margin-bottom: 5px;">Select Month</label>
-                    <select style="width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 4px; font-size: 15px;">
-                        <option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option>
-                        <option>May</option><option>Jun</option><option>Jul</option><option>Aug</option>
-                        <option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option>
+                    <select id="filter-month" style="width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 4px; font-size: 15px;" onchange="loadMonthFiles()">
+                        <option value="">-- Choose Month --</option>
+                        <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option><option value="Apr">Apr</option>
+                        <option value="May">May</option><option value="Jun">Jun</option><option value="Jul">Jul</option><option value="Aug">Aug</option>
+                        <option value="Sep">Sep</option><option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
                     </select>
                 </div>
                 <div>
-                    <label style="display: block; font-size: 14px; color: #aaa; margin-bottom: 5px;">Archive Package</label>
-                    <button type="button" class="btn-batch" style="width: 100%; font-size: 15px; padding: 10px;" onclick="alert('Preparing archive package...')">Choose Files</button>
+                    <label style="display: block; font-size: 14px; color: #aaa; margin-bottom: 5px;">Select Specific File / Date</label>
+                    <select id="filter-file" style="width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 4px; font-size: 15px;" onchange="displaySelectedFileImage()">
+                        <option value="">-- Choose month first --</option>
+                    </select>
                 </div>
                 <div>
                     <label style="display: block; font-size: 14px; color: #aaa; margin-bottom: 5px;">Action</label>
-                    <button type="button" class="btn-batch" style="width: 100%; background: #00897b; font-size: 15px; padding: 10px;" onclick="alert('Downloading selected archive folder...')">Download Folder</button>
+                    <button type="button" class="btn-batch" style="width: 100%; background: #00897b; font-size: 15px; padding: 10px;" onclick="viewFullImagePopup()">View Full Image</button>
                 </div>
+            </div>
+
+            <!-- On-Screen Image Preview Container -->
+            <div id="archive-preview-box" style="margin-top: 20px; text-align: center; display: none; background: #111; padding: 15px; border-radius: 6px; border: 1px solid #333;">
+                <p id="preview-title" style="color: #ffb74d; margin-bottom: 10px; font-weight: bold;"></p>
+                <img id="archive-img-tag" src="" alt="Selected Old NAV" style="max-width: 100%; max-height: 500px; border-radius: 4px; border: 1px solid #444;" />
             </div>
         </div>
 
@@ -303,7 +314,7 @@
         </div>
     </div>
 
-    <!-- JavaScript for Clock & Modal -->
+    <!-- JavaScript for Clock, Modal & Archive Viewer -->
     <script>
         function updateClock() {
             const now = new Date();
@@ -314,6 +325,65 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        function loadMonthFiles() {
+            const year = document.getElementById('filter-year').value;
+            const month = document.getElementById('filter-month').value;
+            const fileSelect = document.getElementById('filter-file');
+            
+            fileSelect.innerHTML = '<option value="">-- Loading files --</option>';
+            
+            if (!month) {
+                fileSelect.innerHTML = '<option value="">-- Choose month first --</option>';
+                return;
+            }
+
+            fetch(`/get-archive-files?year=${year}&month=${month}`)
+                .then(res => res.json())
+                .then(data => {
+                    fileSelect.innerHTML = '<option value="">-- Select specific date/file --</option>';
+                    if (data.success && data.files.length > 0) {
+                        data.files.forEach(file => {
+                            let opt = document.createElement('option');
+                            opt.value = file;
+                            opt.textContent = file;
+                            fileSelect.appendChild(opt);
+                        });
+                    } else {
+                        let opt = document.createElement('option');
+                        opt.value = "";
+                        opt.textContent = "No files found for this period";
+                        fileSelect.appendChild(opt);
+                    }
+                })
+                .catch(err => {
+                    fileSelect.innerHTML = '<option value="">Error loading files</option>';
+                });
+        }
+
+        function displaySelectedFileImage() {
+            const filename = document.getElementById('filter-file').value;
+            const previewBox = document.getElementById('archive-preview-box');
+            const imgTag = document.getElementById('archive-img-tag');
+            const previewTitle = document.getElementById('preview-title');
+
+            if (filename) {
+                imgTag.src = `/view-archive-file/${filename}`;
+                previewTitle.innerText = `Viewing NAV Report: ${filename}`;
+                previewBox.style.display = 'block';
+            } else {
+                previewBox.style.display = 'none';
+            }
+        }
+
+        function viewFullImagePopup() {
+            const filename = document.getElementById('filter-file').value;
+            if (!filename) {
+                alert('Please select a specific file/date first!');
+                return;
+            }
+            window.open(`/view-archive-file/${filename}`, '_blank');
+        }
 
         function openModal(data) {
             document.getElementById('modal-fund-name').innerText = data.fund;
@@ -341,7 +411,7 @@
                     cell.className = "nav-red-alert";
                 } else {
                     cell.className = "";
-                    cell.style.color = "#00e676";
+                    cell.style.color = "%2300e676";
                 }
             });
 
