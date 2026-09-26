@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import yfinance as yf
+import requests
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
@@ -27,8 +28,12 @@ def check_user_validity(user):
 
 def get_recent_sensex():
     try:
-        sensex = yf.Ticker("^BSESN")
-        df = sensex.history(period="10d")
+        # Create a custom session with a browser User-Agent to bypass cloud server blocks
+        custom_session = requests.Session()
+        custom_session.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        
+        sensex = yf.Ticker("^BSESN", session=custom_session)
+        df = sensex.history(period="10d", session=custom_session)
         if df.empty:
             raise ValueError("Empty dataframe")
         recent_5 = df.tail(5)
@@ -245,19 +250,15 @@ def upload_archive():
     flash('Archive files uploaded successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
-# New routes to support listing and viewing individual archive/old NAV images on screen
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
     year = request.args.get('year', '')
     month = request.args.get('month', '')
     
-    # Filter files in UPLOAD_FOLDER matching the selected year and month (or all uploaded archive files)
     try:
         all_files = os.listdir(app.config['UPLOAD_FOLDER'])
-        # Simple match if file contains year and month string (e.g., '2024' and 'Jan')
         matched_files = [f for f in all_files if year in f and month.lower() in f.lower() and f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf'))]
         
-        # If no specific tag match, fallback to returning all non-excel files as options for selection
         if not matched_files:
             matched_files = [f for f in all_files if not f.endswith('.xlsx')]
             
