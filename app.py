@@ -25,6 +25,8 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+ADMIN_NAME = 'Bijoosh Padmakumar'
+
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -55,8 +57,8 @@ def get_recent_sensex():
   try:
     sensex = yf.Ticker('^BSESN')
     df = sensex.history(period='10d')
-    if df.empty:
-      raise ValueError('Empty dataframe')
+    if df.empty or len(df) < 5:
+      raise ValueError('Insufficient dataframe rows')
     recent_5 = df.tail(5)
 
     trend_data = []
@@ -78,11 +80,11 @@ def get_recent_sensex():
   except Exception as e:
     print(f'Error fetching Sensex data: {e}')
     return [
-        {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
-        {'date': '22 Sep', 'value': 74528.08, 'change': -0.44},
-        {'date': '23 Sep', 'value': 74828.25, 'change': 0.4},
-        {'date': '24 Sep', 'value': 73580.54, 'change': -1.67},
-        {'date': '25 Sep', 'value': 73895.74, 'change': 0.43},
+        {'date': '21 Sep', 'value': 82140.50, 'change': 0.0},
+        {'date': '22 Sep', 'value': 82355.20, 'change': 0.26},
+        {'date': '23 Sep', 'value': 81980.15, 'change': -0.46},
+        {'date': '24 Sep', 'value': 82450.80, 'change': 0.57},
+        {'date': '25 Sep', 'value': 82290.45, 'change': -0.19},
     ]
 
 
@@ -195,6 +197,7 @@ def user_dashboard():
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
+      admin_name=ADMIN_NAME,
       mobile=mobile,
       sensex_trend=get_recent_sensex(),
       equity_data=parse_fund_excel('equity_funds.xlsx'),
@@ -235,6 +238,7 @@ def admin_dashboard():
 
   return render_template(
       'admin_dashboard.html',
+      admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
