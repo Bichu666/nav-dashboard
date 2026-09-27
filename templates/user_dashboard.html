@@ -10,7 +10,7 @@
         .main-header h2 { font-size: 26px !important; }
         .main-header h1 { font-size: 38px !important; }
         .control-center-text { font-size: 15px !important; }
-        .live-datetime, .admin-identity, .session-badge { font-size: 15px !important; }
+        .live-datetime, .session-badge { font-size: 15px !important; }
         .panel h3 { font-size: 18px !important; margin-bottom: 12px; }
         .sensex-main-val { font-size: 32px !important; }
         .sensex-change-val { font-size: 18px !important; }
@@ -72,15 +72,15 @@
             <div class="header-left">
                 <h2>User Portal</h2>
                 <span class="control-center-text">Client Control Center</span>
+                <div style="font-style: italic; color: #ffb74d; font-size: 15px; margin-top: 5px;">Admin - {{ admin_name }}</div>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
             </div>
             <div class="header-right">
                 <p class="live-datetime" id="live-clock">Live Date & Time</p>
-                <p class="admin-identity" style="color: #ff9800;">User Name: <b>{{ username | default('Client') }}</b></p>
-                <p class="admin-identity" style="color: #ffb74d;">Admin Name: <b>{{ admin_name }}</b></p>
-                <p class="session-badge" style="color: #00e676;">30 Days Active Session</p>
+                <p class="admin-identity" style="color: #00e676;">Logged in as: <b>{{ username | default('Client') }}</b></p>
+                <p class="session-badge" style="color: #ff9800;">30 Days Active Session</p>
             </div>
         </header>
 
