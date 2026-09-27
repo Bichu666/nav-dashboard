@@ -195,7 +195,7 @@ def user_dashboard():
     return redirect(url_for('login'))
 
   return render_template(
-      'user_dashboard.html',
+      'user_dashboard_2.html',
       username=session.get('username', 'Client'),
       admin_name=ADMIN_NAME,
       mobile=mobile,
@@ -236,14 +236,26 @@ def admin_dashboard():
   for user in REGISTERED_USERS:
     check_user_validity(user)
 
+  # Fetch all uploaded files for the archive management list
+  try:
+    all_files = os.listdir(app.config['UPLOAD_FOLDER'])
+    archive_files = [
+        f
+        for f in all_files
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf'))
+    ]
+  except:
+    archive_files = []
+
   return render_template(
-      'admin_dashboard.html',
+      'admin_dashboard_2.html',
       admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
       balancer_data=parse_fund_excel('balancer_funds.xlsx'),
       debt_data=parse_fund_excel('debt_funds.xlsx'),
+      archive_files=archive_files,
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
   )
 
@@ -317,6 +329,22 @@ def delete_archive_file(filename):
   except Exception as e:
     flash(f'Error deleting file: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  feedback_text = request.form.get('feedback')
+  if feedback_text:
+    feedback_path = os.path.join(app.config['UPLOAD_FOLDER'], 'feedback_log.txt')
+    with open(feedback_path, 'a') as f:
+      f.write(
+          f'[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] User:'
+          f' {session.get("username", "Unknown")} - {feedback_text}\n'
+      )
+    flash('Feedback submitted successfully!', 'success')
+  else:
+    flash('Feedback cannot be empty.', 'danger')
+  return redirect(url_for('user_dashboard'))
 
 
 @app.route('/get-archive-files', methods=['GET'])

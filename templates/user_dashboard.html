@@ -10,7 +10,7 @@
         .main-header h2 { font-size: 26px !important; }
         .main-header h1 { font-size: 38px !important; }
         .control-center-text { font-size: 15px !important; }
-        .live-datetime, .session-badge { font-size: 15px !important; }
+        .live-datetime, .admin-identity, .session-badge { font-size: 15px !important; }
         .panel h3 { font-size: 18px !important; margin-bottom: 12px; }
         .sensex-main-val { font-size: 32px !important; }
         .sensex-change-val { font-size: 18px !important; }
@@ -72,15 +72,14 @@
             <div class="header-left">
                 <h2>User Portal</h2>
                 <span class="control-center-text">Client Control Center</span>
-                <div style="font-style: italic; color: #ffb74d; font-size: 15px; margin-top: 5px;">Admin - {{ admin_name }}</div>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
             </div>
             <div class="header-right">
                 <p class="live-datetime" id="live-clock">Live Date & Time</p>
-                <p class="admin-identity" style="color: #00e676;">Logged in as: <b>{{ username | default('Client') }}</b></p>
-                <p class="session-badge" style="color: #ff9800;">30 Days Active Session</p>
+                <p class="admin-identity" style="color: #ff9800;">User Name: <b>{{ username | default('Client') }}</b></p>
+                <p class="session-badge" style="color: #00e676;">30 Days Active Session</p>
             </div>
         </header>
 
@@ -89,40 +88,22 @@
             <!-- Sensex Live Tracker -->
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
-                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Live as of: Sep 25, 2026</span>
-                <div class="sensex-main-val">73,895.74</div>
-                <div class="sensex-change-val" style="color: #00e676;">+315.20 (+0.43%)</div>
+                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
+                <div class="sensex-main-val">73,500.00</div>
+                <div class="sensex-change-val">+450.25 (+0.62%)</div>
             </div>
 
             <!-- Previous 5 Days Trend -->
             <div class="panel trend-panel">
                 <h3>Previous 5 days Market Trend</h3>
-                <div class="trend-boxes" style="display: flex; gap: 8px;">
-                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
-                        <div class="t-date" style="font-size: 13px; color: #aaa;">21 Sep</div>
-                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,858.99</div>
-                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+564.03</div>
+                <div class="trend-boxes">
+                    {% for item in sensex_trend %}
+                    <div class="t-box">
+                        <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
+                        <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
+                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ item.change }}%</div>
                     </div>
-                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
-                        <div class="t-date" style="font-size: 13px; color: #aaa;">22 Sep</div>
-                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,529.08</div>
-                        <div class="t-chg neg" style="font-size: 13px; color: #ff5252;">-329.91</div>
-                    </div>
-                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
-                        <div class="t-date" style="font-size: 13px; color: #aaa;">23 Sep</div>
-                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,828.25</div>
-                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+299.17</div>
-                    </div>
-                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
-                        <div class="t-date" style="font-size: 13px; color: #aaa;">24 Sep</div>
-                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">73,580.54</div>
-                        <div class="t-chg neg" style="font-size: 13px; color: #ff5252;">-1,247.71</div>
-                    </div>
-                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
-                        <div class="t-date" style="font-size: 13px; color: #aaa;">25 Sep</div>
-                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">73,895.74</div>
-                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+315.20</div>
-                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
@@ -187,13 +168,13 @@
             </div>
         </div>
 
-        <!-- Feedback & Suggestions -->
+        <!-- Feedback & Suggestions (Wired up to Backend) -->
         <div class="panel" style="margin-bottom: 24px;">
             <h3>User Feedback and Suggestion / Rating</h3>
-            <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
-                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;">
-                <button class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
-            </div>
+            <form action="{{ url_for('submit_feedback') }}" method="POST" style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+                <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;" required>
+                <button type="submit" class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;">Submit Feedback</button>
+            </form>
         </div>
 
         <!-- Fund Sections (Equity, Balancer, Debt) -->
@@ -343,6 +324,7 @@
             const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
             const timeString = now.toLocaleString('en-US', options);
             document.getElementById('live-clock').innerText = timeString;
+            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
         }
         setInterval(updateClock, 1000);
         updateClock();
