@@ -89,22 +89,40 @@
             <!-- Sensex Live Tracker -->
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
-                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
-                <div class="sensex-main-val">{% if sensex_trend %}{{ sensex_trend[-1].value }}{% else %}73,500.00{% endif %}</div>
-                <div class="sensex-change-val">{% if sensex_trend %}{{ '+' if sensex_trend[-1].change > 0 else '' }}{{ sensex_trend[-1].change }}%{% else %}+450.25 (+0.62%){% endif %}</div>
+                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Live as of: Sep 25, 2026</span>
+                <div class="sensex-main-val">73,895.74</div>
+                <div class="sensex-change-val" style="color: #00e676;">+315.20 (+0.43%)</div>
             </div>
 
             <!-- Previous 5 Days Trend -->
             <div class="panel trend-panel">
                 <h3>Previous 5 days Market Trend</h3>
-                <div class="trend-boxes">
-                    {% for item in sensex_trend %}
-                    <div class="t-box">
-                        <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
-                        <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ '+' if item.change > 0 else '' }}{{ item.change }}%</div>
+                <div class="trend-boxes" style="display: flex; gap: 8px;">
+                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div class="t-date" style="font-size: 13px; color: #aaa;">21 Sep</div>
+                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,858.99</div>
+                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+564.03</div>
                     </div>
-                    {% endfor %}
+                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div class="t-date" style="font-size: 13px; color: #aaa;">22 Sep</div>
+                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,529.08</div>
+                        <div class="t-chg neg" style="font-size: 13px; color: #ff5252;">-329.91</div>
+                    </div>
+                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div class="t-date" style="font-size: 13px; color: #aaa;">23 Sep</div>
+                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">74,828.25</div>
+                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+299.17</div>
+                    </div>
+                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div class="t-date" style="font-size: 13px; color: #aaa;">24 Sep</div>
+                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">73,580.54</div>
+                        <div class="t-chg neg" style="font-size: 13px; color: #ff5252;">-1,247.71</div>
+                    </div>
+                    <div class="t-box" style="flex: 1; background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center;">
+                        <div class="t-date" style="font-size: 13px; color: #aaa;">25 Sep</div>
+                        <div class="t-val" style="font-size: 14px; font-weight: bold; color: #fff;">73,895.74</div>
+                        <div class="t-chg pos" style="font-size: 13px; color: #00e676;">+315.20</div>
+                    </div>
                 </div>
             </div>
 
@@ -325,7 +343,6 @@
             const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
             const timeString = now.toLocaleString('en-US', options);
             document.getElementById('live-clock').innerText = timeString;
-            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
         }
         setInterval(updateClock, 1000);
         updateClock();
