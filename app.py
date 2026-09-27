@@ -25,7 +25,7 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-ADMIN_NAME = 'Bichu'
+ADMIN_NAME = 'Bijoosh Padmakumar'
 
 REGISTERED_USERS = [
     {
@@ -84,11 +84,11 @@ def get_recent_sensex():
   except Exception as e:
     print(f'Error fetching Sensex data: {e}')
     return [
-        {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
-        {'date': '22 Sep', 'value': 74528.08, 'change': -0.44},
-        {'date': '23 Sep', 'value': 74828.25, 'change': 0.4},
-        {'date': '24 Sep', 'value': 73580.54, 'change': -1.67},
-        {'date': '25 Sep', 'value': 73895.74, 'change': 0.43},
+        {'date': '21 Sep', 'value': 82140.50, 'change': 0.0},
+        {'date': '22 Sep', 'value': 82355.20, 'change': 0.26},
+        {'date': '23 Sep', 'value': 81980.15, 'change': -0.46},
+        {'date': '24 Sep', 'value': 82450.80, 'change': 0.57},
+        {'date': '25 Sep', 'value': 82290.45, 'change': -0.19},
     ]
 
 
