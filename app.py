@@ -336,12 +336,12 @@ def download_latest_nav():
         f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
     ]
     if image_files:
-      latest_file = sorted(
+      latest_file = max(
           image_files,
           key=lambda x: os.path.getmtime(
               os.path.join(app.config['UPLOAD_FOLDER'], x)
           ),
-      )[-1]
+      )
       return send_from_directory(
           app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
       )
