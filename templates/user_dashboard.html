@@ -68,23 +68,18 @@
         }
         .table-custom {
             color: #fff;
-            font-size: 0.8rem;
-            white-space: nowrap;
+            font-size: 0.85rem;
         }
         .table-custom th {
             background-color: #d4af37 !important;
             color: #000 !important;
             border: none;
-            text-align: center;
         }
         .table-custom td {
             background-color: #14141d !important;
             color: #e0e0e0 !important;
             border-color: #262638 !important;
-            text-align: center;
-        }
-        .table-custom td:first-child {
-            text-align: left;
+            vertical-align: middle;
         }
         .section-header-bar {
             background: linear-gradient(90deg, #d4af37 0%, #aa820a 100%);
@@ -243,19 +238,10 @@
                 <table class="table table-custom table-bordered table-striped align-middle">
                     <thead>
                         <tr>
-                            <th style="text-align: left;">FUNDS</th>
-                            <th>Inception</th>
-                            <th>Benchmark</th>
-                            <th>Since Inc.</th>
-                            <th>1 Mth</th>
-                            <th>6 Mth</th>
-                            <th>1 Yr</th>
-                            <th>2 Yr</th>
-                            <th>3 Yr</th>
-                            <th>4 Yr</th>
-                            <th>5 Yr</th>
-                            <th>7 Yr</th>
-                            <th>10 Yr</th>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
                             <th>Highest NAV</th>
                             <th>Latest NAV</th>
                         </tr>
@@ -263,24 +249,15 @@
                     <tbody>
                         {% for fund in equity_data %}
                         <tr>
-                            <td class="fw-bold text-warning" style="text-align: left;">{{ fund.fund }}</td>
+                            <td class="fw-bold text-warning">{{ fund.fund }}</td>
                             <td>{{ fund.inception }}</td>
                             <td>{{ fund.benchmark }}</td>
                             <td>{{ fund.since }}%</td>
-                            <td>{{ fund.m1 }}%</td>
-                            <td>{{ fund.m6 }}%</td>
-                            <td>{{ fund.y1 }}%</td>
-                            <td>{{ fund.y2 }}%</td>
-                            <td>{{ fund.y3 }}%</td>
-                            <td>{{ fund.y4 }}%</td>
-                            <td>{{ fund.y5 }}%</td>
-                            <td>{{ fund.y7 }}%</td>
-                            <td>{{ fund.y10 }}%</td>
                             <td>{{ fund.high }}</td>
                             <td>{{ fund.latest }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="15" class="text-center text-muted">No equity funds uploaded yet.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted">No equity funds uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -294,19 +271,10 @@
                 <table class="table table-custom table-bordered table-striped align-middle">
                     <thead>
                         <tr>
-                            <th style="text-align: left;">FUNDS</th>
-                            <th>Inception</th>
-                            <th>Benchmark</th>
-                            <th>Since Inc.</th>
-                            <th>1 Mth</th>
-                            <th>6 Mth</th>
-                            <th>1 Yr</th>
-                            <th>2 Yr</th>
-                            <th>3 Yr</th>
-                            <th>4 Yr</th>
-                            <th>5 Yr</th>
-                            <th>7 Yr</th>
-                            <th>10 Yr</th>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
                             <th>Highest NAV</th>
                             <th>Latest NAV</th>
                         </tr>
@@ -314,24 +282,15 @@
                     <tbody>
                         {% for fund in balancer_data %}
                         <tr>
-                            <td class="fw-bold text-warning" style="text-align: left;">{{ fund.fund }}</td>
+                            <td class="fw-bold text-warning">{{ fund.fund }}</td>
                             <td>{{ fund.inception }}</td>
                             <td>{{ fund.benchmark }}</td>
                             <td>{{ fund.since }}%</td>
-                            <td>{{ fund.m1 }}%</td>
-                            <td>{{ fund.m6 }}%</td>
-                            <td>{{ fund.y1 }}%</td>
-                            <td>{{ fund.y2 }}%</td>
-                            <td>{{ fund.y3 }}%</td>
-                            <td>{{ fund.y4 }}%</td>
-                            <td>{{ fund.y5 }}%</td>
-                            <td>{{ fund.y7 }}%</td>
-                            <td>{{ fund.y10 }}%</td>
                             <td>{{ fund.high }}</td>
                             <td>{{ fund.latest }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="15" class="text-center text-muted">No balancer funds uploaded yet.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted">No balancer funds uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -345,19 +304,10 @@
                 <table class="table table-custom table-bordered table-striped align-middle">
                     <thead>
                         <tr>
-                            <th style="text-align: left;">FUNDS</th>
-                            <th>Inception</th>
-                            <th>Benchmark</th>
-                            <th>Since Inc.</th>
-                            <th>1 Mth</th>
-                            <th>6 Mth</th>
-                            <th>1 Yr</th>
-                            <th>2 Yr</th>
-                            <th>3 Yr</th>
-                            <th>4 Yr</th>
-                            <th>5 Yr</th>
-                            <th>7 Yr</th>
-                            <th>10 Yr</th>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
                             <th>Highest NAV</th>
                             <th>Latest NAV</th>
                         </tr>
@@ -365,24 +315,15 @@
                     <tbody>
                         {% for fund in debt_data %}
                         <tr>
-                            <td class="fw-bold text-warning" style="text-align: left;">{{ fund.fund }}</td>
+                            <td class="fw-bold text-warning">{{ fund.fund }}</td>
                             <td>{{ fund.inception }}</td>
                             <td>{{ fund.benchmark }}</td>
                             <td>{{ fund.since }}%</td>
-                            <td>{{ fund.m1 }}%</td>
-                            <td>{{ fund.m6 }}%</td>
-                            <td>{{ fund.y1 }}%</td>
-                            <td>{{ fund.y2 }}%</td>
-                            <td>{{ fund.y3 }}%</td>
-                            <td>{{ fund.y4 }}%</td>
-                            <td>{{ fund.y5 }}%</td>
-                            <td>{{ fund.y7 }}%</td>
-                            <td>{{ fund.y10 }}%</td>
                             <td>{{ fund.high }}</td>
                             <td>{{ fund.latest }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="15" class="text-center text-muted">No debt funds uploaded yet.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted">No debt funds uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
