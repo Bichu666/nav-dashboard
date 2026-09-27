@@ -25,8 +25,6 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-ADMIN_NAME = 'Bijoosh Padmakumar'
-
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -56,26 +54,22 @@ def check_user_validity(user):
 def get_recent_sensex():
   try:
     sensex = yf.Ticker('^BSESN')
-    df = sensex.history(period='12d')
-    if df.empty or len(df) < 5:
-      raise ValueError('Insufficient dataframe rows')
+    df = sensex.history(period='10d')
+    if df.empty:
+      raise ValueError('Empty dataframe')
     recent_5 = df.tail(5)
 
     trend_data = []
     prev_close = None
 
-    full_list = list(df.iterrows())
-    tail_start_idx = len(full_list) - 5
-    if tail_start_idx > 0:
-      prev_close = round(full_list[tail_start_idx - 1][1]['Close'], 2)
-
     for index, row in recent_5.iterrows():
       date_str = index.strftime('%d %b')
       close_val = round(row['Close'], 2)
-      if prev_close is not None:
-        change_pct = round(((close_val - prev_close) / prev_close) * 100, 2)
-      else:
-        change_pct = 0.0
+      change_pct = (
+          round(((close_val - prev_close) / prev_close) * 100, 2)
+          if prev_close
+          else 0.0
+      )
       trend_data.append(
           {'date': date_str, 'value': close_val, 'change': change_pct}
       )
@@ -84,11 +78,11 @@ def get_recent_sensex():
   except Exception as e:
     print(f'Error fetching Sensex data: {e}')
     return [
-        {'date': '21 Sep', 'value': 82140.50, 'change': 0.0},
-        {'date': '22 Sep', 'value': 82355.20, 'change': 0.26},
-        {'date': '23 Sep', 'value': 81980.15, 'change': -0.46},
-        {'date': '24 Sep', 'value': 82450.80, 'change': 0.57},
-        {'date': '25 Sep', 'value': 82290.45, 'change': -0.19},
+        {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
+        {'date': '22 Sep', 'value': 74528.08, 'change': -0.44},
+        {'date': '23 Sep', 'value': 74828.25, 'change': 0.4},
+        {'date': '24 Sep', 'value': 73580.54, 'change': -1.67},
+        {'date': '25 Sep', 'value': 73895.74, 'change': 0.43},
     ]
 
 
@@ -163,12 +157,6 @@ def login():
 
       if user_record['status'] == 'Pending':
         return redirect(url_for('pending_approval'))
-      elif user_record['status'] == 'Declined':
-        flash(
-            'Your login request has been declined by the administrator.',
-            'danger',
-        )
-        return redirect(url_for('login'))
 
       return redirect(url_for('user_dashboard'))
   return render_template('login.html')
@@ -181,15 +169,8 @@ def pending_approval():
       (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
   )
 
-  if user_record:
-    check_user_validity(user_record)
-    if user_record['status'] == 'Approved':
-      return redirect(url_for('user_dashboard'))
-    if user_record['status'] == 'Declined':
-      flash(
-          'Your login request has been declined by the administrator.', 'danger'
-      )
-      return redirect(url_for('login'))
+  if user_record and user_record['status'] == 'Approved':
+    return redirect(url_for('user_dashboard'))
 
   return render_template(
       'pending_approval.html', username=session.get('username', 'User')
@@ -207,8 +188,6 @@ def user_dashboard():
     check_user_validity(user_record)
     if user_record['status'] == 'Pending':
       return redirect(url_for('pending_approval'))
-    if user_record['status'] == 'Declined':
-      return redirect(url_for('login'))
 
   if not user_record:
     return redirect(url_for('login'))
@@ -216,7 +195,6 @@ def user_dashboard():
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
-      admin_name=ADMIN_NAME,
       mobile=mobile,
       sensex_trend=get_recent_sensex(),
       equity_data=parse_fund_excel('equity_funds.xlsx'),
@@ -257,7 +235,6 @@ def admin_dashboard():
 
   return render_template(
       'admin_dashboard.html',
-      admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
@@ -331,6 +308,8 @@ def delete_archive_file(filename):
     if os.path.exists(file_path):
       os.remove(file_path)
       flash(f'Successfully deleted: {filename}', 'success')
+    else:
+      flash('File not found.', 'danger')
   except Exception as e:
     flash(f'Error deleting file: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
