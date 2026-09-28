@@ -16,7 +16,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'nav_updates_secret_key'
+app.secret_key = 'nav_updates_secret_key_comprehensive'
 app.permanent_session_lifetime = timedelta(days=365)
 
 UPLOAD_FOLDER = 'uploads'
@@ -25,6 +25,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ADMIN_NAME = 'Bijoosh Padmakumar'
 
+# Dummy state management for users and feedback
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -42,6 +43,16 @@ REGISTERED_USERS = [
     },
 ]
 
+USER_FEEDBACK = [
+    {
+        'name': 'Priya Nair',
+        'message': (
+            'The monthly statement downloads are super helpful. Great UI!'
+        ),
+        'date': '27 Sep 2026',
+    }
+]
+
 
 def format_pct(val):
   try:
@@ -54,7 +65,7 @@ def parse_fund_excel(filename):
   fund_list = []
   path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
   if not os.path.exists(path):
-    path = filename  # Fallback to root folder if not in uploads
+    path = filename  # Fallback to root directory if not found in uploads
 
   if os.path.exists(path):
     try:
@@ -109,23 +120,22 @@ def get_recent_sensex():
     for index, row in recent_5.iterrows():
       date_str = index.strftime('%d %b')
       close_val = round(row['Close'], 2)
-      change_pct = (
-          round(((close_val - prev_close) / prev_close) * 100, 2)
-          if prev_close
-          else 0.0
+      # Displaying point changes instead of percentages if preferred, or both
+      change_pts = (
+          round(close_val - prev_close, 2) if prev_close else 0.0
       )
       trend_data.append(
-          {'date': date_str, 'value': close_val, 'change': change_pct}
+          {'date': date_str, 'value': close_val, 'change': change_pts}
       )
       prev_close = close_val
     return trend_data
   except:
     return [
-        {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
-        {'date': '22 Sep', 'value': 74529.08, 'change': -0.44},
-        {'date': '23 Sep', 'value': 74828.25, 'change': 0.40},
-        {'date': '24 Sep', 'value': 73580.54, 'change': -1.25},
-        {'date': '25 Sep', 'value': 73895.74, 'change': 0.43},
+        {'date': '21 Sep', 'value': 74858.99, 'change': +120.50},
+        {'date': '22 Sep', 'value': 74529.08, 'change': -329.91},
+        {'date': '23 Sep', 'value': 74828.25, 'change': +299.17},
+        {'date': '24 Sep', 'value': 73580.54, 'change': -1247.71},
+        {'date': '25 Sep', 'value': 73895.74, 'change': +315.20},
     ]
 
 
@@ -160,28 +170,37 @@ def admin_dashboard():
   except:
     archive_files = []
 
-  excel_file = (
-      'master_fund.xlsx'
-      if os.path.exists('master_fund.xlsx')
-      else 'NAV.xlsx'
-  )
-
   return render_template(
       'admin_dashboard.html',
       admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
-      equity_data=parse_fund_excel(excel_file),
-      balancer_data=parse_fund_excel(excel_file),
-      debt_data=parse_fund_excel(excel_file),
+      feedback=USER_FEEDBACK,
+      equity_data=parse_fund_excel('equity_funds.xlsx'),
+      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
+      debt_data=parse_fund_excel('debt_funds.xlsx'),
+      archive_files=archive_files,
+  )
+
+
+@app.route('/user-dashboard')
+def user_dashboard():
+  try:
+    archive_files = os.listdir(app.config['UPLOAD_FOLDER'])
+  except:
+    archive_files = []
+  return render_template(
+      'user_dashboard.html',
+      sensex_trend=get_recent_sensex(),
+      equity_data=parse_fund_excel('equity_funds.xlsx'),
+      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
+      debt_data=parse_fund_excel('debt_funds.xlsx'),
       archive_files=archive_files,
   )
 
 
 @app.route('/download-latest-nav')
 def download_latest_nav():
-  if not session.get('is_admin'):
-    return redirect(url_for('admin_login'))
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
     image_files = [
@@ -217,10 +236,13 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  if 'equity_file' in request.files:
-    file = request.files['equity_file']
+  category = request.form.get('category')  # equity, balancer, or debt
+  file_key = f'{category}_file'
+  if file_key in request.files:
+    file = request.files[file_key]
     if file.filename != '':
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], 'master_fund.xlsx'))
+      filename = f'{category}_funds.xlsx'
+      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
   return redirect(url_for('admin_dashboard'))
 
 
@@ -234,6 +256,35 @@ def upload_nav():
       filename = secure_filename(file.filename)
       file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
   return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-bulk-nav', methods=['POST'])
+def upload_bulk_nav():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  if 'bulk_images' in request.files:
+    files = request.files.getlist('bulk_images')
+    for file in files:
+      if file.filename != '':
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  name = request.form.get('name', 'Anonymous')
+  message = request.form.get('message', '')
+  if message:
+    USER_FEEDBACK.insert(
+        0,
+        {
+            'name': name,
+            'message': message,
+            'date': datetime.now().strftime('%d %b %Y'),
+        },
+    )
+  return redirect(url_for('user_dashboard'))
 
 
 @app.errorhandler(500)
