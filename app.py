@@ -54,14 +54,7 @@ def parse_fund_excel(filename):
   fund_list = []
   path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
   if not os.path.exists(path):
-    try:
-      df_empty = pd.DataFrame(
-          columns=['Funds', 'Inception Date', 'Benchmark', 'Since Inception']
-          + [f'Col_{i}' for i in range(4, 15)]
-      )
-      df_empty.to_excel(path, index=False)
-    except:
-      pass
+    path = filename  # Fallback to root folder if not in uploads
 
   if os.path.exists(path):
     try:
@@ -147,12 +140,9 @@ def admin_login():
     mobile = request.form.get('mobile', '').strip()
     password = request.form.get('password', '').strip()
 
-    print(f'Attempting login with Mobile: {mobile}')
-
     if mobile == '+918078535666' and password == 'Bichu@5419':
       session.permanent = True
       session['is_admin'] = True
-      print('Login Successful. Session set.')
       return redirect(url_for('admin_dashboard'))
     else:
       flash('Invalid Credentials', 'danger')
@@ -162,9 +152,7 @@ def admin_login():
 
 @app.route('/admin-dashboard')
 def admin_dashboard():
-  print('Session state:', session)
   if not session.get('is_admin'):
-    print('Unauthorized access attempt. Redirecting to login.')
     return redirect(url_for('admin_login'))
 
   try:
@@ -172,14 +160,21 @@ def admin_dashboard():
   except:
     archive_files = []
 
+  # Using master_fund.xlsx and NAV.xlsx found in root/uploads
+  excel_file = (
+      'master_fund.xlsx'
+      if os.path.exists('master_fund.xlsx')
+      else 'NAV.xlsx'
+  )
+
   return render_template(
-      'admin_dashboard_2.html',
+      'admin_dashboard.html',
       admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
-      equity_data=parse_fund_excel('equity_funds.xlsx'),
-      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
-      debt_data=parse_fund_excel('debt_funds.xlsx'),
+      equity_data=parse_fund_excel(excel_file),
+      balancer_data=parse_fund_excel(excel_file),
+      debt_data=parse_fund_excel(excel_file),
       archive_files=archive_files,
   )
 
@@ -198,13 +193,10 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  category = request.form.get('category')
-  file_key = f'{category}_file'
-  if file_key in request.files:
-    file = request.files[file_key]
+  if 'equity_file' in request.files:
+    file = request.files['equity_file']
     if file.filename != '':
-      filename = f'{category}_funds.xlsx'
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      file.save(os.path.join(app.config['UPLOAD_FOLDER'], 'master_fund.xlsx'))
   return redirect(url_for('admin_dashboard'))
 
 
