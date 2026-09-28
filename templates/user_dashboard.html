@@ -5,7 +5,6 @@
     <title>User Portal - NAV Updates</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        /* Custom Alert Classes for Red/Green thresholds */
         .nav-red-alert {
             color: #ff5252 !important;
             font-weight: bold;
@@ -71,16 +70,14 @@
 <body>
     <div class="dashboard-container">
         
-        <!-- Original User Header Banner Structure -->
+        <!-- Original Header Structure -->
         <header class="main-header">
             <div class="header-left">
                 <h2>User Portal</h2>
+                <span class="control-center-text">Welcome, Valued Investor</span>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
-            </div>
-            <div class="header-right">
-                <p class="live-datetime">Welcome, Valued Investor</p>
             </div>
         </header>
 
@@ -89,7 +86,7 @@
             
             <!-- Equity Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -120,7 +117,7 @@
 
             <!-- Balancer Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -151,7 +148,7 @@
 
             <!-- Debt Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -183,7 +180,7 @@
         </div>
     </div>
 
-    <!-- Centered Modal Popup for Fund Details -->
+    <!-- Centered Modal Popup -->
     <div id="fundModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
@@ -218,7 +215,6 @@
         </div>
     </div>
 
-    <!-- JavaScript for Modal & Conditional Colors -->
     <script>
         function openModal(data) {
             document.getElementById('modal-fund-name').innerText = data.fund;
