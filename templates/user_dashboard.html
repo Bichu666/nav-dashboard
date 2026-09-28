@@ -79,6 +79,7 @@
             <div class="header-right">
                 <p class="live-datetime" id="live-clock">Live Date & Time</p>
                 <p class="admin-identity" style="color: #ff9800;">User Name: <b>{{ username | default('Client') }}</b></p>
+                <p class="admin-identity" style="color: #00bcd4; font-size: 14px !important;">Admin: <b>Bichu</b></p>
                 <p class="session-badge" style="color: #00e676;">30 Days Active Session</p>
             </div>
         </header>
@@ -90,7 +91,7 @@
                 <h3>BSE Sensex Live Tracker</h3>
                 <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
                 <div class="sensex-main-val">73,500.00</div>
-                <div class="sensex-change-val">+450.25 (+0.62%)</div>
+                <div class="sensex-change-val">+450.25 pts</div>
             </div>
 
             <!-- Previous 5 Days Trend -->
@@ -101,7 +102,9 @@
                     <div class="t-box">
                         <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
                         <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ item.change }}%</div>
+                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">
+                            {% if item.change > 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
