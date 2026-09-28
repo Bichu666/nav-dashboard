@@ -5,11 +5,7 @@
     <title>User Portal - NAV Updates</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body { font-size: 16px !important; background: #121212; color: #fff; font-family: Arial, sans-serif; }
-        .dashboard-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .fund-table-full th, .fund-table-full td { font-size: 15px !important; padding: 12px 10px !important; }
-        .section-title-bar { font-size: 18px !important; padding: 12px 16px !important; background: #ff9800; color: #000; font-weight: bold; }
-        
+        /* Custom Alert Classes for Red/Green thresholds */
         .nav-red-alert {
             color: #ff5252 !important;
             font-weight: bold;
@@ -75,13 +71,16 @@
 <body>
     <div class="dashboard-container">
         
-        <header class="main-header" style="margin-bottom: 20px;">
+        <!-- Restored Original User Header Banner -->
+        <header class="main-header">
             <div class="header-left">
                 <h2>User Portal</h2>
-                <span class="control-center-text">Welcome, Valued Investor</span>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
+            </div>
+            <div class="header-right">
+                <p class="live-datetime">Welcome, Valued Investor</p>
             </div>
         </header>
 
@@ -89,11 +88,11 @@
         <div class="funds-stack-container">
             
             <!-- Equity Section -->
-            <div class="fund-section-box" style="margin-bottom: 20px;">
+            <div class="fund-section-box">
                 <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
-                <table class="fund-table-full" style="width: 100%; border-collapse: collapse;">
+                <table class="fund-table-full">
                     <thead>
-                        <tr style="background: #1f1f1f; color: #ffb74d;">
+                        <tr>
                             <th>FUNDS</th>
                             <th>Inception Date</th>
                             <th>Benchmark Name</th>
@@ -104,8 +103,8 @@
                     </thead>
                     <tbody>
                         {% for row in equity_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
                             {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
@@ -120,11 +119,11 @@
             </div>
 
             <!-- Balancer Section -->
-            <div class="fund-section-box" style="margin-bottom: 20px;">
+            <div class="fund-section-box">
                 <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
-                <table class="fund-table-full" style="width: 100%; border-collapse: collapse;">
+                <table class="fund-table-full">
                     <thead>
-                        <tr style="background: #1f1f1f; color: #ffb74d;">
+                        <tr>
                             <th>FUNDS</th>
                             <th>Inception Date</th>
                             <th>Benchmark Name</th>
@@ -135,8 +134,8 @@
                     </thead>
                     <tbody>
                         {% for row in balancer_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
                             {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
@@ -151,11 +150,11 @@
             </div>
 
             <!-- Debt Section -->
-            <div class="fund-section-box" style="margin-bottom: 20px;">
+            <div class="fund-section-box">
                 <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
-                <table class="fund-table-full" style="width: 100%; border-collapse: collapse;">
+                <table class="fund-table-full">
                     <thead>
-                        <tr style="background: #1f1f1f; color: #ffb74d;">
+                        <tr>
                             <th>FUNDS</th>
                             <th>Inception Date</th>
                             <th>Benchmark Name</th>
@@ -166,8 +165,8 @@
                     </thead>
                     <tbody>
                         {% for row in debt_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
                             {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
