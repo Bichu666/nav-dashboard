@@ -18,10 +18,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
 
-# Enforce 30-day persistent session lifetime
 app.permanent_session_lifetime = timedelta(days=30)
-
-# Allow up to 100MB uploads to prevent connection resets on large archives
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
 UPLOAD_FOLDER = 'uploads'
@@ -318,14 +315,19 @@ def upload_nav():
     return redirect(url_for('admin_login'))
   if request.method == 'POST':
     try:
-      if 'nav_image' in request.files:
-        file = request.files['nav_image']
-        if file and file.filename != '':
-          filename = secure_filename(file.filename)
-          if not filename:
-            filename = f'nav_{int(datetime.now().timestamp())}.jpg'
-          file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-          flash('NAV Image uploaded successfully!', 'success')
+      saved_any = False
+      for key in request.files:
+        for file in request.files.getlist(key):
+          if file and file.filename != '':
+            filename = secure_filename(file.filename)
+            if not filename:
+              filename = f'nav_{int(datetime.now().timestamp())}.jpg'
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            saved_any = True
+      if saved_any:
+        flash('NAV Image uploaded successfully!', 'success')
+      else:
+        flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
       flash(f'Error uploading NAV image: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
@@ -337,9 +339,9 @@ def upload_archive():
     return redirect(url_for('admin_login'))
   if request.method == 'POST':
     try:
-      files = request.files.getlist('archive_files')
-      if files:
-        for file in files:
+      saved_any = False
+      for key in request.files:
+        for file in request.files.getlist(key):
           if file and file.filename != '':
             filename = secure_filename(file.filename)
             if not filename:
@@ -347,7 +349,11 @@ def upload_archive():
                   f'archive_{int(datetime.now().timestamp())}_{file.filename}'
               )
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            saved_any = True
+      if saved_any:
         flash('Archive files uploaded successfully!', 'success')
+      else:
+        flash('No files selected for archive upload.', 'warning')
     except Exception as e:
       flash(f'Error uploading archive files: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
