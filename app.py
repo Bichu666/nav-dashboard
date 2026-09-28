@@ -16,7 +16,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'nav_updates_secret_key_comprehensive'
+app.secret_key = 'nav_updates_secret_key_separate_dashboards'
 app.permanent_session_lifetime = timedelta(days=365)
 
 UPLOAD_FOLDER = 'uploads'
@@ -25,7 +25,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ADMIN_NAME = 'Bijoosh Padmakumar'
 
-# Dummy state management for users and feedback
+# In-memory storage for approvals and feedback
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -120,10 +120,9 @@ def get_recent_sensex():
     for index, row in recent_5.iterrows():
       date_str = index.strftime('%d %b')
       close_val = round(row['Close'], 2)
-      # Displaying point changes instead of percentages if preferred, or both
       change_pts = (
           round(close_val - prev_close, 2) if prev_close else 0.0
-      )
+      )  # points instead of percentage
       trend_data.append(
           {'date': date_str, 'value': close_val, 'change': change_pts}
       )
@@ -160,6 +159,7 @@ def admin_login():
   return render_template('admin_login.html')
 
 
+# --- ADMIN DASHBOARD ROUTE ---
 @app.route('/admin-dashboard')
 def admin_dashboard():
   if not session.get('is_admin'):
@@ -183,12 +183,14 @@ def admin_dashboard():
   )
 
 
+# --- USER DASHBOARD ROUTE ---
 @app.route('/user-dashboard')
 def user_dashboard():
   try:
     archive_files = os.listdir(app.config['UPLOAD_FOLDER'])
   except:
     archive_files = []
+
   return render_template(
       'user_dashboard.html',
       sensex_trend=get_recent_sensex(),
@@ -236,7 +238,9 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  category = request.form.get('category')  # equity, balancer, or debt
+  category = request.form.get(
+      'category'
+  )  # expected values: equity, balancer, or debt
   file_key = f'{category}_file'
   if file_key in request.files:
     file = request.files[file_key]
