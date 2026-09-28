@@ -126,6 +126,39 @@ def parse_fund_excel(filename):
   return fund_list
 
 
+def get_latest_nav_filename():
+  try:
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    image_files = [
+        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+    ]
+    if not image_files:
+      return None
+
+    valid_date_files = []
+    for f in image_files:
+      base_name = os.path.splitext(f)[0]
+      try:
+        file_date = datetime.strptime(base_name, '%d-%m-%Y')
+        valid_date_files.append((file_date, f))
+      except ValueError:
+        pass
+
+    if valid_date_files:
+      valid_date_files.sort(key=lambda x: x[0], reverse=True)
+      return valid_date_files[0][1]
+
+    return max(
+        image_files,
+        key=lambda x: os.path.getmtime(
+            os.path.join(app.config['UPLOAD_FOLDER'], x)
+        ),
+    )
+  except Exception as e:
+    print(f'Error resolving latest NAV: {e}')
+    return None
+
+
 @app.route('/')
 def home():
   return redirect(url_for('login'))
@@ -289,6 +322,8 @@ def upload_nav():
         file = request.files['nav_image']
         if file and file.filename != '':
           filename = secure_filename(file.filename)
+          if not filename:
+            filename = f'nav_{int(datetime.now().timestamp())}.jpg'
           file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
           flash('NAV Image uploaded successfully!', 'success')
     except Exception as e:
@@ -307,6 +342,10 @@ def upload_archive():
         for file in files:
           if file and file.filename != '':
             filename = secure_filename(file.filename)
+            if not filename:
+              filename = (
+                  f'archive_{int(datetime.now().timestamp())}_{file.filename}'
+              )
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
         flash('Archive files uploaded successfully!', 'success')
     except Exception as e:
@@ -370,7 +409,7 @@ def get_archive_files():
           if month.lower() in f.lower():
             matched_files.append(f)
 
-    matched_files.sort()
+    matched_files.sort(reverse=True)
     return jsonify({'success': True, 'files': matched_files})
   except Exception as e:
     return jsonify({'success': False, 'files': []})
@@ -387,17 +426,8 @@ def view_archive_file(filename):
 @app.route('/download-latest-nav')
 def download_latest_nav():
   try:
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    image_files = [
-        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-    ]
-    if image_files:
-      latest_file = max(
-          image_files,
-          key=lambda x: os.path.getmtime(
-              os.path.join(app.config['UPLOAD_FOLDER'], x)
-          ),
-      )
+    latest_file = get_latest_nav_filename()
+    if latest_file:
       return send_from_directory(
           app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
       )
