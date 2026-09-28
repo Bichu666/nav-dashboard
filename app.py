@@ -40,6 +40,13 @@ REGISTERED_USERS = [
         'status': 'Approved',
         'approved_at': datetime.now().isoformat(),
     },
+    {
+        'id': 3,
+        'name': 'biju',
+        'mobile': '+917034788666',
+        'status': 'Approved',
+        'approved_at': datetime.now().isoformat(),
+    },
 ]
 
 
