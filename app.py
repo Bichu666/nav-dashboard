@@ -21,6 +21,9 @@ app.secret_key = 'nav_updates_secret_key'
 # Enforce 30-day persistent session lifetime
 app.permanent_session_lifetime = timedelta(days=30)
 
+# Allow up to 100MB uploads to prevent connection resets on large archives
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -65,7 +68,6 @@ def get_recent_sensex():
     for index, row in recent_5.iterrows():
       date_str = index.strftime('%d %b')
       close_val = round(row['Close'], 2)
-      # Calculate point change instead of percentage
       change_pts = (
           round(close_val - prev_close, 2) if prev_close is not None else 0.0
       )
@@ -262,14 +264,17 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  category = request.form.get('category')
-  file_key = f'{category}_file'
-  if file_key in request.files:
-    file = request.files[file_key]
-    if file.filename != '':
-      filename = f'{category}_funds.xlsx'
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-      flash(f'{category.capitalize()} funds updated successfully!', 'success')
+  try:
+    category = request.form.get('category')
+    file_key = f'{category}_file'
+    if file_key in request.files:
+      file = request.files[file_key]
+      if file and file.filename != '':
+        filename = f'{category}_funds.xlsx'
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        flash(f'{category.capitalize()} funds updated successfully!', 'success')
+  except Exception as e:
+    flash(f'Error updating category: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
@@ -277,12 +282,15 @@ def upload_master_category():
 def upload_nav():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  if 'nav_image' in request.files:
-    file = request.files['nav_image']
-    if file.filename != '':
-      filename = secure_filename(file.filename)
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-      flash('NAV Image uploaded successfully!', 'success')
+  try:
+    if 'nav_image' in request.files:
+      file = request.files['nav_image']
+      if file and file.filename != '':
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        flash('NAV Image uploaded successfully!', 'success')
+  except Exception as e:
+    flash(f'Error uploading NAV image: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
@@ -290,11 +298,16 @@ def upload_nav():
 def upload_archive():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  for file in request.files.getlist('archive_files'):
-    if file.filename != '':
-      filename = secure_filename(file.filename)
-      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-  flash('Archive files uploaded successfully!', 'success')
+  try:
+    files = request.files.getlist('archive_files')
+    if files:
+      for file in files:
+        if file and file.filename != '':
+          filename = secure_filename(file.filename)
+          file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      flash('Archive files uploaded successfully!', 'success')
+  except Exception as e:
+    flash(f'Error uploading archive files: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
