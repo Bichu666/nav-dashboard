@@ -1,5 +1,4 @@
 import os
-import traceback
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
@@ -11,13 +10,16 @@ from flask import (
     url_for,
     flash,
     session,
+    jsonify,
     send_from_directory,
 )
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'nav_updates_secret_key_separate_dashboards'
-app.permanent_session_lifetime = timedelta(days=365)
+app.secret_key = 'nav_updates_secret_key'
+
+# Enforce 30-day persistent session lifetime
+app.permanent_session_lifetime = timedelta(days=30)
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -25,7 +27,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ADMIN_NAME = 'Bijoosh Padmakumar'
 
-# In-memory storage for approvals and feedback
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -43,15 +44,52 @@ REGISTERED_USERS = [
     },
 ]
 
-USER_FEEDBACK = [
-    {
-        'name': 'Priya Nair',
-        'message': (
-            'The monthly statement downloads are super helpful. Great UI!'
-        ),
-        'date': '27 Sep 2026',
-    }
-]
+
+def check_user_validity(user):
+  if user['status'] == 'Approved' and user.get('approved_at'):
+    approved_date = datetime.fromisoformat(user['approved_at'])
+    if datetime.now() - approved_date > timedelta(days=30):
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+
+
+def get_recent_sensex():
+  try:
+    sensex = yf.Ticker('^BSESN')
+    df = sensex.history(period='12d')
+    if df.empty or len(df) < 5:
+      raise ValueError('Insufficient dataframe rows')
+    recent_5 = df.tail(5)
+
+    trend_data = []
+    prev_close = None
+
+    full_list = list(df.iterrows())
+    tail_start_idx = len(full_list) - 5
+    if tail_start_idx > 0:
+      prev_close = round(full_list[tail_start_idx - 1][1]['Close'], 2)
+
+    for index, row in recent_5.iterrows():
+      date_str = index.strftime('%d %b')
+      close_val = round(row['Close'], 2)
+      if prev_close is not None:
+        change_pct = round(((close_val - prev_close) / prev_close) * 100, 2)
+      else:
+        change_pct = 0.0
+      trend_data.append(
+          {'date': date_str, 'value': close_val, 'change': change_pct}
+      )
+      prev_close = close_val
+    return trend_data
+  except Exception as e:
+    print(f'Error fetching Sensex data: {e}')
+    return [
+        {'date': '21 Sep', 'value': 82140.50, 'change': 0.0},
+        {'date': '22 Sep', 'value': 82355.20, 'change': 0.26},
+        {'date': '23 Sep', 'value': 81980.15, 'change': -0.46},
+        {'date': '24 Sep', 'value': 82450.80, 'change': 0.57},
+        {'date': '25 Sep', 'value': 82290.45, 'change': -0.19},
+    ]
 
 
 def format_pct(val):
@@ -64,173 +102,183 @@ def format_pct(val):
 def parse_fund_excel(filename):
   fund_list = []
   path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-  if not os.path.exists(path):
-    path = filename  # Fallback to root directory if not found in uploads
-
   if os.path.exists(path):
     try:
       df = pd.read_excel(path)
-      if not df.empty:
-        df = df.dropna(subset=[df.columns[0]])
-        for _, row in df.iterrows():
-          val = str(row.iloc[0]).strip()
-          if val and val.lower() not in ['nan', 'funds', 'unnamed: 0']:
-            fund_list.append({
-                'fund': val,
-                'inception': (
-                    str(row.iloc[1])
-                    if len(row) > 1 and pd.notna(row.iloc[1])
-                    else ''
-                ),
-                'benchmark': (
-                    str(row.iloc[2])
-                    if len(row) > 2 and pd.notna(row.iloc[2])
-                    else ''
-                ),
-                'since': (
-                    format_pct(row.iloc[3])
-                    if len(row) > 3 and pd.notna(row.iloc[3])
-                    else '0'
-                ),
-                'high': (
-                    str(row.iloc[13])
-                    if len(row) > 13 and pd.notna(row.iloc[13])
-                    else '0'
-                ),
-                'latest': (
-                    str(row.iloc[14])
-                    if len(row) > 14 and pd.notna(row.iloc[14])
-                    else '0'
-                ),
-            })
+      df = df.dropna(subset=[df.columns[0]])
+      for _, row in df.iterrows():
+        val = str(row.iloc[0]).strip()
+        if val and val.lower() not in ['nan', 'funds']:
+          fund_list.append({
+              'fund': val,
+              'inception': str(row.iloc[1]) if len(row) > 1 else '',
+              'benchmark': str(row.iloc[2]) if len(row) > 2 else '',
+              'since': format_pct(row.iloc[3]) if len(row) > 3 else '0',
+              'm1': format_pct(row.iloc[4]) if len(row) > 4 else '0',
+              'm6': format_pct(row.iloc[5]) if len(row) > 5 else '0',
+              'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
+              'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
+              'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0',
+          })
     except Exception as e:
       print(f'Error reading {filename}: {e}')
   return fund_list
 
 
-def get_recent_sensex():
-  try:
-    sensex = yf.Ticker('^BSESN')
-    df = sensex.history(period='10d')
-    if df.empty or len(df) < 5:
-      raise ValueError('Insufficient rows')
-    recent_5 = df.tail(5)
-    trend_data = []
-    prev_close = None
-    for index, row in recent_5.iterrows():
-      date_str = index.strftime('%d %b')
-      close_val = round(row['Close'], 2)
-      change_pts = (
-          round(close_val - prev_close, 2) if prev_close else 0.0
-      )  # points instead of percentage
-      trend_data.append(
-          {'date': date_str, 'value': close_val, 'change': change_pts}
-      )
-      prev_close = close_val
-    return trend_data
-  except:
-    return [
-        {'date': '21 Sep', 'value': 74858.99, 'change': +120.50},
-        {'date': '22 Sep', 'value': 74529.08, 'change': -329.91},
-        {'date': '23 Sep', 'value': 74828.25, 'change': +299.17},
-        {'date': '24 Sep', 'value': 73580.54, 'change': -1247.71},
-        {'date': '25 Sep', 'value': 73895.74, 'change': +315.20},
-    ]
-
-
 @app.route('/')
 def home():
-  return redirect(url_for('admin_login'))
+  return redirect(url_for('login'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+  if request.method == 'POST':
+    username = request.form.get('username')
+    mobile = request.form.get('mobile')
+    if username and mobile:
+      session.permanent = True
+      session['username'] = username
+      session['mobile'] = mobile
+
+      user_record = next(
+          (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+      )
+      if not user_record:
+        user_record = {
+            'id': len(REGISTERED_USERS) + 1,
+            'name': username,
+            'mobile': mobile,
+            'status': 'Pending',
+            'approved_at': None,
+        }
+        REGISTERED_USERS.append(user_record)
+      else:
+        check_user_validity(user_record)
+
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+      elif user_record['status'] == 'Declined':
+        flash(
+            'Your login request has been declined by the administrator.',
+            'danger',
+        )
+        return redirect(url_for('login'))
+
+      return redirect(url_for('user_dashboard'))
+  return render_template('login.html')
+
+
+@app.route('/pending-approval')
+def pending_approval():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+    if user_record['status'] == 'Declined':
+      flash(
+          'Your login request has been declined by the administrator.', 'danger'
+      )
+      return redirect(url_for('login'))
+
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
+
+
+@app.route('/user-dashboard')
+def user_dashboard():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Pending':
+      return redirect(url_for('pending_approval'))
+    if user_record['status'] == 'Declined':
+      return redirect(url_for('login'))
+
+  if not user_record:
+    return redirect(url_for('login'))
+
+  return render_template(
+      'user_dashboard.html',
+      username=session.get('username', 'Client'),
+      admin_name=ADMIN_NAME,
+      mobile=mobile,
+      sensex_trend=get_recent_sensex(),
+      equity_data=parse_fund_excel('equity_funds.xlsx'),
+      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
+      debt_data=parse_fund_excel('debt_funds.xlsx'),
+  )
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
   if request.method == 'POST':
-    mobile = request.form.get('mobile', '').strip()
-    password = request.form.get('password', '').strip()
+    mobile_input = request.form.get('mobile')
+    password_input = request.form.get('password')
 
-    if mobile == '+918078535666' and password == 'Bichu@5419':
+    if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
       session.permanent = True
       session['is_admin'] = True
       return redirect(url_for('admin_dashboard'))
     else:
-      flash('Invalid Credentials', 'danger')
-
+      flash('Invalid Admin Credentials', 'danger')
   return render_template('admin_login.html')
 
 
-# --- ADMIN DASHBOARD ROUTE ---
-@app.route('/admin-dashboard')
+@app.route('/admin')
+def admin_redirect():
+  if session.get('is_admin'):
+    return redirect(url_for('admin_dashboard'))
+  return redirect(url_for('admin_login'))
+
+
+@app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
 
-  try:
-    archive_files = os.listdir(app.config['UPLOAD_FOLDER'])
-  except:
-    archive_files = []
+  for user in REGISTERED_USERS:
+    check_user_validity(user)
 
   return render_template(
       'admin_dashboard.html',
       admin_name=ADMIN_NAME,
       sensex_trend=get_recent_sensex(),
       users=REGISTERED_USERS,
-      feedback=USER_FEEDBACK,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
       balancer_data=parse_fund_excel('balancer_funds.xlsx'),
       debt_data=parse_fund_excel('debt_funds.xlsx'),
-      archive_files=archive_files,
+      current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
   )
-
-
-# --- USER DASHBOARD ROUTE ---
-@app.route('/user-dashboard')
-def user_dashboard():
-  try:
-    archive_files = os.listdir(app.config['UPLOAD_FOLDER'])
-  except:
-    archive_files = []
-
-  return render_template(
-      'user_dashboard.html',
-      sensex_trend=get_recent_sensex(),
-      equity_data=parse_fund_excel('equity_funds.xlsx'),
-      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
-      debt_data=parse_fund_excel('debt_funds.xlsx'),
-      archive_files=archive_files,
-  )
-
-
-@app.route('/download-latest-nav')
-def download_latest_nav():
-  try:
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    image_files = [
-        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-    ]
-    if image_files:
-      latest_image = max(
-          image_files,
-          key=lambda x: os.path.getctime(
-              os.path.join(app.config['UPLOAD_FOLDER'], x)
-          ),
-      )
-      return send_from_directory(
-          app.config['UPLOAD_FOLDER'], latest_image, as_attachment=True
-      )
-  except Exception as e:
-    print(f'Error downloading latest nav: {e}')
-  flash('No NAV image found to download.', 'warning')
-  return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+
   for user in REGISTERED_USERS:
     if user['id'] == user_id:
       user['status'] = status.capitalize()
+      if status.capitalize() == 'Approved':
+        user['approved_at'] = datetime.now().isoformat()
+      else:
+        user['approved_at'] = None
   return redirect(url_for('admin_dashboard'))
 
 
@@ -238,15 +286,14 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  category = request.form.get(
-      'category'
-  )  # expected values: equity, balancer, or debt
+  category = request.form.get('category')
   file_key = f'{category}_file'
   if file_key in request.files:
     file = request.files[file_key]
     if file.filename != '':
       filename = f'{category}_funds.xlsx'
       file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      flash(f'{category.capitalize()} funds updated successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
 
@@ -259,45 +306,111 @@ def upload_nav():
     if file.filename != '':
       filename = secure_filename(file.filename)
       file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+      flash('NAV Image uploaded successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/upload-bulk-nav', methods=['POST'])
-def upload_bulk_nav():
+@app.route('/upload-archive', methods=['POST'])
+def upload_archive():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  if 'bulk_images' in request.files:
-    files = request.files.getlist('bulk_images')
-    for file in files:
-      if file.filename != '':
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+  for file in request.files.getlist('archive_files'):
+    if file.filename != '':
+      filename = secure_filename(file.filename)
+      file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+  flash('Archive files uploaded successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/submit-feedback', methods=['POST'])
-def submit_feedback():
-  name = request.form.get('name', 'Anonymous')
-  message = request.form.get('message', '')
-  if message:
-    USER_FEEDBACK.insert(
-        0,
-        {
-            'name': name,
-            'message': message,
-            'date': datetime.now().strftime('%d %b %Y'),
-        },
-    )
-  return redirect(url_for('user_dashboard'))
+@app.route('/delete-archive-file/<filename>', methods=['POST'])
+def delete_archive_file(filename):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  try:
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      flash(f'Successfully deleted: {filename}', 'success')
+  except Exception as e:
+    flash(f'Error deleting file: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
 
 
-@app.errorhandler(500)
-def internal_server_error(e):
-  print('SERVER ERROR:', traceback.format_exc())
-  return (
-      f'<h3>Internal Server Error Details:</h3><pre>{traceback.format_exc()}</pre>',
-      500,
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+  year = request.args.get('year', '')
+  month = request.args.get('month', '')
+
+  month_map = {
+      'Jan': '01',
+      'Feb': '02',
+      'Mar': '03',
+      'Apr': '04',
+      'May': '05',
+      'Jun': '06',
+      'Jul': '07',
+      'Aug': '08',
+      'Sep': '09',
+      'Oct': '10',
+      'Nov': '11',
+      'Dec': '12',
+  }
+
+  try:
+    all_files = os.listdir(app.config['UPLOAD_FOLDER'])
+    numeric_month = month_map.get(month, '')
+
+    matched_files = []
+    for f in all_files:
+      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and year in f:
+        if numeric_month:
+          if (
+              f'-{numeric_month}-' in f
+              or f'/{numeric_month}/' in f
+              or f'_{numeric_month}_' in f
+              or f'-{numeric_month}.' in f
+              or f'_{numeric_month}.' in f
+          ):
+            matched_files.append(f)
+        else:
+          if month.lower() in f.lower():
+            matched_files.append(f)
+
+    matched_files.sort()
+    return jsonify({'success': True, 'files': matched_files})
+  except Exception as e:
+    return jsonify({'success': False, 'files': []})
+
+
+@app.route('/view-archive-file/<filename>')
+def view_archive_file(filename):
+  as_attachment = request.args.get('download') == 'true'
+  return send_from_directory(
+      app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
   )
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  try:
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    image_files = [
+        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+    ]
+    if image_files:
+      latest_file = max(
+          image_files,
+          key=lambda x: os.path.getmtime(
+              os.path.join(app.config['UPLOAD_FOLDER'], x)
+          ),
+      )
+      return send_from_directory(
+          app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
+      )
+  except Exception as e:
+    print(f'Download error: {e}')
+  flash('No NAV image available for download.', 'danger')
+  return redirect(url_for('user_dashboard'))
 
 
 if __name__ == '__main__':
