@@ -260,54 +260,57 @@ def update_user_status(user_id, status):
   return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/upload-master-category', methods=['POST'])
+@app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  try:
-    category = request.form.get('category')
-    file_key = f'{category}_file'
-    if file_key in request.files:
-      file = request.files[file_key]
-      if file and file.filename != '':
-        filename = f'{category}_funds.xlsx'
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        flash(f'{category.capitalize()} funds updated successfully!', 'success')
-  except Exception as e:
-    flash(f'Error updating category: {e}', 'danger')
+  if request.method == 'POST':
+    try:
+      category = request.form.get('category')
+      file_key = f'{category}_file'
+      if file_key in request.files:
+        file = request.files[file_key]
+        if file and file.filename != '':
+          filename = f'{category}_funds.xlsx'
+          file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+          flash(f'{category.capitalize()} funds updated successfully!', 'success')
+    except Exception as e:
+      flash(f'Error updating category: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/upload-nav', methods=['POST'])
+@app.route('/upload-nav', methods=['GET', 'POST'])
 def upload_nav():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  try:
-    if 'nav_image' in request.files:
-      file = request.files['nav_image']
-      if file and file.filename != '':
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        flash('NAV Image uploaded successfully!', 'success')
-  except Exception as e:
-    flash(f'Error uploading NAV image: {e}', 'danger')
-  return redirect(url_for('admin_dashboard'))
-
-
-@app.route('/upload-archive', methods=['POST'])
-def upload_archive():
-  if not session.get('is_admin'):
-    return redirect(url_for('admin_login'))
-  try:
-    files = request.files.getlist('archive_files')
-    if files:
-      for file in files:
+  if request.method == 'POST':
+    try:
+      if 'nav_image' in request.files:
+        file = request.files['nav_image']
         if file and file.filename != '':
           filename = secure_filename(file.filename)
           file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-      flash('Archive files uploaded successfully!', 'success')
-  except Exception as e:
-    flash(f'Error uploading archive files: {e}', 'danger')
+          flash('NAV Image uploaded successfully!', 'success')
+    except Exception as e:
+      flash(f'Error uploading NAV image: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-archive', methods=['GET', 'POST'])
+def upload_archive():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  if request.method == 'POST':
+    try:
+      files = request.files.getlist('archive_files')
+      if files:
+        for file in files:
+          if file and file.filename != '':
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        flash('Archive files uploaded successfully!', 'success')
+    except Exception as e:
+      flash(f'Error uploading archive files: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
