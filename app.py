@@ -160,7 +160,6 @@ def admin_dashboard():
   except:
     archive_files = []
 
-  # Using master_fund.xlsx and NAV.xlsx found in root/uploads
   excel_file = (
       'master_fund.xlsx'
       if os.path.exists('master_fund.xlsx')
@@ -177,6 +176,31 @@ def admin_dashboard():
       debt_data=parse_fund_excel(excel_file),
       archive_files=archive_files,
   )
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  try:
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    image_files = [
+        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+    ]
+    if image_files:
+      latest_image = max(
+          image_files,
+          key=lambda x: os.path.getctime(
+              os.path.join(app.config['UPLOAD_FOLDER'], x)
+          ),
+      )
+      return send_from_directory(
+          app.config['UPLOAD_FOLDER'], latest_image, as_attachment=True
+      )
+  except Exception as e:
+    print(f'Error downloading latest nav: {e}')
+  flash('No NAV image found to download.', 'warning')
+  return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
