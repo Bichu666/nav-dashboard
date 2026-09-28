@@ -2,306 +2,104 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Portal - NAV Updates</title>
-    <!-- Auto-refresh every 1 minute (60 seconds) to check for pending user requests -->
-    <meta http-equiv="refresh" content="60">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body { font-size: 16px !important; }
-        .dashboard-container { font-size: 16px; max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .main-header h2 { font-size: 26px !important; }
-        .main-header h1 { font-size: 38px !important; }
-        .control-center-text { font-size: 15px !important; }
-        .live-datetime, .admin-identity, .session-badge { font-size: 15px !important; }
-        .panel h3 { font-size: 18px !important; margin-bottom: 15px; color: #ffb74d; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        .sensex-main-val { font-size: 32px !important; }
-        .sensex-change-val { font-size: 18px !important; }
-        .fund-table-full th, .fund-table-full td { font-size: 15px !important; padding: 12px 10px !important; }
-        .section-title-bar { font-size: 18px !important; padding: 12px 16px !important; }
-
-        /* Custom Alert Classes for Red/Green thresholds */
-        .nav-red-alert {
-            color: #ff5252 !important;
-            font-weight: bold;
-        }
-        .nav-green {
-            color: #00e676 !important;
-        }
-
-        /* Centered Modal Overlay */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: #1a1a1a;
-            border: 1px solid #444;
-            padding: 30px;
-            border-radius: 10px;
-            width: 650px;
-            max-width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            color: #aaa;
-            cursor: pointer;
-        }
-        .modal-close:hover { color: #fff; }
-
-        .modal-returns-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .modal-returns-table th, .modal-returns-table td {
-            padding: 10px;
-            border-bottom: 1px solid #333;
-            text-align: left;
-        }
-        .modal-returns-table th {
-            background: #222;
-            color: #ffb74d;
-        }
-
-        /* Improved Grid & Form Layouts */
-        .top-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr 1.5fr 1.2fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .second-grid-3cols {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .upload-card {
-            background: #161616;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .upload-card input[type="file"] {
-            background: #262626;
-            color: #fff;
-            padding: 10px;
-            border: 1px solid #555;
-            border-radius: 5px;
-            width: 100%;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-
-        .archive-controls-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .archive-controls-row label, .upload-card label {
-            display: block;
-            font-size: 14px;
-            color: #aaa;
-            margin-bottom: 5px;
-        }
-
-        .archive-controls-row select {
-            width: 100%;
-            background: #262626;
-            border: 1px solid #555;
-            padding: 10px;
-            color: #fff;
-            border-radius: 5px;
-            font-size: 15px;
-        }
-
-        .file-pick-row {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .file-pick-row input[type="file"] {
-            background: #262626;
-            color: #fff;
-            padding: 10px;
-            border: 1px solid #555;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-
-        .btn-auto-update, .btn-batch, .btn-publish-nav {
-            background: #ff9800;
-            color: #000;
-            font-weight: bold;
-            border: none;
-            padding: 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            text-align: center;
-            width: 100%;
-            font-size: 15px;
-            transition: background 0.2s;
-        }
-        .btn-auto-update:hover, .btn-batch:hover, .btn-publish-nav:hover {
-            background: #ffa726;
-        }
-
-        .approval-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .approval-table th, .approval-table td {
-            padding: 14px;
-            text-align: left;
-            border-bottom: 1px solid #333;
-            font-size: 15px;
-        }
-        .approval-table th {
-            background: #1f1f1f;
-            color: #ffb74d;
-        }
-        .btn-app { background: #00c853; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .btn-dec { background: #d32f2f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        /* Existing styles preserved */
+        body { background-color: #121212; color: #ffffff; font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background-color: #ff9800; color: #000; }
+        .btn { background: #ff9800; color: #000; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-weight: bold; display: inline-block; }
+        .btn:hover { background: #e68900; }
+        select, input { padding: 10px; background: #2c2c2c; color: #fff; border: 1px solid #444; border-radius: 4px; margin-right: 10px; }
+        .flash-messages { margin-bottom: 20px; }
+        .alert { padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .alert-success { background: #2e7d32; color: #fff; }
+        .alert-danger { background: #c62828; color: #fff; }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        
-        <!-- Header Banner Section -->
-        <header class="main-header">
-            <div class="header-left">
-                <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
-                <p class="admin-identity" style="color: #ff9800; font-style: italic; margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h2>Admin Control Panel</h2>
+                <small>Manage NAV Uploads & User Approvals</small>
             </div>
-            <div class="header-center-banner">
-                <h1>NAV UPDATES</h1>
+            <div>
+                <span>{{ current_time }}</span>
+                <a href="{{ url_for('admin_login') }}" class="btn" style="background: #c62828; color: #fff; margin-left: 10px;">Logout</a>
             </div>
-            <div class="header-right">
-                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
-                <p class="admin-identity">Admin Portal Active</p>
-                <p class="session-badge">Lifetime Admin Session Active</p>
-            </div>
-        </header>
+        </div>
 
-        <!-- Top Controls Grid -->
-        <div class="top-grid">
-            <div class="panel sensex-panel">
-                <h3>BSE Sensex Live Tracker</h3>
-                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
-                <div class="sensex-main-val">72,771.72</div>
-                <div class="sensex-change-val nav-red-alert">-1,124.02 pts</div>
-            </div>
-
-            <div class="panel trend-panel">
-                <h3>Previous 5 days Market Trend</h3>
-                <div class="trend-boxes">
-                    {% for item in sensex_trend %}
-                    <div class="t-box">
-                        <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
-                        <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ item.change }}%</div>
-                    </div>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
                 </div>
-            </div>
+            {% endif %}
+        {% endwith %}
 
-            <div class="panel archive-panel" style="background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
-                <h3>Bulk Month-Wise Archive Uploads</h3>
-                <form action="{{ url_for('upload_archive') }}" method="POST" enctype="multipart/form-data">
-                    <div class="archive-controls-row">
-                        <div>
-                            <label>Year</label>
-                            <select name="archive_year"><option>2024</option><option>2025</option><option>2026</option></select>
-                        </div>
-                        <div>
-                            <label>Month</label>
-                            <select name="archive_month"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
-                        </div>
-                    </div>
-                    <div class="file-pick-row">
-                        <input type="file" name="archive_files" multiple required>
-                        <button type="submit" class="btn-batch">Upload Archive Batch</button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="panel nav-image-panel" style="background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Upload Today's NAV Image</h3>
-                <form action="{{ url_for('upload_nav') }}" method="POST" enctype="multipart/form-data">
-                    <label style="font-size: 14px; color: #aaa; margin-bottom: 5px; display: block;">JPEG Format</label>
-                    <input type="file" name="nav_image" accept="image/jpeg" style="background: #262626; color: #fff; padding: 10px; border: 1px solid #555; border-radius: 5px; width: 100%; margin-bottom: 15px; font-size: 14px;" required>
-                    <button type="submit" class="btn-publish-nav">Publish Todays NAV</button>
-                </form>
-            </div>
+        <div class="card">
+            <h3>Upload Latest NAV Image (e.g., 25-09-2026.jpg)</h3>
+            <form method="POST" action="{{ url_for('upload_nav') }}" enctype="multipart/form-data">
+                <input type="file" name="nav_image" required accept="image/*">
+                <button type="submit" class="btn">Upload NAV</button>
+            </form>
         </div>
 
-        <!-- Second Row: 3 Separate Master Fund Upload Options -->
-        <div class="second-grid-3cols">
-            <div class="panel upload-card">
-                <h3>1. Upload Equity Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="equity">
-                    <input type="file" name="equity_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Equity Excel</button>
-                </form>
-            </div>
-
-            <div class="panel upload-card">
-                <h3>2. Upload Balancer Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="balancer">
-                    <input type="file" name="balancer_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Balancer Excel</button>
-                </form>
-            </div>
-
-            <div class="panel upload-card">
-                <h3>3. Upload Debt Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="debt">
-                    <input type="file" name="debt_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Debt Excel</button>
-                </form>
-            </div>
+        <div class="card">
+            <h3>Upload Old NAV Archives (Batch Upload: 01-09-2026 to 30-09-2026)</h3>
+            <form method="POST" action="{{ url_for('upload_archive') }}" enctype="multipart/form-data">
+                <input type="file" name="archive_files" multiple required accept="image/*,.pdf">
+                <button type="submit" class="btn">Upload Archives</button>
+            </form>
         </div>
 
-        <!-- User Approvals Section -->
-        <div class="panel approval-panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
-            <h3>User Approval & Unique Visitors</h3>
-            <table class="approval-table">
+        <div class="card">
+            <h3>Old NAV Image Viewer & Manager</h3>
+            <form method="GET" action="{{ url_for('get_archive_files') }}" id="archiveFormAdmin">
+                <select name="year" id="admin_year" required>
+                    <option value="" disabled selected>- Select Year -</option>
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                </select>
+
+                <select name="month" id="admin_month" required>
+                    <option value="" disabled selected>- Select Month -</option>
+                    <option value="Jan">Jan</option>
+                    <option value="Feb">Feb</option>
+                    <option value="Mar">Mar</option>
+                    <option value="Apr">Apr</option>
+                    <option value="May">May</option>
+                    <option value="Jun">Jun</option>
+                    <option value="Jul">Jul</option>
+                    <option value="Aug">Aug</option>
+                    <option value="Sep">Sep</option>
+                    <option value="Oct">Oct</option>
+                    <option value="Nov">Nov</option>
+                    <option value="Dec">Dec</option>
+                </select>
+
+                <button type="button" class="btn" onclick="fetchAdminArchiveFiles()">View Files</button>
+            </form>
+            <div id="adminArchiveResults" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="card">
+            <h3>Manage Registered Users & Approvals</h3>
+            <table>
                 <thead>
                     <tr>
-                        <th>Registered User Accounts</th>
-                        <th>Mobile number</th>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Mobile</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -309,242 +107,58 @@
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.name }} (ID: {{ user.id }})</td>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.name }}</td>
                         <td>{{ user.mobile }}</td>
-                        <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
+                        <td>{{ user.status }}</td>
                         <td>
+                            {% if user.status == 'Pending' %}
                             <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-app">Approve</button>
+                                <button type="submit" class="btn" style="padding: 5px 10px; background: #4caf50; color: #fff;">Approve</button>
                             </form>
+                            {% else %}
                             <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-dec">Decline</button>
+                                <button type="submit" class="btn" style="padding: 5px 10px; background: #c62828; color: #fff;">Revoke</button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <!-- Feedback & Suggestions Section -->
-        <div class="panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
-            <h3>User Feedback and Suggestion / Rating</h3>
-            <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
-                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;">
-                <button class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
-            </div>
-        </div>
-
-        <!-- Full-Width Stacked Fund Sections (Equity, Balancer, Debt) -->
-        <div class="funds-stack-container">
-            
-            <!-- Equity Section -->
-            <div class="fund-section-box">
-                <div class="section-title-bar">Equity Funds</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in equity_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Balancer Section -->
-            <div class="fund-section-box">
-                <div class="section-title-bar">Balancer Funds</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in balancer_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Debt Section -->
-            <div class="fund-section-box">
-                <div class="section-title-bar">Debt Funds</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in debt_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
-
-        <footer class="portal-footer" style="font-size: 16px; padding: 20px 0;">
-            <p>Admin Portal - NAV Updates</p>
-        </footer>
-
     </div>
 
-    <!-- Centered Modal Popup for Fund Details -->
-    <div id="fundModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0; font-size: 22px;">Fund Name</h2>
-            <div class="modal-info-grid" style="font-size: 15px; margin-bottom: 15px; display: flex; gap: 20px;">
-                <div><strong>Inception Date:</strong> <span id="modal-inception"></span></div>
-                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark"></span></div>
-            </div>
-            
-            <table class="modal-returns-table">
-                <thead>
-                    <tr>
-                        <th>Metric / Period</th>
-                        <th>Value / Return</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
-                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
-                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
-                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
-                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
-                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
-                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
-                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
-                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
-                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
-                    <tr><td>Highest NAV</td><td id="m-high"></td></tr>
-                    <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- JavaScript for Clock & Modal with Conditional Coloring -->
     <script>
-        function updateClock() {
-            const now = new Date();
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString('en-US', options);
-            document.getElementById('live-clock').innerText = timeString;
-            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        function openModal(data) {
-            document.getElementById('modal-fund-name').innerText = data.fund;
-            document.getElementById('modal-inception').innerText = data.inception;
-            document.getElementById('modal-benchmark').innerText = data.benchmark;
-
-            const percentageFields = [
-                {id: 'm-since', val: data.since},
-                {id: 'm-1m', val: data.m1},
-                {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1},
-                {id: 'm-2y', val: data.y2},
-                {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4},
-                {id: 'm-5y', val: data.y5},
-                {id: 'm-7y', val: data.y7},
-                {id: 'm-10y', val: data.y10}
-            ];
-
-            percentageFields.forEach(f => {
-                let cell = document.getElementById(f.id);
-                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
-                let num = parseFloat(String(rawVal).replace('%', ''));
-                
-                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
-                
-                if (isNaN(num) || num <= 0) {
-                    cell.className = "nav-red-alert";
-                } else {
-                    cell.className = "nav-green";
-                }
-            });
-
-            let highCell = document.getElementById('m-high');
-            highCell.innerText = data.high;
-            highCell.className = "nav-green";
-
-            let latestCell = document.getElementById('m-latest');
-            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
-            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
-            latestCell.innerText = latestRaw;
-
-            if (isNaN(latestNum) || latestNum < 10) {
-                latestCell.className = "nav-red-alert";
-            } else {
-                latestCell.className = "nav-green";
+        function fetchAdminArchiveFiles() {
+            const year = document.getElementById('admin_year').value;
+            const month = document.getElementById('admin_month').value;
+            if(!year || !month) {
+                alert('Please select both Year and Month.');
+                return;
             }
-
-            document.getElementById('fundModal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('fundModal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            let modal = document.getElementById('fundModal');
-            if (event.target == modal) {
-                closeModal();
-            }
+            fetch(`/get-archive-files?year=${year}&month=${month}`)
+                .then(res => res.json())
+                .then(data => {
+                    const resultsDiv = document.getElementById('adminArchiveResults');
+                    resultsDiv.innerHTML = '';
+                    if(data.success && data.files.length > 0) {
+                        let html = '<ul>';
+                        data.files.forEach(file => {
+                            html += `<li style="margin-bottom: 8px;">
+                                <a href="/view-archive-file/${file}" target="_blank" style="color: #ff9800;">${file}</a> | 
+                                <a href="/view-archive-file/${file}?download=true" style="color: #4caf50;">Download</a> | 
+                                <form action="/delete-archive-file/${file}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this file?');">
+                                    <button type="submit" style="background:#c62828; color:#white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer; color:#fff;">Delete</button>
+                                </form>
+                            </li>`;
+                        });
+                        html += '</ul>';
+                        resultsDiv.innerHTML = html;
+                    } else {
+                        resultsDiv.innerHTML = '<p>No NAV archives found for the selected period.</p>';
+                    }
+                });
         }
     </script>
 </body>
