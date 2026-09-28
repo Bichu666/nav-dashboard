@@ -3,8 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
-    <!-- Auto-refresh every 1 minute (60 seconds) to check for pending user requests -->
-    <meta http-equiv="refresh" content="60">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -14,29 +12,27 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
+                <span class="control-center-text">Client Control Center</span>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
             </div>
             <div class="header-right">
-                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
-                <p class="admin-identity">Admin Portal Active</p>
-                <p class="session-badge">Lifetime Admin Session Active</p>
+                <p class="live-datetime" id="live-clock">Loading...</p>
+                <p class="admin-identity">Admin - {{ admin_name }}</p>
+                <p class="session-badge">Active Session (Lifetime Enabled)</p>
             </div>
         </header>
 
-        <!-- Top Controls Grid -->
+        <!-- Top 4 Cards Grid -->
         <div class="top-grid">
-            <!-- Sensex Live Tracker -->
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
-                <span class="sub-label" id="sensex-time-label">Date and Time</span>
-                <div class="sensex-main-val">73,500.00</div>
-                <div class="sensex-change-val">+450.25 (+0.62%)</div>
+                <span class="sub-label">Live Market Status</span>
+                <div class="sensex-main-val">73,895.74</div>
+                <div class="sensex-change-val">+315.20 (+0.43%)</div>
             </div>
 
-            <!-- Previous 5 Days Trend -->
             <div class="panel trend-panel">
                 <h3>Previous 5 days Market Trend</h3>
                 <div class="trend-boxes">
@@ -44,98 +40,73 @@
                     <div class="t-box">
                         <div class="t-date">{{ item.date }}</div>
                         <div class="t-val">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}">{{ item.change }}%</div>
+                        <div class="t-chg">{{ item.change }}%</div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <!-- Bulk Archive Uploads -->
-            <div class="panel archive-panel">
-                <h3>Bulk Month-Wise Archive Uploads (2024 to Present)</h3>
-                <form action="{{ url_for('upload_archive') }}" method="POST" enctype="multipart/form-data">
-                    <div class="archive-controls-row">
-                        <div>
-                            <label>Select Year</label>
-                            <select name="archive_year"><option>2024</option><option>2025</option><option>2026</option></select>
-                        </div>
-                        <div>
-                            <label>Select Month</label>
-                            <select name="archive_month"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
-                        </div>
-                    </div>
-                    <div class="file-pick-row">
-                        <input type="file" name="archive_files" multiple class="file-input-hidden" required>
-                        <button type="submit" class="btn-batch">Upload Archive Batch</button>
-                    </div>
-                </form>
+            <div class="panel">
+                <h3>NAV Sharing Options</h3>
+                <p style="color: #aaa; font-size: 13px;">Share latest NAV data with peers or clients instantly.</p>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <a href="https://api.whatsapp.com/" target="_blank" class="btn-batch" style="background: #25d366; text-decoration:none; text-align:center;">WhatsApp</a>
+                    <a href="mailto:" class="btn-batch" style="background: #00bcd4; text-decoration:none; text-align:center;">Email</a>
+                </div>
             </div>
 
-            <!-- Upload Today's NAV Image -->
             <div class="panel nav-image-panel">
-                <h3>Upload Today's Latest NAV Image (JPEG)</h3>
-                <form action="{{ url_for('upload_nav') }}" method="POST" enctype="multipart/form-data">
-                    <input type="file" name="nav_image" accept="image/jpeg" class="file-input-styled" required>
-                    <button type="submit" class="btn-publish-nav">Publish Todays NAV Image</button>
-                </form>
+                <h3>Download Today's NAV Image</h3>
+                <div style="font-size: 13px; color: #aaa; margin-bottom: 8px;">JPEG Format</div>
+                <a href="{{ url_for('download_latest_nav') }}" class="btn-publish-nav" style="text-decoration: none; display: block; text-align: center;">Download Image</a>
             </div>
         </div>
 
-        <!-- Second Row: 3 Separate Master Fund Upload Options -->
-        <div class="second-grid-3cols">
-            <div class="panel upload-card">
-                <h3>1. Upload Equity Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="equity">
-                    <input type="file" name="equity_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Equity</button>
-                </form>
-            </div>
+        <!-- Admin Management & Publishing Tools -->
+        <div class="panel" style="margin-top: 20px; background: #161616;">
+            <h3 style="color: #ffb74d;">Admin Management & Publishing Tools</h3>
+            <p style="color: #aaa; font-size: 13px; margin-bottom: 15px;">Upload or publish current NAV updates, manage archives, and oversee system metrics.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div style="background: #1e1e1e; padding: 15px; border-radius: 6px;">
+                    <h4 style="color: #fff; margin-top:0;">Publish Today's NAV Image</h4>
+                    <form action="{{ url_for('upload_nav') }}" method="POST" enctype="multipart/form-data">
+                        <input type="file" name="nav_image" accept="image/jpeg" style="margin-bottom: 10px; width: 100%; color: #fff;" required>
+                        <button type="submit" class="btn-publish-nav" style="width: 100%;">Upload New NAV Report</button>
+                    </form>
+                </div>
 
-            <div class="panel upload-card">
-                <h3>2. Upload Balancer Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="balancer">
-                    <input type="file" name="balancer_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Balancer</button>
-                </form>
-            </div>
-
-            <div class="panel upload-card">
-                <h3>3. Upload Debt Funds Excel</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="category" value="debt">
-                    <input type="file" name="debt_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Update Debt</button>
-                </form>
+                <div style="background: #1e1e1e; padding: 15px; border-radius: 6px;">
+                    <h4 style="color: #fff; margin-top:0;">Update Master Funds Excel</h4>
+                    <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
+                        <select name="category" style="width: 100%; padding: 6px; margin-bottom: 8px; background: #262626; color: #fff;">
+                            <option value="equity">Equity Funds</option>
+                            <option value="balancer">Balancer Funds</option>
+                            <option value="debt">Debt Funds</option>
+                        </select>
+                        <input type="file" name="equity_file" accept=".xlsx" style="margin-bottom: 8px; width: 100%; color: #fff;" required>
+                        <button type="submit" class="btn-auto-update" style="width: 100%;">Update Category Excel</button>
+                    </form>
+                </div>
             </div>
         </div>
 
-        <!-- User Approvals Section -->
-        <div class="panel approval-panel">
-            <h3>User Approval & Unique Visitors</h3>
+        <!-- User Approvals -->
+        <div class="panel approval-panel" style="margin-top: 20px;">
+            <h3>User Approvals & Management</h3>
             <table class="approval-table">
                 <thead>
-                    <tr>
-                        <th>Registered User Accounts</th>
-                        <th>Mobile number</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
+                    <tr><th>Name</th><th>Mobile</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                     <tr>
-                        <td>{{ user.name }} (ID: {{ user.id }})</td>
+                        <td>{{ user.name }}</td>
                         <td>{{ user.mobile }}</td>
                         <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                         <td>
-                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-app">Approve</button>
-                            </form>
-                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-dec">Decline</button>
-                            </form>
+                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;"><button class="btn-app">Approve</button></form>
+                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;"><button class="btn-dec">Decline</button></form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -143,229 +114,61 @@
             </table>
         </div>
 
-        <!-- Manage Archive Files Section -->
-        <div class="panel approval-panel" style="margin-top: 24px;">
-            <h3>Manage Uploaded Archive Files</h3>
-            <table class="approval-table" style="margin-top: 15px;">
-                <thead>
-                    <tr>
-                        <th>Filename</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for file in archive_files %}
-                    <tr>
-                        <td>{{ file }}</td>
-                        <td>
-                            <form action="{{ url_for('delete_archive_file', filename=file) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-dec" onclick="return confirm('Are you sure you want to delete this file?');">Delete File</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="2" style="text-align: center; color: #aaa;">No archive files uploaded yet.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Full-Width Stacked Fund Sections -->
-        <div class="funds-stack-container">
+        <!-- Funds Sections: Equity, Balancer, Debt -->
+        <div class="funds-stack-container" style="margin-top: 20px;">
             
-            <!-- Equity Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Equity Funds</div>
+                <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>FUNDS</th><th>Inception Date</th><th>Benchmark Name</th><th>Since Inception</th><th>Highest NAV</th><th>Latest NAV</th></tr></thead>
                     <tbody>
                         {% for row in equity_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            <td>{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set val_clean = row.latest | replace(',', '') | float(default=100) %}
-                            <td class="{% if val_clean < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
+                        <tr><td><b>{{ row.fund }}</b></td><td>{{ row.inception }}</td><td>{{ row.benchmark }}</td><td>{{ row.since }}%</td><td>{{ row.high }}</td><td>{{ row.latest }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="6" style="text-align:center; color:#777;">No equity fund data uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <!-- Balancer Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Balancer Funds</div>
+                <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>FUNDS</th><th>Inception Date</th><th>Benchmark Name</th><th>Since Inception</th><th>Highest NAV</th><th>Latest NAV</th></tr></thead>
                     <tbody>
                         {% for row in balancer_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            <td>{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set val_clean = row.latest | replace(',', '') | float(default=100) %}
-                            <td class="{% if val_clean < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
+                        <tr><td><b>{{ row.fund }}</b></td><td>{{ row.inception }}</td><td>{{ row.benchmark }}</td><td>{{ row.since }}%</td><td>{{ row.high }}</td><td>{{ row.latest }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="6" style="text-align:center; color:#777;">No balancer fund data uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <!-- Debt Section -->
             <div class="fund-section-box">
-                <div class="section-title-bar">Debt Funds</div>
+                <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>FUNDS</th><th>Inception Date</th><th>Benchmark Name</th><th>Since Inception</th><th>Highest NAV</th><th>Latest NAV</th></tr></thead>
                     <tbody>
                         {% for row in debt_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            <td>{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set val_clean = row.latest | replace(',', '') | float(default=100) %}
-                            <td class="{% if val_clean < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
+                        <tr><td><b>{{ row.fund }}</b></td><td>{{ row.inception }}</td><td>{{ row.benchmark }}</td><td>{{ row.since }}%</td><td>{{ row.high }}</td><td>{{ row.latest }}</td></tr>
+                        {% else %}
+                        <tr><td colspan="6" style="text-align:center; color:#777;">No debt fund data uploaded yet.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
         </div>
-
-        <footer class="portal-footer">
-            <p>Admin Portal - NAV Updates</p>
-        </footer>
-
     </div>
 
-    <!-- Modal Popup for Fund Details -->
-    <div id="fundModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0;">Fund Name</h2>
-            <div class="modal-info-grid">
-                <div><strong>Inception Date:</strong> <span id="modal-inception"></span></div>
-                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark"></span></div>
-            </div>
-            
-            <table class="modal-returns-table">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th>Return Value</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
-                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
-                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
-                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
-                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
-                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
-                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
-                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
-                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
-                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
-                    <tr><td>Highest NAV</td><td id="m-high" style="color:#00e676;"></td></tr>
-                    <tr><td>Latest NAV</td><td id="m-latest" style="color:#ff9800;"></td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- JavaScript for Clock & Modal -->
     <script>
         function updateClock() {
             const now = new Date();
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString('en-US', options);
-            document.getElementById('live-clock').innerText = timeString;
-            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
+            document.getElementById('live-clock').innerText = now.toLocaleString();
         }
         setInterval(updateClock, 1000);
         updateClock();
-
-        function openModal(data) {
-            document.getElementById('modal-fund-name').innerText = data.fund;
-            document.getElementById('modal-inception').innerText = data.inception;
-            document.getElementById('modal-benchmark').innerText = data.benchmark;
-
-            const fields = [
-                {id: 'm-since', val: data.since},
-                {id: 'm-1m', val: data.m1},
-                {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1},
-                {id: 'm-2y', val: data.y2},
-                {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4},
-                {id: 'm-5y', val: data.y5},
-                {id: 'm-7y', val: data.y7},
-                {id: 'm-10y', val: data.y10}
-            ];
-
-            fields.forEach(f => {
-                let cell = document.getElementById(f.id);
-                let num = parseFloat(f.val);
-                cell.innerText = f.val + "%";
-                if (!isNaN(num) && num <= 0) {
-                    cell.className = "nav-red-alert";
-                } else {
-                    cell.className = "";
-                    cell.style.color = "#00e676";
-                }
-            });
-
-            document.getElementById('m-high').innerText = data.high;
-            document.getElementById('m-latest').innerText = data.latest;
-
-            document.getElementById('fundModal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('fundModal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            let modal = document.getElementById('fundModal');
-            if (event.target == modal) {
-                closeModal();
-            }
-        }
     </script>
 </body>
 </html>

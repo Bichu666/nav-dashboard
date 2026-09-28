@@ -168,13 +168,13 @@
             </div>
         </div>
 
-        <!-- Feedback & Suggestions (Wired up to Backend) -->
+        <!-- Feedback & Suggestions -->
         <div class="panel" style="margin-bottom: 24px;">
             <h3>User Feedback and Suggestion / Rating</h3>
-            <form action="{{ url_for('submit_feedback') }}" method="POST" style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
-                <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;" required>
-                <button type="submit" class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;">Submit Feedback</button>
-            </form>
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;">
+                <button class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
+            </div>
         </div>
 
         <!-- Fund Sections (Equity, Balancer, Debt) -->

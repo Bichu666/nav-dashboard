@@ -1,16 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><title>Admin Login - NAV Portal</title>
+    <meta charset="UTF-8">
+    <title>Admin Login - NAV Updates</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body style="display: flex; justify-content: center; align-items: center; height: 100vh;">
-    <div class="panel" style="width: 400px; text-align: center;">
-        <h2 style="color: #ff9800;">Admin Authentication</h2>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #121212;">
+    <div class="panel" style="width: 350px; padding: 30px; background: #181818; border: 1px solid #333; border-radius: 8px;">
+        <h2 style="color: #ffb74d; text-align: center; margin-top: 0;">Admin Login</h2>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div style="background: #d32f2f; color: white; padding: 8px; margin-bottom: 15px; border-radius: 4px; font-size: 13px; text-align: center;">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <form method="POST">
-            <input type="text" name="mobile" placeholder="Admin Mobile" required style="width: 100%; padding: 10px; margin-bottom: 15px; background: #262626; color: #fff; border: 1px solid #555; border-radius: 4px;">
-            <input type="password" name="password" placeholder="Password" required style="width: 100%; padding: 10px; margin-bottom: 15px; background: #262626; color: #fff; border: 1px solid #555; border-radius: 4px;">
-            <button type="submit" class="btn-batch" style="width: 100%;">Login as Admin</button>
+            <div style="margin-bottom: 15px;">
+                <label style="color: #aaa; font-size: 13px; display: block; margin-bottom: 5px;">Mobile Number</label>
+                <input type="text" name="mobile" placeholder="+918078535666" required style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="color: #aaa; font-size: 13px; display: block; margin-bottom: 5px;">Password</label>
+                <input type="password" name="password" placeholder="••••••••" required style="width: 100%; padding: 10px; background: #222; border: 1px solid #444; color: #fff; border-radius: 4px;">
+            </div>
+            <button type="submit" class="btn-publish-nav" style="width: 100%; padding: 10px; border: none; background: #ffb74d; color: #000; font-weight: bold; border-radius: 4px; cursor: pointer;">Login to Portal</button>
         </form>
     </div>
 </body>
