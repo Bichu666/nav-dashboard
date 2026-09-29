@@ -8,10 +8,25 @@
     <style>
         body { font-size: 16px !important; }
         .dashboard-container { font-size: 16px; max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .main-header h2 { font-size: 26px !important; }
-        .main-header h1 { font-size: 38px !important; }
-        .control-center-text { font-size: 15px !important; }
+        
+        /* Stylish Font Colors for Header without changing layout */
+        .main-header h2 { 
+            font-size: 26px !important; 
+            background: linear-gradient(135deg, #ffb347 0%, #ffcc33 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .main-header h1 { 
+            font-size: 38px !important; 
+            background: linear-gradient(135deg, #ff8c00 0%, #ffa500 50%, #ffcc00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 10px rgba(255, 140, 0, 0.2);
+        }
+        .control-center-text { font-size: 15px !important; color: #a0aec0 !important; }
         .live-datetime, .admin-identity, .session-badge { font-size: 15px !important; }
+        .admin-identity { color: #ffb347 !important; font-style: italic; }
+        
         .panel h3 { font-size: 18px !important; margin-bottom: 15px; color: #ffb74d; border-bottom: 1px solid #333; padding-bottom: 8px; }
         .sensex-main-val { font-size: 32px !important; }
         .sensex-change-val { font-size: 18px !important; }
@@ -179,7 +194,7 @@
             <div class="header-left">
                 <h2>Admin Portal</h2>
                 <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
-                <p class="admin-identity" style="color: #ff9800; font-style: italic; margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
+                <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
