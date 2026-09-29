@@ -73,8 +73,8 @@
             padding-bottom: 8px; 
         }
         
-        .market-main-val { font-size: 38px !important; font-weight: 700; color: #fff; margin-top: 8px; }
-        .market-change-val { font-size: 16px !important; font-weight: 600; margin-top: 4px; }
+        .sensex-main-val { font-size: 30px !important; font-weight: 700; color: #fff; margin-top: 8px; }
+        .sensex-change-val { font-size: 16px !important; font-weight: 600; margin-top: 4px; }
         
         .fund-table-full th, .fund-table-full td { font-size: 14px !important; padding: 14px 12px !important; }
         .section-title-bar { 
@@ -108,8 +108,8 @@
             margin-top: 4px;
         }
 
-        .nav-red-alert, .market-neg { color: var(--red) !important; font-weight: 600; }
-        .nav-green, .market-pos { color: var(--green) !important; font-weight: 600; }
+        .nav-red-alert, .sensex-neg { color: var(--red) !important; font-weight: 600; }
+        .nav-green, .sensex-pos { color: var(--green) !important; font-weight: 600; }
 
         .modal-overlay {
             display: none;
@@ -259,11 +259,11 @@
         </header>
 
         <div class="top-grid">
-            <div class="panel market-panel">
-                <h3>🐂 Live Bull & Bear Tracker 🐻</h3>
-                <span class="sub-label" id="market-time-label" style="font-size: 13px; color: var(--text-muted);">Live as of</span>
-                <div class="market-main-val">🐂 vs 🐻 {{ sensex.value }}</div>
-                <div class="market-change-val {% if sensex.is_positive %}market-pos{% else %}market-neg{% endif %}">
+            <div class="panel sensex-panel">
+                <h3>BSE Sensex Live Tracker</h3>
+                <span class="sub-label" id="sensex-time-label" style="font-size: 13px; color: var(--text-muted);">Live as of</span>
+                <div class="sensex-main-val">{{ sensex.value }}</div>
+                <div class="sensex-change-val {% if sensex.is_positive %}sensex-pos{% else %}sensex-neg{% endif %}">
                     {{ sensex.change }}
                 </div>
             </div>
@@ -275,7 +275,7 @@
                     <div class="t-box" style="background: var(--bg-card); padding: 8px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
                         <div class="t-date" style="font-size: 11px; color: var(--text-muted);">{{ item.date }}</div>
                         <div class="t-val" style="font-size: 12px; font-weight: 600; color: #fff; margin: 4px 0;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}market-pos{% else %}market-neg{% endif %}" style="font-size: 11px;">
+                        <div class="t-chg {% if item.change >= 0 %}sensex-pos{% else %}sensex-neg{% endif %}" style="font-size: 11px;">
                             {% if item.change >= 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts
                         </div>
                     </div>
@@ -477,7 +477,7 @@
             const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
             const timeString = now.toLocaleString('en-US', options);
             document.getElementById('live-clock').innerText = timeString;
-            document.getElementById('market-time-label').innerText = "Live as of: " + timeString;
+            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
         }
         setInterval(updateClock, 1000);
         updateClock();
