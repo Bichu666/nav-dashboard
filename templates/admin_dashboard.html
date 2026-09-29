@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
-    <!-- Auto-refresh every 1 minute (60 seconds) to check for pending user requests -->
     <meta http-equiv="refresh" content="60">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
@@ -19,23 +18,14 @@
         .fund-table-full th, .fund-table-full td { font-size: 15px !important; padding: 12px 10px !important; }
         .section-title-bar { font-size: 18px !important; padding: 12px 16px !important; }
 
-        /* Custom Alert Classes for Red/Green thresholds */
-        .nav-red-alert {
-            color: #ff5252 !important;
-            font-weight: bold;
-        }
-        .nav-green {
-            color: #00e676 !important;
-        }
+        .nav-red-alert { color: #ff5252 !important; font-weight: bold; }
+        .nav-green { color: #00e676 !important; font-weight: bold; }
 
-        /* Centered Modal Overlay */
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.8);
             z-index: 9999;
             justify-content: center;
@@ -57,8 +47,7 @@
 
         .modal-close {
             position: absolute;
-            top: 15px;
-            right: 20px;
+            top: 15px; right: 20px;
             font-size: 28px;
             font-weight: bold;
             color: #aaa;
@@ -76,12 +65,8 @@
             border-bottom: 1px solid #333;
             text-align: left;
         }
-        .modal-returns-table th {
-            background: #222;
-            color: #ffb74d;
-        }
+        .modal-returns-table th { background: #222; color: #ffb74d; }
 
-        /* Improved Grid & Form Layouts */
         .top-grid {
             display: grid;
             grid-template-columns: 1fr 1.5fr 1.5fr 1.2fr;
@@ -169,9 +154,7 @@
             font-size: 15px;
             transition: background 0.2s;
         }
-        .btn-auto-update:hover, .btn-batch:hover, .btn-publish-nav:hover {
-            background: #ffa726;
-        }
+        .btn-auto-update:hover, .btn-batch:hover, .btn-publish-nav:hover { background: #ffa726; }
 
         .approval-table {
             width: 100%;
@@ -184,10 +167,7 @@
             border-bottom: 1px solid #333;
             font-size: 15px;
         }
-        .approval-table th {
-            background: #1f1f1f;
-            color: #ffb74d;
-        }
+        .approval-table th { background: #1f1f1f; color: #ffb74d; }
         .btn-app { background: #00c853; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn-dec { background: #d32f2f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     </style>
@@ -195,7 +175,6 @@
 <body>
     <div class="dashboard-container">
         
-        <!-- Header Banner Section -->
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
@@ -212,13 +191,12 @@
             </div>
         </header>
 
-        <!-- Top Controls Grid -->
         <div class="top-grid">
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
                 <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
-                <div class="sensex-main-val">72,771.72</div>
-                <div class="sensex-change-val nav-red-alert">-1,124.02 pts</div>
+                <div class="sensex-main-val">{{ sensex.value }}</div>
+                <div class="sensex-change-val {% if sensex.is_positive %}nav-green{% else %}nav-red-alert{% endif %}">{{ sensex.change }}</div>
             </div>
 
             <div class="panel trend-panel">
@@ -228,7 +206,7 @@
                     <div class="t-box">
                         <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
                         <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ item.change }}%</div>
+                        <div class="t-chg {% if item.change >= 0 %}nav-green{% else %}nav-red-alert{% endif %}" style="font-size: 14px;">{% if item.change >= 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts</div>
                     </div>
                     {% endfor %}
                 </div>
@@ -264,7 +242,6 @@
             </div>
         </div>
 
-        <!-- Second Row: 3 Separate Master Fund Upload Options -->
         <div class="second-grid-3cols">
             <div class="panel upload-card">
                 <h3>1. Upload Equity Funds Excel</h3>
@@ -294,7 +271,6 @@
             </div>
         </div>
 
-        <!-- User Approvals Section -->
         <div class="panel approval-panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
             <h3>User Approval & Unique Visitors</h3>
             <table class="approval-table">
@@ -326,7 +302,6 @@
             </table>
         </div>
 
-        <!-- Feedback & Suggestions Section -->
         <div class="panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
             <h3>User Feedback and Suggestion / Rating</h3>
             <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
@@ -335,10 +310,7 @@
             </div>
         </div>
 
-        <!-- Full-Width Stacked Fund Sections (Equity, Balancer, Debt) -->
         <div class="funds-stack-container">
-            
-            <!-- Equity Section -->
             <div class="fund-section-box">
                 <div class="section-title-bar">Equity Funds</div>
                 <table class="fund-table-full">
@@ -369,7 +341,6 @@
                 </table>
             </div>
 
-            <!-- Balancer Section -->
             <div class="fund-section-box">
                 <div class="section-title-bar">Balancer Funds</div>
                 <table class="fund-table-full">
@@ -400,7 +371,6 @@
                 </table>
             </div>
 
-            <!-- Debt Section -->
             <div class="fund-section-box">
                 <div class="section-title-bar">Debt Funds</div>
                 <table class="fund-table-full">
@@ -430,16 +400,13 @@
                     </tbody>
                 </table>
             </div>
-
         </div>
 
         <footer class="portal-footer" style="font-size: 16px; padding: 20px 0;">
             <p>Admin Portal - NAV Updates</p>
         </footer>
-
     </div>
 
-    <!-- Centered Modal Popup for Fund Details -->
     <div id="fundModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
@@ -474,7 +441,6 @@
         </div>
     </div>
 
-    <!-- JavaScript for Clock & Modal with Conditional Coloring -->
     <script>
         function updateClock() {
             const now = new Date();
@@ -492,30 +458,17 @@
             document.getElementById('modal-benchmark').innerText = data.benchmark;
 
             const percentageFields = [
-                {id: 'm-since', val: data.since},
-                {id: 'm-1m', val: data.m1},
-                {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1},
-                {id: 'm-2y', val: data.y2},
-                {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4},
-                {id: 'm-5y', val: data.y5},
-                {id: 'm-7y', val: data.y7},
-                {id: 'm-10y', val: data.y10}
+                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
             ];
 
             percentageFields.forEach(f => {
                 let cell = document.getElementById(f.id);
                 let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
                 let num = parseFloat(String(rawVal).replace('%', ''));
-                
                 cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
-                
-                if (isNaN(num) || num <= 0) {
-                    cell.className = "nav-red-alert";
-                } else {
-                    cell.className = "nav-green";
-                }
+                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
             });
 
             let highCell = document.getElementById('m-high');
@@ -526,12 +479,7 @@
             let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
             let latestNum = parseFloat(String(latestRaw).replace(',', ''));
             latestCell.innerText = latestRaw;
-
-            if (isNaN(latestNum) || latestNum < 10) {
-                latestCell.className = "nav-red-alert";
-            } else {
-                latestCell.className = "nav-green";
-            }
+            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
 
             document.getElementById('fundModal').style.display = 'flex';
         }
@@ -542,9 +490,7 @@
 
         window.onclick = function(event) {
             let modal = document.getElementById('fundModal');
-            if (event.target == modal) {
-                closeModal();
-            }
+            if (event.target == modal) { closeModal(); }
         }
     </script>
 </body>

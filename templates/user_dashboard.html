@@ -23,10 +23,7 @@
             letter-spacing: 0.5px;
             margin-bottom: 4px;
         }
-        .admin-identity {
-            font-size: 15px !important;
-            color: #ff9800 !important;
-        }
+        .admin-identity { font-size: 15px !important; color: #ff9800 !important; }
         .session-badge {
             font-size: 14px !important;
             font-weight: 600 !important;
@@ -38,22 +35,14 @@
             margin-top: 4px;
         }
 
-        .nav-red-alert, .sensex-neg {
-            color: #ff5252 !important;
-            font-weight: bold;
-        }
-        .nav-green, .sensex-pos {
-            color: #00e676 !important;
-            font-weight: bold;
-        }
+        .nav-red-alert, .sensex-neg { color: #ff5252 !important; font-weight: bold; }
+        .nav-green, .sensex-pos { color: #00e676 !important; font-weight: bold; }
 
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.8);
             z-index: 9999;
             justify-content: center;
@@ -75,8 +64,7 @@
 
         .modal-close {
             position: absolute;
-            top: 15px;
-            right: 20px;
+            top: 15px; right: 20px;
             font-size: 28px;
             font-weight: bold;
             color: #aaa;
@@ -94,10 +82,7 @@
             border-bottom: 1px solid #333;
             text-align: left;
         }
-        .modal-returns-table th {
-            background: #222;
-            color: #ffb74d;
-        }
+        .modal-returns-table th { background: #222; color: #ffb74d; }
 
         .top-grid {
             display: grid;
@@ -167,9 +152,9 @@
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
                 <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Live as of</span>
-                <div class="sensex-main-val">72,771.72</div>
-                <div class="sensex-change-val sensex-neg">
-                    -1,124.02 pts
+                <div class="sensex-main-val">{{ sensex.value }}</div>
+                <div class="sensex-change-val {% if sensex.is_positive %}sensex-pos{% else %}sensex-neg{% endif %}">
+                    {{ sensex.change }}
                 </div>
             </div>
 
@@ -180,9 +165,8 @@
                     <div class="t-box" style="background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center; flex: 1;">
                         <div class="t-date" style="font-size: 11px; color: #aaa;">{{ item.date }}</div>
                         <div class="t-val" style="font-size: 12px; font-weight: bold; color: #fff; margin: 4px 0;">{{ item.value }}</div>
-                        {% set pt_change = item.points_change if item.points_change is defined else item.change %}
-                        <div class="t-chg {% if pt_change|string|replace('+', '')|float >= 0 %}sensex-pos{% else %}sensex-neg{% endif %}" style="font-size: 11px;">
-                            {% if pt_change|string|float >= 0 %}+{{ pt_change }}{% else %}{{ pt_change }}{% endif %} pts
+                        <div class="t-chg {% if item.change >= 0 %}sensex-pos{% else %}sensex-neg{% endif %}" style="font-size: 11px;">
+                            {% if item.change >= 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts
                         </div>
                     </div>
                     {% endfor %}
@@ -429,7 +413,6 @@
             if (event.target == modal) { closeModal(); }
         }
 
-        // Archive dropdown logic for User Portal
         function loadArchiveFiles() {
             const year = document.getElementById('archive-year-select').value;
             const month = document.getElementById('archive-month-select').value;
@@ -456,23 +439,16 @@
 
         document.getElementById('btn-view-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
-            if (!filename) {
-                alert('Please select a specific file to view.');
-                return;
-            }
+            if (!filename) { alert('Please select a specific file to view.'); return; }
             window.open(`/view-archive-file/${filename}`, '_blank');
         });
 
         document.getElementById('btn-download-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
-            if (!filename) {
-                alert('Please select a specific file to download.');
-                return;
-            }
+            if (!filename) { alert('Please select a specific file to download.'); return; }
             window.location.href = `/view-archive-file/${filename}?download=true`;
         });
 
-        // Load files on initial page load
         loadArchiveFiles();
     </script>
 </body>

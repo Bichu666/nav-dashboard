@@ -58,37 +58,55 @@ def check_user_validity(user):
       user['approved_at'] = None
 
 
-def get_recent_sensex():
+def get_sensex_data():
   try:
     sensex = yf.Ticker('^BSESN')
     df = sensex.history(period='10d')
     if df.empty:
       raise ValueError('Empty dataframe')
-    recent_5 = df.tail(5)
 
+    latest_row = df.iloc[-1]
+    current_val = round(latest_row['Close'], 2)
+    prev_val = df.iloc[-2]['Close'] if len(df) > 1 else latest_row['Open']
+    pts_change = round(current_val - prev_val, 2)
+    pct_change = round((pts_change / prev_val) * 100, 2) if prev_val else 0.0
+
+    recent_5 = df.tail(5)
     trend_data = []
-    prev_close = None
+    p_close = None
 
     for index, row in recent_5.iterrows():
       date_str = index.strftime('%d %b')
       close_val = round(row['Close'], 2)
-      change_pts = (
-          round(close_val - prev_close, 2) if prev_close is not None else 0.0
-      )
-      trend_data.append(
-          {'date': date_str, 'value': close_val, 'change': change_pts}
-      )
-      prev_close = close_val
-    return trend_data
+      chg = round(close_val - p_close, 2) if p_close is not None else 0.0
+      trend_data.append({
+          'date': date_str,
+          'value': f'{close_val:,.2f}',
+          'change': chg,
+      })
+      p_close = close_val
+
+    live_info = {
+        'value': f'{current_val:,.2f}',
+        'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
+        'is_positive': pts_change >= 0,
+    }
+    return live_info, trend_data
   except Exception as e:
     print(f'Error fetching Sensex data: {e}')
-    return [
-        {'date': '21 Sep', 'value': 74858.99, 'change': 0.0},
-        {'date': '22 Sep', 'value': 74528.08, 'change': -330.91},
-        {'date': '23 Sep', 'value': 74828.25, 'change': 300.17},
-        {'date': '24 Sep', 'value': 73580.54, 'change': -1247.71},
-        {'date': '25 Sep', 'value': 73895.74, 'change': 315.2},
+    live_info = {
+        'value': '74,895.74',
+        'change': '+315.20 pts (+0.42%)',
+        'is_positive': True,
+    }
+    trend_data = [
+        {'date': '21 Sep', 'value': '74,858.99', 'change': 0.0},
+        {'date': '22 Sep', 'value': '74,528.08', 'change': -330.91},
+        {'date': '23 Sep', 'value': '74,828.25', 'change': 300.17},
+        {'date': '24 Sep', 'value': '73,580.54', 'change': -1247.71},
+        {'date': '25 Sep', 'value': '74,895.74', 'change': 1315.20},
     ]
+    return live_info, trend_data
 
 
 def format_pct(val):
@@ -138,7 +156,6 @@ def get_latest_nav_filename():
     ]
     if not image_files:
       return None
-
     valid_date_files = []
     for f in image_files:
       base_name = os.path.splitext(f)[0]
@@ -147,11 +164,9 @@ def get_latest_nav_filename():
         valid_date_files.append((file_date, f))
       except ValueError:
         pass
-
     if valid_date_files:
       valid_date_files.sort(key=lambda x: x[0], reverse=True)
       return valid_date_files[0][1]
-
     return max(
         image_files,
         key=lambda x: os.path.getmtime(
@@ -177,7 +192,6 @@ def login():
       session.permanent = True
       session['username'] = username
       session['mobile'] = mobile
-
       user_record = next(
           (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
       )
@@ -192,10 +206,8 @@ def login():
         REGISTERED_USERS.append(user_record)
       else:
         check_user_validity(user_record)
-
       if user_record['status'] == 'Pending':
         return redirect(url_for('pending_approval'))
-
       return redirect(url_for('user_dashboard'))
   return render_template('login.html')
 
@@ -206,10 +218,8 @@ def pending_approval():
   user_record = next(
       (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
   )
-
   if user_record and user_record['status'] == 'Approved':
     return redirect(url_for('user_dashboard'))
-
   return render_template(
       'pending_approval.html', username=session.get('username', 'User')
   )
@@ -221,20 +231,20 @@ def user_dashboard():
   user_record = next(
       (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
   )
-
   if user_record:
     check_user_validity(user_record)
     if user_record['status'] == 'Pending':
       return redirect(url_for('pending_approval'))
-
   if not user_record:
     return redirect(url_for('login'))
 
+  sensex_info, sensex_trend_data = get_sensex_data()
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
       mobile=mobile,
-      sensex_trend=get_recent_sensex(),
+      sensex=sensex_info,
+      sensex_trend=sensex_trend_data,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
       balancer_data=parse_fund_excel('balancer_funds.xlsx'),
       debt_data=parse_fund_excel('debt_funds.xlsx'),
@@ -246,7 +256,6 @@ def admin_login():
   if request.method == 'POST':
     mobile_input = request.form.get('mobile')
     password_input = request.form.get('password')
-
     if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
       session.permanent = True
       session['is_admin'] = True
@@ -267,13 +276,14 @@ def admin_redirect():
 def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-
   for user in REGISTERED_USERS:
     check_user_validity(user)
 
+  sensex_info, sensex_trend_data = get_sensex_data()
   return render_template(
       'admin_dashboard.html',
-      sensex_trend=get_recent_sensex(),
+      sensex=sensex_info,
+      sensex_trend=sensex_trend_data,
       users=REGISTERED_USERS,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
       balancer_data=parse_fund_excel('balancer_funds.xlsx'),
@@ -286,7 +296,6 @@ def admin_dashboard():
 def update_user_status(user_id, status):
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-
   for user in REGISTERED_USERS:
     if user['id'] == user_id:
       user['status'] = status.capitalize()
@@ -386,7 +395,6 @@ def delete_archive_file(filename):
 def get_archive_files():
   year = request.args.get('year', '')
   month = request.args.get('month', '')
-
   month_map = {
       'Jan': '01',
       'Feb': '02',
@@ -401,11 +409,9 @@ def get_archive_files():
       'Nov': '11',
       'Dec': '12',
   }
-
   try:
     all_files = os.listdir(app.config['UPLOAD_FOLDER'])
     numeric_month = month_map.get(month, '')
-
     matched_files = []
     for f in all_files:
       if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and year in f:
@@ -421,7 +427,6 @@ def get_archive_files():
         else:
           if month.lower() in f.lower():
             matched_files.append(f)
-
     matched_files.sort(reverse=True)
     return jsonify({'success': True, 'files': matched_files})
   except Exception as e:
