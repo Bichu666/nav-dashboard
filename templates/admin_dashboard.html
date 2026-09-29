@@ -3,108 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
+    <!-- Auto-refresh every 1 minute (60 seconds) to check for pending user requests -->
     <meta http-equiv="refresh" content="60">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body { font-size: 16px !important; background-color: #121212; color: #fff; font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        .dashboard-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .main-header { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 20px; border-radius: 8px; border: 1px solid #333; margin-bottom: 24px; }
-        .main-header h2 { font-size: 26px !important; margin: 0 0 5px 0; color: #fff; }
-        .main-header h1 { font-size: 38px !important; margin: 0; color: #ffb74d; letter-spacing: 2px; }
-        .control-center-text { font-size: 15px !important; color: #aaa; }
-        .admin-identity { color: #ff9800; font-style: italic; margin-top: 4px; font-size: 15px !important; }
-        .session-badge { font-size: 15px !important; color: #81c784; margin-top: 5px; }
-        
-        .panel { background: #161616; border: 1px solid #333; border-radius: 8px; padding: 20px; }
-        .panel h3 { font-size: 18px !important; margin-top: 0; margin-bottom: 15px; color: #ffb74d; border-bottom: 1px solid #333; padding-bottom: 8px; }
-        
-        .sensex-main-val { font-size: 32px !important; font-weight: bold; margin: 8px 0; }
-        .sensex-change-val { font-size: 18px !important; font-weight: bold; }
-        .nav-green { color: #00e676 !important; }
-        .nav-red-alert { color: #ff5252 !important; font-weight: bold; }
+        body { font-size: 16px !important; }
+        .dashboard-container { font-size: 16px; max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .main-header h2 { font-size: 26px !important; }
+        .main-header h1 { font-size: 38px !important; }
+        .control-center-text { font-size: 15px !important; }
+        .live-datetime, .admin-identity, .session-badge { font-size: 15px !important; }
+        .panel h3 { font-size: 18px !important; margin-bottom: 15px; color: #ffb74d; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        .sensex-main-val { font-size: 32px !important; }
+        .sensex-change-val { font-size: 18px !important; }
+        .fund-table-full th, .fund-table-full td { font-size: 15px !important; padding: 12px 10px !important; }
+        .section-title-bar { font-size: 18px !important; padding: 12px 16px !important; }
 
-        .top-grid { display: grid; grid-template-columns: 1fr 1.5fr 1.5fr 1.2fr; gap: 20px; margin-bottom: 24px; }
-        .middle-grid-2cols { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 24px; }
+        /* Custom Alert Classes for Red/Green thresholds */
+        .nav-red-alert {
+            color: #ff5252 !important;
+            font-weight: bold;
+        }
+        .nav-green {
+            color: #00e676 !important;
+        }
 
-        .upload-card-master { background: #161616; border: 1px solid #333; border-radius: 8px; padding: 20px; }
-        .upload-row-inline { display: flex; gap: 15px; align-items: center; }
-        .upload-row-inline input[type="file"] { background: #262626; color: #fff; padding: 10px; border: 1px solid #555; border-radius: 5px; flex: 1; font-size: 14px; }
+        /* Centered Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
 
-        .archive-controls-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .archive-controls-row label { display: block; font-size: 14px; color: #aaa; margin-bottom: 5px; }
-        .archive-controls-row select { width: 100%; background: #262626; border: 1px solid #555; padding: 10px; color: #fff; border-radius: 5px; font-size: 15px; }
-        .file-pick-row { display: flex; flex-direction: column; gap: 12px; }
-        .file-pick-row input[type="file"] { background: #262626; color: #fff; padding: 10px; border: 1px solid #555; border-radius: 5px; font-size: 14px; }
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            padding: 30px;
+            border-radius: 10px;
+            width: 650px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
 
-        .btn-auto-update, .btn-batch, .btn-publish-nav { background: #ff9800; color: #000; font-weight: bold; border: none; padding: 12px; border-radius: 5px; cursor: pointer; text-align: center; width: 100%; font-size: 15px; transition: background 0.2s; }
-        .btn-auto-update:hover, .btn-batch:hover, .btn-publish-nav:hover { background: #ffa726; }
-        .upload-row-inline .btn-auto-update { width: auto; white-space: nowrap; }
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+        }
+        .modal-close:hover { color: #fff; }
 
-        .approval-table, .fund-table-full { width: 100%; border-collapse: collapse; }
-        .approval-table th, .approval-table td, .fund-table-full th, .fund-table-full td { padding: 14px 10px; text-align: left; border-bottom: 1px solid #333; font-size: 15px; }
-        .approval-table th, .fund-table-full th { background: #1f1f1f; color: #ffb74d; }
+        .modal-returns-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .modal-returns-table th, .modal-returns-table td {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        .modal-returns-table th {
+            background: #222;
+            color: #ffb74d;
+        }
+
+        /* Improved Grid & Form Layouts */
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr 1.5fr 1.2fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .second-grid-3cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .upload-card {
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .upload-card input[type="file"] {
+            background: #262626;
+            color: #fff;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .archive-controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .archive-controls-row label, .upload-card label {
+            display: block;
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .archive-controls-row select {
+            width: 100%;
+            background: #262626;
+            border: 1px solid #555;
+            padding: 10px;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+
+        .file-pick-row {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .file-pick-row input[type="file"] {
+            background: #262626;
+            color: #fff;
+            padding: 10px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .btn-auto-update, .btn-batch, .btn-publish-nav {
+            background: #ff9800;
+            color: #000;
+            font-weight: bold;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+            font-size: 15px;
+            transition: background 0.2s;
+        }
+        .btn-auto-update:hover, .btn-batch:hover, .btn-publish-nav:hover {
+            background: #ffa726;
+        }
+
+        .approval-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .approval-table th, .approval-table td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+            font-size: 15px;
+        }
+        .approval-table th {
+            background: #1f1f1f;
+            color: #ffb74d;
+        }
         .btn-app { background: #00c853; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .btn-dec { background: #d32f2f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 9999; justify-content: center; align-items: center; }
-        .modal-content { background: #1a1a1a; border: 1px solid #444; padding: 30px; border-radius: 10px; width: 650px; max-width: 90%; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
-        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; }
-        .modal-close:hover { color: #fff; }
-        .modal-returns-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .modal-returns-table th, .modal-returns-table td { padding: 10px; border-bottom: 1px solid #333; text-align: left; }
-        .modal-returns-table th { background: #222; color: #ffb74d; }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
+        
+        <!-- Header Banner Section -->
         <header class="main-header">
-            <div>
+            <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center</span>
-                <p class="admin-identity">Admin - Bijoosh Padmakumar</p>
+                <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
+                <p class="admin-identity" style="color: #ff9800; font-style: italic; margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
-            <div><h1>NAV UPDATES</h1></div>
-            <div style="text-align: right;">
-                <p class="live-datetime" id="live-clock" style="color: #ffb74d; margin: 0 0 4px 0;">Loading...</p>
-                <p class="admin-identity">Admin - Bijoosh Padmakumar</p>
+            <div class="header-center-banner">
+                <h1>NAV UPDATES</h1>
+            </div>
+            <div class="header-right">
+                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
+                <p class="admin-identity">Admin Portal Active</p>
                 <p class="session-badge">Lifetime Admin Session Active</p>
             </div>
         </header>
 
+        <!-- Top Controls Grid -->
         <div class="top-grid">
-            <div class="panel">
+            <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
-                <span id="sensex-time-label" style="font-size: 14px; color: #aaa;">Date and Time</span>
-                <div class="sensex-main-val">73,500.00</div>
-                <div class="sensex-change-val nav-green">+450.25 (+0.62%)</div>
+                <span class="sub-label" id="sensex-time-label" style="font-size: 14px;">Date and Time</span>
+                <div class="sensex-main-val">72,771.72</div>
+                <div class="sensex-change-val nav-red-alert">-1,124.02 pts</div>
             </div>
 
-            <div class="panel">
+            <div class="panel trend-panel">
                 <h3>Previous 5 days Market Trend</h3>
-                <div style="display: flex; gap: 8px;">
+                <div class="trend-boxes">
                     {% for item in sensex_trend %}
-                    <div style="background: #1e1e1e; padding: 8px; border-radius: 4px; text-align: center; flex: 1;">
-                        <div style="font-size: 11px; color: #aaa;">{{ item.date }}</div>
-                        <div style="font-size: 12px; font-weight: bold; color: #fff; margin: 4px 0;">{{ item.value }}</div>
-                        {% set pt_change = item.points_change if item.points_change is defined else item.change %}
-                        <div class="{% if pt_change|string|replace('+', '')|float >= 0 %}nav-green{% else %}nav-red-alert{% endif %}" style="font-size: 11px;">
-                            {% if pt_change|string|float >= 0 %}+{{ pt_change }}{% else %}{{ pt_change }}{% endif %}
-                        </div>
+                    <div class="t-box">
+                        <div class="t-date" style="font-size: 14px;">{{ item.date }}</div>
+                        <div class="t-val" style="font-size: 15px;">{{ item.value }}</div>
+                        <div class="t-chg {% if item.change >= 0 %}pos{% else %}neg{% endif %}" style="font-size: 14px;">{{ item.change }}%</div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <div class="panel">
-                <h3>Bulk Month Wise Archive Uploads (2024 to Present)</h3>
+            <div class="panel archive-panel" style="background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
+                <h3>Bulk Month-Wise Archive Uploads</h3>
                 <form action="{{ url_for('upload_archive') }}" method="POST" enctype="multipart/form-data">
                     <div class="archive-controls-row">
                         <div>
-                            <label>Select Year</label>
+                            <label>Year</label>
                             <select name="archive_year"><option>2024</option><option>2025</option><option>2026</option></select>
                         </div>
                         <div>
-                            <label>Select Month</label>
+                            <label>Month</label>
                             <select name="archive_month"><option>Jan</option><option>Feb</option><option>Mar</option><option>Apr</option><option>May</option><option>Jun</option><option>Jul</option><option>Aug</option><option>Sep</option><option>Oct</option><option>Nov</option><option>Dec</option></select>
                         </div>
                     </div>
@@ -115,34 +254,48 @@
                 </form>
             </div>
 
-            <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Upload Today's Latest NAV Image (JPEG)</h3>
+            <div class="panel nav-image-panel" style="background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between;">
+                <h3>Upload Today's NAV Image</h3>
                 <form action="{{ url_for('upload_nav') }}" method="POST" enctype="multipart/form-data">
+                    <label style="font-size: 14px; color: #aaa; margin-bottom: 5px; display: block;">JPEG Format</label>
                     <input type="file" name="nav_image" accept="image/jpeg" style="background: #262626; color: #fff; padding: 10px; border: 1px solid #555; border-radius: 5px; width: 100%; margin-bottom: 15px; font-size: 14px;" required>
-                    <button type="submit" class="btn-publish-nav">Publish Todays NAV Image</button>
+                    <button type="submit" class="btn-publish-nav">Publish Todays NAV</button>
                 </form>
             </div>
         </div>
 
-        <div class="middle-grid-2cols">
-            <div class="panel upload-card-master">
-                <h3>Upload Master Funds Excel (Equity, Balanced and Debt)</h3>
-                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data" class="upload-row-inline">
-                    <input type="file" name="master_file" accept=".xlsx, .xls" required>
-                    <button type="submit" class="btn-auto-update">Upload & Auto Update Funds</button>
+        <!-- Second Row: 3 Separate Master Fund Upload Options -->
+        <div class="second-grid-3cols">
+            <div class="panel upload-card">
+                <h3>1. Upload Equity Funds Excel</h3>
+                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="category" value="equity">
+                    <input type="file" name="equity_file" accept=".xlsx, .xls" required>
+                    <button type="submit" class="btn-auto-update">Update Equity Excel</button>
                 </form>
             </div>
 
-            <div class="panel">
-                <h3>User Feedback and Suggestion / Rating</h3>
-                <div style="font-size: 14px; color: #fff; margin-top: 10px;">
-                    <p style="color: #ffb74d; margin-bottom: 4px;">User 1: Great app for real-time NAV tracking!</p>
-                    <p style="color: #ffd54f; font-size: 13px;">★★★★★ 5 Stars</p>
-                </div>
+            <div class="panel upload-card">
+                <h3>2. Upload Balancer Funds Excel</h3>
+                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="category" value="balancer">
+                    <input type="file" name="balancer_file" accept=".xlsx, .xls" required>
+                    <button type="submit" class="btn-auto-update">Update Balancer Excel</button>
+                </form>
+            </div>
+
+            <div class="panel upload-card">
+                <h3>3. Upload Debt Funds Excel</h3>
+                <form action="{{ url_for('upload_master_category') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="category" value="debt">
+                    <input type="file" name="debt_file" accept=".xlsx, .xls" required>
+                    <button type="submit" class="btn-auto-update">Update Debt Excel</button>
+                </form>
             </div>
         </div>
 
-        <div class="panel" style="margin-bottom: 24px;">
+        <!-- User Approvals Section -->
+        <div class="panel approval-panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
             <h3>User Approval & Unique Visitors</h3>
             <table class="approval-table">
                 <thead>
@@ -160,8 +313,12 @@
                         <td>{{ user.mobile }}</td>
                         <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                         <td>
-                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;"><button type="submit" class="btn-app">Approve</button></form>
-                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;"><button type="submit" class="btn-dec">Decline</button></form>
+                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn-app">Approve</button>
+                            </form>
+                            <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn-dec">Decline</button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}
@@ -169,65 +326,136 @@
             </table>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 24px;">
-            <div class="panel">
-                <div style="background: #1f1f1f; color: #ffb74d; font-weight: bold; padding: 10px; margin-bottom: 10px; border-radius: 4px;">Equity</div>
-                <table class="fund-table-full">
-                    <thead><tr><th>FUNDS</th><th>Inception</th><th>Latest NAV</th></tr></thead>
-                    <tbody>
-                        {% for row in equity_data %}
-                        <tr style="cursor: pointer;" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td class="nav-green">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="panel">
-                <div style="background: #1f1f1f; color: #ffb74d; font-weight: bold; padding: 10px; margin-bottom: 10px; border-radius: 4px;">Balancer</div>
-                <table class="fund-table-full">
-                    <thead><tr><th>FUNDS</th><th>Inception</th><th>Latest NAV</th></tr></thead>
-                    <tbody>
-                        {% for row in balancer_data %}
-                        <tr style="cursor: pointer;" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td class="nav-green">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="panel">
-                <div style="background: #1f1f1f; color: #ffb74d; font-weight: bold; padding: 10px; margin-bottom: 10px; border-radius: 4px;">Debt</div>
-                <table class="fund-table-full">
-                    <thead><tr><th>FUNDS</th><th>Inception</th><th>Latest NAV</th></tr></thead>
-                    <tbody>
-                        {% for row in debt_data %}
-                        <tr style="cursor: pointer;" onclick='openModal({{ row | tojson | safe }})'>
-                            <td><b style="color: #ffb74d; text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td class="nav-green">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Feedback & Suggestions Section -->
+        <div class="panel" style="margin-bottom: 24px; background: #161616; border: 1px solid #333; padding: 20px; border-radius: 8px;">
+            <h3>User Feedback and Suggestion / Rating</h3>
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #262626; border: 1px solid #555; padding: 12px; color: #fff; border-radius: 4px; font-size: 15px;">
+                <button class="btn-batch" style="width: 200px; font-size: 15px; padding: 12px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
             </div>
         </div>
+
+        <!-- Full-Width Stacked Fund Sections (Equity, Balancer, Debt) -->
+        <div class="funds-stack-container">
+            
+            <!-- Equity Section -->
+            <div class="fund-section-box">
+                <div class="section-title-bar">Equity Funds</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in equity_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Balancer Section -->
+            <div class="fund-section-box">
+                <div class="section-title-bar">Balancer Funds</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in balancer_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Debt Section -->
+            <div class="fund-section-box">
+                <div class="section-title-bar">Debt Funds</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in debt_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})'>
+                            <td><b style="color: #ffb74d; text-decoration: underline; cursor: pointer; font-size: 15px;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <footer class="portal-footer" style="font-size: 16px; padding: 20px 0;">
+            <p>Admin Portal - NAV Updates</p>
+        </footer>
+
     </div>
 
+    <!-- Centered Modal Popup for Fund Details -->
     <div id="fundModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0;">Fund Name</h2>
-            <div style="margin-bottom: 15px; display: flex; gap: 20px;">
+            <h2 id="modal-fund-name" style="color: #ffb74d; margin-top: 0; font-size: 22px;">Fund Name</h2>
+            <div class="modal-info-grid" style="font-size: 15px; margin-bottom: 15px; display: flex; gap: 20px;">
                 <div><strong>Inception Date:</strong> <span id="modal-inception"></span></div>
                 <div><strong>Benchmark Name:</strong> <span id="modal-benchmark"></span></div>
             </div>
+            
             <table class="modal-returns-table">
-                <thead><tr><th>Metric / Period</th><th>Value / Return</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Metric / Period</th>
+                        <th>Value / Return</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr><td>Since Inception</td><td id="m-since"></td></tr>
                     <tr><td>1 Month</td><td id="m-1m"></td></tr>
@@ -246,6 +474,7 @@
         </div>
     </div>
 
+    <!-- JavaScript for Clock & Modal with Conditional Coloring -->
     <script>
         function updateClock() {
             const now = new Date();
@@ -261,21 +490,62 @@
             document.getElementById('modal-fund-name').innerText = data.fund;
             document.getElementById('modal-inception').innerText = data.inception;
             document.getElementById('modal-benchmark').innerText = data.benchmark;
-            document.getElementById('m-since').innerText = data.since;
-            document.getElementById('m-1m').innerText = data.m1;
-            document.getElementById('m-6m').innerText = data.m6;
-            document.getElementById('m-1y').innerText = data.y1;
-            document.getElementById('m-2y').innerText = data.y2;
-            document.getElementById('m-3y').innerText = data.y3;
-            document.getElementById('m-4y').innerText = data.y4;
-            document.getElementById('m-5y').innerText = data.y5;
-            document.getElementById('m-7y').innerText = data.y7;
-            document.getElementById('m-10y').innerText = data.y10;
-            document.getElementById('m-high').innerText = data.high;
-            document.getElementById('m-latest').innerText = data.latest;
+
+            const percentageFields = [
+                {id: 'm-since', val: data.since},
+                {id: 'm-1m', val: data.m1},
+                {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1},
+                {id: 'm-2y', val: data.y2},
+                {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4},
+                {id: 'm-5y', val: data.y5},
+                {id: 'm-7y', val: data.y7},
+                {id: 'm-10y', val: data.y10}
+            ];
+
+            percentageFields.forEach(f => {
+                let cell = document.getElementById(f.id);
+                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
+                let num = parseFloat(String(rawVal).replace('%', ''));
+                
+                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
+                
+                if (isNaN(num) || num <= 0) {
+                    cell.className = "nav-red-alert";
+                } else {
+                    cell.className = "nav-green";
+                }
+            });
+
+            let highCell = document.getElementById('m-high');
+            highCell.innerText = data.high;
+            highCell.className = "nav-green";
+
+            let latestCell = document.getElementById('m-latest');
+            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
+            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
+            latestCell.innerText = latestRaw;
+
+            if (isNaN(latestNum) || latestNum < 10) {
+                latestCell.className = "nav-red-alert";
+            } else {
+                latestCell.className = "nav-green";
+            }
+
             document.getElementById('fundModal').style.display = 'flex';
         }
-        function closeModal() { document.getElementById('fundModal').style.display = 'none'; }
+
+        function closeModal() {
+            document.getElementById('fundModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            let modal = document.getElementById('fundModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
     </script>
 </body>
 </html>
