@@ -45,6 +45,8 @@
             align-items: center;
             margin-bottom: 24px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            gap: 15px;
+            flex-wrap: nowrap;
         }
 
         .main-header h2 { 
@@ -69,6 +71,55 @@
         .live-datetime, .admin-identity, .session-badge { font-size: 14px !important; }
         .admin-identity { color: var(--accent-gold) !important; font-style: italic; margin: 3px 0; }
         .session-badge { color: var(--green) !important; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+
+        /* Smooth Ticker Animations for Marked Spaces */
+        .anim-space-left {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            height: 45px;
+            display: flex;
+            align-items: center;
+        }
+        .anim-bear-text {
+            position: absolute;
+            white-space: nowrap;
+            animation: moveBear 8s ease-in-out infinite alternate;
+            font-weight: bold;
+            color: #ff6b6b;
+            font-size: 15px;
+            text-shadow: 0 0 8px rgba(255,107,107,0.4);
+        }
+
+        .anim-space-right {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            height: 45px;
+            display: flex;
+            align-items: center;
+        }
+        .anim-bull-text {
+            position: absolute;
+            white-space: nowrap;
+            animation: moveBull 8s ease-in-out infinite alternate;
+            font-weight: bold;
+            color: #51cf66;
+            font-size: 15px;
+            text-shadow: 0 0 8px rgba(81,207,102,0.4);
+        }
+
+        @keyframes moveBear {
+            0% { transform: translateX(-10%); opacity: 0.7; }
+            50% { transform: translateX(25%); opacity: 1; }
+            100% { transform: translateX(-10%); opacity: 0.7; }
+        }
+
+        @keyframes moveBull {
+            0% { transform: translateX(15%); opacity: 0.7; }
+            50% { transform: translateX(-25%); opacity: 1; }
+            100% { transform: translateX(15%); opacity: 0.7; }
+        }
 
         .panel {
             background: var(--bg-panel);
@@ -300,15 +351,27 @@
     <div class="dashboard-container">
         
         <header class="main-header">
-            <div class="header-left">
+            <div class="header-left" style="flex-shrink: 0; min-width: 200px;">
                 <h2>Admin Portal</h2>
                 <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
-            <div class="header-center-banner">
+
+            <!-- Left Marked Space: Moving Bear Animation -->
+            <div class="anim-space-left">
+                <div class="anim-bear-text">🐻 📉 Sensex Bear Trend Active</div>
+            </div>
+
+            <div class="header-center-banner" style="flex-shrink: 0; text-align: center; padding: 0 10px;">
                 <h1>NAV UPDATES</h1>
             </div>
-            <div class="header-right" style="text-align: right;">
+
+            <!-- Right Marked Space: Moving Bull Animation -->
+            <div class="anim-space-right">
+                <div class="anim-bull-text">Bull Market Rally 📈 🐂</div>
+            </div>
+
+            <div class="header-right" style="flex-shrink: 0; text-align: right; min-width: 200px;">
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
                 <p class="admin-identity">Admin Portal Active</p>
                 <p class="session-badge">Lifetime Admin Session Active</p>
