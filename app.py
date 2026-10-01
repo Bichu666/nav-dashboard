@@ -1,17 +1,17 @@
+from datetime import datetime, timedelta
 import os
 import pandas as pd
 import yfinance as yf
-from datetime import datetime, timedelta
 from flask import (
     Flask,
+    flash,
+    jsonify,
+    redirect,
     render_template,
     request,
-    redirect,
-    url_for,
-    flash,
-    session,
-    jsonify,
     send_from_directory,
+    session,
+    url_for,
 )
 from werkzeug.utils import secure_filename
 
@@ -24,6 +24,9 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+ARCHIVE_FOLDER = 'archive_nav'
+os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
 REGISTERED_USERS = [
     {
@@ -395,47 +398,42 @@ def delete_archive_file(filename):
 def get_archive_files():
   year = request.args.get('year', '')
   month = request.args.get('month', '')
-  month_map = {
-      'Jan': '01',
-      'Feb': '02',
-      'Mar': '03',
-      'Apr': '04',
-      'May': '05',
-      'Jun': '06',
-      'Jul': '07',
-      'Aug': '08',
-      'Sep': '09',
-      'Oct': '10',
-      'Nov': '11',
-      'Dec': '12',
-  }
   try:
-    all_files = os.listdir(app.config['UPLOAD_FOLDER'])
-    numeric_month = month_map.get(month, '')
+    year_dir = os.path.join(ARCHIVE_FOLDER, year)
     matched_files = []
-    for f in all_files:
-      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and year in f:
-        if numeric_month:
-          if (
-              f'-{numeric_month}-' in f
-              or f'/{numeric_month}/' in f
-              or f'_{numeric_month}_' in f
-              or f'-{numeric_month}.' in f
-              or f'_{numeric_month}.' in f
-          ):
-            matched_files.append(f)
-        else:
-          if month.lower() in f.lower():
-            matched_files.append(f)
+
+    if os.path.exists(year_dir):
+      subdirs = [
+          d
+          for d in os.listdir(year_dir)
+          if os.path.isdir(os.path.join(year_dir, d))
+      ]
+      target_month_dir = None
+
+      for d in subdirs:
+        if d.lower().startswith(month.lower()) or month.lower() in d.lower():
+          target_month_dir = os.path.join(year_dir, d)
+          break
+
+      if target_month_dir and os.path.exists(target_month_dir):
+        for root, dirs, files in os.walk(target_month_dir):
+          for f in files:
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+              matched_files.append(f)
+
     matched_files.sort(reverse=True)
     return jsonify({'success': True, 'files': matched_files})
   except Exception as e:
+    print(f'Error in get_archive_files: {e}')
     return jsonify({'success': False, 'files': []})
 
 
 @app.route('/view-archive-file/<filename>')
 def view_archive_file(filename):
   as_attachment = request.args.get('download') == 'true'
+  for root, dirs, files in os.walk(ARCHIVE_FOLDER):
+    if filename in files:
+      return send_from_directory(root, filename, as_attachment=as_attachment)
   return send_from_directory(
       app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
   )
