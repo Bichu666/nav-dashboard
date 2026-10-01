@@ -64,7 +64,6 @@ def check_user_validity(user):
 
 
 def get_sensex_data():
-  # Try yfinance first
   try:
     sensex = yf.Ticker('^BSESN')
     df = sensex.history(period='10d')
@@ -99,7 +98,6 @@ def get_sensex_data():
   except Exception as e:
     print(f'yfinance fetch error: {e}')
 
-  # Fallback to alternative public endpoint or live scraped Yahoo chart endpoint if yfinance fails on Render
   try:
     url = 'https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d'
     req = urllib.request.Request(
@@ -154,7 +152,6 @@ def get_sensex_data():
   except Exception as alt_e:
     print(f'Alternative Sensex fetch error: {alt_e}')
 
-  # Ultimate fallback if network is blocked on server
   live_info = {
       'value': '81,235.40',
       'change': '+312.50 pts (+0.39%)',
@@ -454,15 +451,41 @@ def delete_archive_file(filename):
 
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
-  year = request.args.get('year', '')
-  month = request.args.get('month', '')
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
+
+  # Map month names to their numeric representation (e.g., Feb -> 02, Oct -> 10)
+  month_map = {
+      'jan': '01',
+      'feb': '02',
+      'mar': '03',
+      'apr': '04',
+      'may': '05',
+      'jun': '06',
+      'jul': '07',
+      'aug': '08',
+      'sep': '09',
+      'oct': '10',
+      'nov': '11',
+      'dec': '12',
+  }
+
+  target_month_num = None
+  for k, v in month_map.items():
+    if k in month_input:
+      target_month_num = v
+      break
+
   try:
-    # 1. Check archive_nav structured folder if it exists
+    # 1. Check structured archive folder
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
       for d in os.listdir(year_dir):
-        if d.lower().startswith(month.lower()) or month.lower() in d.lower():
+        if (
+            month_input in d.lower()
+            or (target_month_num and target_month_num in d)
+        ):
           target_month_dir = os.path.join(year_dir, d)
           if os.path.exists(target_month_dir):
             for root, dirs, files in os.walk(target_month_dir):
@@ -470,19 +493,37 @@ def get_archive_files():
                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                   matched_files.add(f)
 
-    # 2. Also check uploads folder for any files matching year and month strings or general files
+    # 2. Check uploads folder with strict date-matching logic
     upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
     for f in upload_files:
       if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-        # If the filename contains the year and month or if archive folder is empty, include it
-        if (
-            not year
-            or not month
-            or year in f
-            or month.lower() in f.lower()
-            or 'archive' in f.lower()
-            or 'nav' in f.lower()
-        ):
+        # Check if the filename follows DD-MM-YYYY or YYYY-MM-DD pattern
+        is_matched = False
+        base_name = os.path.splitext(f)[0]
+
+        # Try parsing standard date formats from filename
+        parsed_date = None
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d'):
+          try:
+            parsed_date = datetime.strptime(base_name[:10], fmt)
+            break
+          except ValueError:
+            pass
+
+        if parsed_date:
+          file_year = str(parsed_date.year)
+          file_month_num = f'{parsed_date.month:02d}'
+          if file_year == year and file_month_num == target_month_num:
+            is_matched = True
+        else:
+          # Fallback substring check if no standard date format is found, but require both year and month token
+          if year in f and (
+              (target_month_num and f'-{target_month_num}-' in f)
+              or (month_input and month_input in f.lower())
+          ):
+            is_matched = True
+
+        if is_matched:
           matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
