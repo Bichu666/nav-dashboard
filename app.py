@@ -54,6 +54,21 @@ REGISTERED_USERS = [
     },
 ]
 
+USER_FEEDBACKS = [
+    {
+        'id': 1,
+        'username': 'Rahul Sharma',
+        'feedback': 'Great portal! Very intuitive and fast NAV updates.',
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    },
+    {
+        'id': 2,
+        'username': 'Priya Nair',
+        'feedback': 'The historical archive search feature is extremely useful.',
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    },
+]
+
 
 def check_user_validity(user):
   if user['status'] == 'Approved' and user.get('approved_at'):
@@ -309,6 +324,22 @@ def user_dashboard():
   )
 
 
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  if 'username' not in session:
+    return redirect(url_for('login'))
+  feedback_text = request.form.get('feedback')
+  if feedback_text:
+    USER_FEEDBACKS.append({
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': session.get('username', 'Client'),
+        'feedback': feedback_text,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    })
+    flash('Feedback submitted successfully!', 'success')
+  return redirect(url_for('user_dashboard'))
+
+
 @app.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
   if request.method == 'POST':
@@ -343,6 +374,7 @@ def admin_dashboard():
       sensex=sensex_info,
       sensex_trend=sensex_trend_data,
       users=REGISTERED_USERS,
+      feedbacks=USER_FEEDBACKS,
       equity_data=parse_fund_excel('equity_funds.xlsx'),
       balancer_data=parse_fund_excel('balancer_funds.xlsx'),
       debt_data=parse_fund_excel('debt_funds.xlsx'),
@@ -455,7 +487,6 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
-  # Map month names to their numeric representation (e.g., Feb -> 02, Oct -> 10)
   month_map = {
       'jan': '01',
       'feb': '02',
@@ -478,7 +509,6 @@ def get_archive_files():
       break
 
   try:
-    # 1. Check structured archive folder
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
       for d in os.listdir(year_dir):
@@ -493,15 +523,12 @@ def get_archive_files():
                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                   matched_files.add(f)
 
-    # 2. Check uploads folder with strict date-matching logic
     upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
     for f in upload_files:
       if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-        # Check if the filename follows DD-MM-YYYY or YYYY-MM-DD pattern
         is_matched = False
         base_name = os.path.splitext(f)[0]
 
-        # Try parsing standard date formats from filename
         parsed_date = None
         for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d'):
           try:
@@ -516,7 +543,6 @@ def get_archive_files():
           if file_year == year and file_month_num == target_month_num:
             is_matched = True
         else:
-          # Fallback substring check if no standard date format is found, but require both year and month token
           if year in f and (
               (target_month_num and f'-{target_month_num}-' in f)
               or (month_input and month_input in f.lower())

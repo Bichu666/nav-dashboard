@@ -334,10 +334,12 @@
 
         <div class="panel" style="margin-bottom: 24px;">
             <h3>User Feedback and Suggestion / Rating</h3>
-            <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
-                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;">
-                <button class="btn-batch" style="width: 200px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
-            </div>
+            <form action="{{ url_for('submit_feedback') }}" method="POST">
+                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                    <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
+                    <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
+                </div>
+            </form>
         </div>
 
         <div class="funds-stack-container">

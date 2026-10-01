@@ -424,11 +424,29 @@
         </div>
 
         <div class="panel" style="margin-bottom: 24px;">
-            <h3>User Feedback and Suggestion / Rating</h3>
-            <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
-                <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;">
-                <button class="btn-batch" style="width: 200px; font-size: 14px; padding: 12px;" onclick="alert('Feedback submitted successfully!')">Submit Feedback</button>
-            </div>
+            <h3>Show User Feedback, Suggestion and Rating</h3>
+            <table class="approval-table">
+                <thead>
+                    <tr>
+                        <th>User Name</th>
+                        <th>Feedback / Suggestion / Rating</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in feedbacks %}
+                    <tr>
+                        <td>{{ item.username }}</td>
+                        <td>{{ item.feedback }}</td>
+                        <td>{{ item.timestamp }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">No feedback received yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="funds-stack-container">
