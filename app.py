@@ -262,6 +262,11 @@ def home():
   return redirect(url_for('login'))
 
 
+@app.route('/health')
+def health_check():
+  return "OK", 200
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
   if request.method == 'POST':
@@ -413,7 +418,6 @@ def upload_master_category():
       if file_key in request.files:
         file = request.files[file_key]
         if file and file.filename != '':
-          # Read Excel file into pandas and push directly to Supabase table
           df = pd.read_excel(file)
           table_name = f'{category}_funds'
           if engine:
