@@ -15,6 +15,7 @@ from flask import (
     session,
     url_for,
 )
+from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -22,6 +23,10 @@ app.secret_key = 'nav_updates_secret_key'
 
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
+# Initialize Supabase Database Connection via Render Environment Variable
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -189,12 +194,13 @@ def format_pct(val):
     return val
 
 
-def parse_fund_excel(filename):
+def parse_fund_excel_from_db(table_name):
   fund_list = []
-  path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-  if os.path.exists(path):
-    try:
-      df = pd.read_excel(path)
+  if not engine:
+    return fund_list
+  try:
+    df = pd.read_sql(f'SELECT * FROM {table_name}', engine)
+    if not df.empty:
       df = df.dropna(subset=[df.columns[0]])
       for _, row in df.iterrows():
         val = str(row.iloc[0]).strip()
@@ -216,8 +222,8 @@ def parse_fund_excel(filename):
               'high': str(row.iloc[13]) if len(row) > 13 else '0',
               'latest': str(row.iloc[14]) if len(row) > 14 else '0',
           })
-    except Exception as e:
-      print(f'Error reading {filename}: {e}')
+  except Exception as e:
+    print(f'Error reading table {table_name} from Supabase: {e}')
   return fund_list
 
 
@@ -318,9 +324,9 @@ def user_dashboard():
       mobile=mobile,
       sensex=sensex_info,
       sensex_trend=sensex_trend_data,
-      equity_data=parse_fund_excel('equity_funds.xlsx'),
-      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
-      debt_data=parse_fund_excel('debt_funds.xlsx'),
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
   )
 
 
@@ -375,9 +381,9 @@ def admin_dashboard():
       sensex_trend=sensex_trend_data,
       users=REGISTERED_USERS,
       feedbacks=USER_FEEDBACKS,
-      equity_data=parse_fund_excel('equity_funds.xlsx'),
-      balancer_data=parse_fund_excel('balancer_funds.xlsx'),
-      debt_data=parse_fund_excel('debt_funds.xlsx'),
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
   )
 
@@ -407,9 +413,17 @@ def upload_master_category():
       if file_key in request.files:
         file = request.files[file_key]
         if file and file.filename != '':
-          filename = f'{category}_funds.xlsx'
-          file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-          flash(f'{category.capitalize()} funds updated successfully!', 'success')
+          # Read Excel file into pandas and push directly to Supabase table
+          df = pd.read_excel(file)
+          table_name = f'{category}_funds'
+          if engine:
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+            flash(
+                f'{category.capitalize()} funds updated permanently in Supabase!',
+                'success',
+            )
+          else:
+            flash('Database connection error.', 'danger')
     except Exception as e:
       flash(f'Error updating category: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
