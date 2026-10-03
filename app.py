@@ -325,13 +325,15 @@ def user_dashboard():
 
   sensex_info, sensex_trend_data = get_sensex_data()
   
-  # Check if the latest uploaded NAV file matches today's date
-  latest_file = get_latest_nav_filename()
+  # Check if a file for today's date exists in the upload folder
+  today_str = datetime.now().strftime('%d-%m-%Y')
   latest_data_updated = False
-  if latest_file:
-    today_str = datetime.now().strftime('%d-%m-%Y')
-    if today_str in latest_file:
+  try:
+    files = os.listdir(app.config['UPLOAD_FOLDER'])
+    if any(today_str in f for f in files):
       latest_data_updated = True
+  except Exception as e:
+    print(f"Error checking today's upload: {e}")
 
   return render_template(
       'user_dashboard.html',
