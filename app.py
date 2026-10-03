@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import os
+import shutil
 import urllib.request
 import pandas as pd
 import yfinance as yf
@@ -264,7 +265,7 @@ def home():
 
 @app.route('/health')
 def health_check():
-  return "OK", 200
+  return 'OK', 200
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -446,10 +447,52 @@ def upload_nav():
             filename = secure_filename(file.filename)
             if not filename:
               filename = f'nav_{int(datetime.now().timestamp())}.jpg'
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+            # 1. Save to main UPLOAD_FOLDER for latest NAV tracking
+            file_path_upload = os.path.join(
+                app.config['UPLOAD_FOLDER'], filename
+            )
+            file.save(file_path_upload)
+
+            # 2. Automatically extract date from filename or fallback to current datetime
+            base_name = os.path.splitext(filename)[0]
+            file_date = None
+            for fmt in (
+                '%d-%m-%Y',
+                '%Y-%m-%d',
+                '%d_%m_%Y',
+                '%Y_%m_%d',
+                '%d%m%Y',
+            ):
+              try:
+                file_date = datetime.strptime(base_name[:10], fmt)
+                break
+              except ValueError:
+                pass
+
+            if not file_date:
+              file_date = datetime.now()
+
+            year_str = str(file_date.year)
+            month_name = file_date.strftime('%B')  # e.g., 'October'
+            month_num = file_date.strftime('%m')  # e.g., '10'
+
+            # 3. Automatically route and save into archive year/month folder
+            archive_month_dir = os.path.join(
+                ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}'
+            )
+            os.makedirs(archive_month_dir, exist_ok=True)
+
+            file_path_archive = os.path.join(archive_month_dir, filename)
+            shutil.copy(file_path_upload, file_path_archive)
+
             saved_any = True
+
       if saved_any:
-        flash('NAV Image uploaded successfully!', 'success')
+        flash(
+            'NAV Image uploaded and automatically archived successfully!',
+            'success',
+        )
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
