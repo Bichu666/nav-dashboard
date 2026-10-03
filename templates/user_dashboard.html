@@ -255,6 +255,14 @@
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
                 <p class="admin-identity">User Name: {{ username }}</p>
                 <p class="session-badge">30 Days Active Session</p>
+                <!-- Admin Update Status Indicator shown right below 30 Days Active Session -->
+                <div style="margin-top: 4px; font-size: 12px;">
+                    {% if latest_data_updated %}
+                        <span style="color: var(--green); font-weight: 600;">● Admin Updated: Latest Data Live</span>
+                    {% else %}
+                        <span style="color: var(--accent-orange); font-weight: 600;">● Status: Showing Previous Data</span>
+                    {% endif %}
+                </div>
             </div>
         </header>
 
