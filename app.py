@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import os
 import shutil
@@ -325,12 +325,16 @@ def user_dashboard():
 
   sensex_info, sensex_trend_data = get_sensex_data()
   
-  # Check if a file for today's date exists in the upload folder
-  today_str = datetime.now().strftime('%d-%m-%Y')
+  # Check for today's date in both IST and UTC to handle Render server timezone offset
+  utc_now = datetime.now(timezone.utc)
+  ist_now = utc_now + timedelta(hours=5, minutes=30)
+  today_ist = ist_now.strftime('%d-%m-%Y')
+  today_utc = utc_now.strftime('%d-%m-%Y')
+
   latest_data_updated = False
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    if any(today_str in f for f in files):
+    if any(today_ist in f or today_utc in f for f in files):
       latest_data_updated = True
   except Exception as e:
     print(f"Error checking today's upload: {e}")
