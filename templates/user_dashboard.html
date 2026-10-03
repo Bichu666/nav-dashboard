@@ -562,6 +562,11 @@
         });
 
         loadArchiveFiles();
+
+        // Auto-refresh dashboard every 2 minutes (120000 ms) to keep Sensex and data live
+        setTimeout(function() {
+            location.reload();
+        }, 120000);
     </script>
 </body>
 </html>

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
-    <meta http-equiv="refresh" content="60">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         :root {
@@ -299,7 +298,7 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 1 min)</span>
+                <span class="control-center-text">Admin Control Center (Auto-refreshes every 2 mins)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
             <div class="header-center-banner">
@@ -631,6 +630,11 @@
             let modal = document.getElementById('fundModal');
             if (event.target == modal) { closeModal(); }
         }
+
+        // Auto-refresh admin dashboard every 2 minutes (120000 ms) to sync live Sensex and data
+        setTimeout(function() {
+            location.reload();
+        }, 120000);
     </script>
 </body>
 </html>
