@@ -324,6 +324,15 @@ def user_dashboard():
     return redirect(url_for('login'))
 
   sensex_info, sensex_trend_data = get_sensex_data()
+  
+  # Check if the latest uploaded NAV file matches today's date
+  latest_file = get_latest_nav_filename()
+  latest_data_updated = False
+  if latest_file:
+    today_str = datetime.now().strftime('%d-%m-%Y')
+    if today_str in latest_file:
+      latest_data_updated = True
+
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
@@ -333,6 +342,7 @@ def user_dashboard():
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
+      latest_data_updated=latest_data_updated,
   )
 
 
