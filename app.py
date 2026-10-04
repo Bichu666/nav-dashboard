@@ -36,6 +36,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
+# Track last admin activity timestamp for online/offline status
+ADMIN_ACTIVITY = {'last_active': datetime.now()}
+
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -339,6 +342,9 @@ def user_dashboard():
   except Exception as e:
     print(f"Error checking today's upload: {e}")
 
+  # Determine if admin is online (active within the last 5 minutes)
+  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
@@ -349,6 +355,7 @@ def user_dashboard():
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
       latest_data_updated=latest_data_updated,
+      admin_online=admin_online,
   )
 
 
@@ -376,6 +383,7 @@ def admin_login():
     if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
       session.permanent = True
       session['is_admin'] = True
+      ADMIN_ACTIVITY['last_active'] = datetime.now()
       return redirect(url_for('admin_dashboard'))
     else:
       flash('Invalid Admin Credentials', 'danger')
@@ -393,6 +401,10 @@ def admin_redirect():
 def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  # Update admin activity timestamp on dashboard visit/actions
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   for user in REGISTERED_USERS:
     check_user_validity(user)
 
@@ -414,6 +426,9 @@ def admin_dashboard():
 def update_user_status(user_id, status):
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   for user in REGISTERED_USERS:
     if user['id'] == user_id:
       user['status'] = status.capitalize()
@@ -428,6 +443,9 @@ def update_user_status(user_id, status):
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   if request.method == 'POST':
     try:
       category = request.form.get('category')
@@ -454,6 +472,9 @@ def upload_master_category():
 def upload_nav():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   if request.method == 'POST':
     try:
       saved_any = False
@@ -520,6 +541,9 @@ def upload_nav():
 def upload_archive():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   if request.method == 'POST':
     try:
       saved_any = False
@@ -546,6 +570,9 @@ def upload_archive():
 def delete_archive_file(filename):
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
   try:
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if os.path.exists(file_path):

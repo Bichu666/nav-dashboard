@@ -247,6 +247,15 @@
                 <h2>User Portal</h2>
                 <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
                 <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
+                
+                <!-- Admin Online / Offline Status Indicator added right below Admin Name -->
+                <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
+                    {% if admin_online %}
+                        <span style="color: var(--green);">● Admin Online</span>
+                    {% else %}
+                        <span style="color: var(--text-muted);">● Admin Offline</span>
+                    {% endif %}
+                </div>
             </div>
             <div class="header-center-banner">
                 <h1>NAV UPDATES</h1>
