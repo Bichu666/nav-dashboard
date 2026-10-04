@@ -313,9 +313,9 @@
                 <div>
                     <label>Select Year</label>
                     <select id="archive-year-select">
-                        <option value="2026">2026</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
+                        {% for y in range(2024, 2032) %}
+                            <option value="{{ y }}" {% if y == 2026 %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div>

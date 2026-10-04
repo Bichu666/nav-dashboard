@@ -338,7 +338,11 @@
                     <div class="archive-controls-row">
                         <div>
                             <label>Year</label>
-                            <select name="archive_year"><option>2024</option><option>2025</option><option>2026</option></select>
+                            <select name="archive_year">
+                                {% for y in range(2024, 2032) %}
+                                    <option value="{{ y }}" {% if y == 2026 %}selected{% endif %}>{{ y }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div>
                             <label>Month</label>
