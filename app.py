@@ -52,7 +52,7 @@ REGISTERED_USERS = [
         'name': 'Rahul Sharma',
         'mobile': '+91 9876543210',
         'status': 'Pending',
-        'registered_at': datetime.now() - timedelta(minutes=15), # Test auto-approval
+        'registered_at': datetime.now() - timedelta(minutes=15),
         'approved_at': None,
     },
     {
@@ -91,14 +91,12 @@ USER_FEEDBACKS = [
 
 def check_user_validity(user):
   now = datetime.now()
-  # 10-Minute Auto Approval for Pending Users
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
     if now - reg_time > timedelta(minutes=10):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
-  # 30-Day Session Expiry for Approved Users
   if user['status'] == 'Approved' and user.get('approved_at'):
     approved_date = datetime.fromisoformat(user['approved_at'])
     if now - approved_date > timedelta(days=30):
@@ -138,13 +136,11 @@ def daily_scheduler():
     current_hour = ist_now.hour
     current_minute = ist_now.minute
 
-    # 8:00 AM Reminder to upload latest data
     if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
       body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal.\n\nBest Regards,\nNAV Portal Automated System"
       send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
       last_8am_sent = current_date
 
-    # 10:00 PM User Details Summary
     if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
       user_summary = "Here is the daily summary of registered users and their details:\n\n"
       for u in REGISTERED_USERS:
@@ -156,35 +152,33 @@ def daily_scheduler():
     time.sleep(30)
 
 
-# Start background email scheduler thread
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
 def get_sensex_data():
   try:
     sensex = yf.Ticker('^BSESN')
-    df = sensex.history(period='10d')
-    if not df.empty:
+    df = sensex.history(period='15d')
+    if not df.empty and len(df) >= 6:
       latest_row = df.iloc[-1]
       current_val = round(latest_row['Close'], 2)
       prev_val = df.iloc[-2]['Close'] if len(df) > 1 else latest_row['Open']
       pts_change = round(current_val - prev_val, 2)
       pct_change = round((pts_change / prev_val) * 100, 2) if prev_val else 0.0
 
-      recent_5 = df.tail(5)
       trend_data = []
-      p_close = None
-
-      for index, row in recent_5.iterrows():
-        date_str = index.strftime('%d %b')
+      for i in range(len(df) - 5, len(df)):
+        row = df.iloc[i]
+        prev_row = df.iloc[i - 1]
+        date_str = row.name.strftime('%d %b')
         close_val = round(row['Close'], 2)
-        chg = round(close_val - p_close, 2) if p_close is not None else 0.0
+        prev_close_val = prev_row['Close']
+        chg = round(close_val - prev_close_val, 2)
         trend_data.append({
             'date': date_str,
             'value': f'{close_val:,.2f}',
             'change': chg,
         })
-        p_close = close_val
 
       live_info = {
           'value': f'{current_val:,.2f}',
@@ -208,6 +202,12 @@ def get_sensex_data():
       {'date': '30 Sep', 'value': '81,235.40', 'change': 312.50},
   ]
   return live_info, trend_data
+
+
+@app.route('/api/sensex-live')
+def sensex_live():
+  sensex_info, _ = get_sensex_data()
+  return jsonify(sensex_info)
 
 
 def format_pct(val):
