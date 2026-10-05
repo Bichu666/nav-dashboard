@@ -4,145 +4,176 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Portal - NAV Dashboard</title>
-    <!-- Add your original stylesheets/links here if any -->
-    <style>
-        body {
-            background-color: #0d1117;
-            color: #c9d1d9;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        h2 {
-            color: #f0f6fc;
-            border-bottom: 1px solid #30363d;
-            padding-bottom: 10px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background-color: #161b22;
-        }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #30363d;
-        }
-        th {
-            background-color: #21262d;
-            color: #8b949e;
-        }
-        tr:hover {
-            background-color: #1f6feb15;
-        }
-        .fund-link {
-            color: #58a6ff;
-            cursor: pointer;
-            text-decoration: underline;
-        }
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background: #111827;
-            padding: 20px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 600px;
-            color: #fff;
-            position: relative;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        .close-btn {
-            position: absolute;
-            right: 15px;
-            top: 10px;
-            font-size: 24px;
-            cursor: pointer;
-            color: #9ca3af;
-        }
-        .close-btn:hover {
-            color: #fff;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-<div class="container">
-    <h2>Equity (Click any fund for full performance details)</h2>
-    
-    <table>
-        <thead>
-            <tr>
-                <th>FUNDS</th>
-                <th>Inception Date</th>
-                <th>Benchmark Name</th>
-                <th>Since Inception</th>
-                <th>Highest NAV</th>
-                <th>Latest NAV</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Example row format with data attributes to power the modal -->
-            <tr class="fund-row" 
-                data-fund-name="Maximiser Fund" 
-                data-inception="November 19, 2001" 
-                data-benchmark="S&amp;P BSE 100"
-                data-since-inception="14.64%"
-                data-y1="1.66%"
-                data-y3="8.72%"
-                data-y5="8.35%"
-                data-y10="9.58%"
-                data-high-nav="313.3828"
-                data-latest-nav="276.343">
-                <td class="fund-link">Maximiser Fund</td>
-                <td>November 19, 2001</td>
-                <td>S&amp;P BSE 100</td>
-                <td style="color: #00FF00;">14.64%</td>
-                <td>313.3828</td>
-                <td style="color: #00FF00;">276.343</td>
-            </tr>
-            <tr class="fund-row" 
-                data-fund-name="Maximiser Fund II" 
-                data-inception="May 20, 2004" 
-                data-benchmark="S&amp;P BSE 100"
-                data-since-inception="14.14%"
-                data-y1="1.42%"
-                data-y3="8.12%"
-                data-y5="7.95%"
-                data-y10="9.12%"
-                data-high-nav="200.6271"
-                data-latest-nav="178.3121">
-                <td class="fund-link">Maximiser Fund II</td>
-                <td>May 20, 2004</td>
-                <td>S&amp;P BSE 100</td>
-                <td style="color: #00FF00;">14.14%</td>
-                <td>200.6271</td>
-                <td style="color: #00FF00;">178.3121</td>
-            </tr>
-        </tbody>
-    </table>
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 20px; font-family: 'Inter', sans-serif; background-color: #0d1117; color: #c9d1d9;">
+
+    <!-- Top Header Banner -->
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+            <h2 style="margin: 0; color: #f59e0b; font-size: 22px;">User Portal</h2>
+            <p style="margin: 5px 0 0 0; color: #8b949e; font-size: 13px;">Client Control Center</p>
+            <p style="margin: 5px 0 0 0; color: #8b949e; font-size: 13px;">Admin - Bijoosh Padmakumar &nbsp;|&nbsp; <span style="color: #00FF00; font-weight: bold;">● Admin Online</span></p>
+        </div>
+        <div style="text-align: right;">
+            <p id="live-clock" style="margin: 0; color: #8b949e; font-size: 13px;">Loading Date & Time...</p>
+            <p style="margin: 5px 0; color: #c9d1d9; font-size: 13px;">User Name: <span style="color: #f59e0b;">biju</span></p>
+            <p style="margin: 0; color: #00FF00; font-size: 12px; font-weight: bold;">30 Days Active Session</p>
+            <p style="margin: 3px 0 0 0; color: #8b949e; font-size: 11px;">Status: Showing Previous Data</p>
+        </div>
+    </div>
+
+    <!-- Main Title Banner -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="color: #f59e0b; letter-spacing: 2px; margin: 0;">NAV UPDATES</h1>
+    </div>
+
+    <!-- Top Widgets Row (Sensex, Trend, Sharing, Download) -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 20px;">
+        
+        <!-- BSE Sensex Live Tracker -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px;">
+            <h3 style="margin-top: 0; font-size: 15px; color: #c9d1d9;">BSE Sensex Live Tracker</h3>
+            <p id="sensex-time" style="font-size: 11px; color: #8b949e; margin: 5px 0;">Live as of: Loading...</p>
+            <h2 id="sensex-value" style="font-size: 26px; margin: 10px 0; color: #ffffff;">81,235.40</h2>
+            <p id="sensex-change" style="font-size: 13px; margin: 0; color: #00FF00; font-weight: bold;">+312.50 pts (+0.39%)</p>
+        </div>
+
+        <!-- Previous 5 Days Market Trend -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px;">
+            <h3 style="margin-top: 0; font-size: 15px; color: #c9d1d9;">Previous 5 days Market Trend</h3>
+            <div style="font-size: 12px; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #21262d; padding-bottom: 4px;"><span>24 Sep</span><span>80,500.10</span><span style="color: #00FF00;">+120.0 pts</span></div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #21262d; padding-bottom: 4px;"><span>25 Sep</span><span>80,850.20</span><span style="color: #00FF00;">+350.1 pts</span></div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #21262d; padding-bottom: 4px;"><span>26 Sep</span><span>80,620.00</span><span style="color: #FF0800;">-230.2 pts</span></div>
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #21262d; padding-bottom: 4px;"><span>29 Sep</span><span>80,922.90</span><span style="color: #00FF00;">+302.9 pts</span></div>
+                <div style="display: flex; justify-content: space-between;"><span>30 Sep</span><span>81,235.40</span><span style="color: #00FF00;">+312.5 pts</span></div>
+            </div>
+        </div>
+
+        <!-- NAV Sharing Options -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px;">
+            <h3 style="margin-top: 0; font-size: 15px; color: #c9d1d9;">NAV Sharing Options</h3>
+            <p style="font-size: 11px; color: #8b949e;">Share latest NAV data with peers or clients instantly.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+                <button style="background: #238636; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer;">WhatsApp</button>
+                <button style="background: #1f6feb; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer;">Email</button>
+            </div>
+        </div>
+
+        <!-- Download Today's NAV Image -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 15px;">
+            <h3 style="margin-top: 0; font-size: 15px; color: #c9d1d9;">Download Today's NAV Image</h3>
+            <p style="font-size: 11px; color: #8b949e;">JPEG Format</p>
+            <button style="background: #f59e0b; color: #000; border: none; padding: 10px; border-radius: 4px; font-weight: bold; width: 100%; margin-top: 25px; cursor: pointer;">Download Image</button>
+        </div>
+
+    </div>
+
+    <!-- Old NAV Image Viewer Section -->
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <h3 style="margin-top: 0; color: #f59e0b; font-size: 16px;">Old NAV Image Viewer (Month & Date Wise)</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto auto; gap: 15px; align-items: center; margin-top: 15px;">
+            <div>
+                <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 5px;">Select Year</label>
+                <select style="width: 100%; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; padding: 8px; border-radius: 4px;">
+                    <option>2026</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 5px;">Select Month</label>
+                <select style="width: 100%; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; padding: 8px; border-radius: 4px;">
+                    <option>Oct</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size: 12px; color: #8b949e; display: block; margin-bottom: 5px;">Select Specific File / Date</label>
+                <select style="width: 100%; background: #0d1117; color: #8b949e; border: 1px solid #30363d; padding: 8px; border-radius: 4px;">
+                    <option>-- Select specific date/file --</option>
+                </select>
+            </div>
+            <div style="align-self: flex-end;">
+                <button style="background: #238636; color: white; border: none; padding: 9px 20px; border-radius: 4px; font-weight: bold; cursor: pointer;">View</button>
+            </div>
+            <div style="align-self: flex-end;">
+                <button style="background: #f59e0b; color: #000; border: none; padding: 9px 20px; border-radius: 4px; font-weight: bold; cursor: pointer;">Download</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Feedback and Suggestion -->
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 25px;">
+        <h3 style="margin-top: 0; color: #f59e0b; font-size: 16px;">User Feedback and Suggestion / Rating</h3>
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+            <input type="text" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: #0d1117; border: 1px solid #30363d; padding: 10px; border-radius: 4px; color: #c9d1d9;">
+            <button style="background: #f59e0b; color: #000; border: none; padding: 10px 25px; border-radius: 4px; font-weight: bold; cursor: pointer;">Submit Feedback</button>
+        </div>
+    </div>
+
+    <!-- Equity Funds Table with Click-to-Open Modal -->
+    <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px;">
+        <h2 style="color: #f59e0b; font-size: 18px; margin-top: 0; border-bottom: 1px solid #30363d; padding-bottom: 10px;">Equity (Click any fund for full performance details)</h2>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="background: #21262d; text-align: left; color: #8b949e; font-size: 13px;">
+                    <th style="padding: 12px;">FUNDS</th>
+                    <th style="padding: 12px;">Inception Date</th>
+                    <th style="padding: 12px;">Benchmark Name</th>
+                    <th style="padding: 12px;">Since Inception</th>
+                    <th style="padding: 12px;">Highest NAV</th>
+                    <th style="padding: 12px;">Latest NAV</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="fund-row" style="border-bottom: 1px solid #21262d; cursor: pointer;"
+                    data-fund-name="Maximiser Fund" 
+                    data-inception="November 19, 2001" 
+                    data-benchmark="S&amp;P BSE 100"
+                    data-since-inception="14.64%"
+                    data-y1="1.66%"
+                    data-y3="8.72%"
+                    data-y5="8.35%"
+                    data-y10="9.58%"
+                    data-high-nav="313.3828"
+                    data-latest-nav="276.343">
+                    <td style="padding: 12px; color: #58a6ff; text-decoration: underline;">Maximiser Fund</td>
+                    <td style="padding: 12px;">November 19, 2001</td>
+                    <td style="padding: 12px;">S&amp;P BSE 100</td>
+                    <td style="padding: 12px; color: #00FF00;">14.64%</td>
+                    <td style="padding: 12px;">313.3828</td>
+                    <td style="padding: 12px; color: #00FF00;">276.343</td>
+                </tr>
+                <tr class="fund-row" style="border-bottom: 1px solid #21262d; cursor: pointer;"
+                    data-fund-name="Maximiser Fund II" 
+                    data-inception="May 20, 2004" 
+                    data-benchmark="S&amp;P BSE 100"
+                    data-since-inception="14.14%"
+                    data-y1="1.42%"
+                    data-y3="8.12%"
+                    data-y5="7.95%"
+                    data-y10="9.12%"
+                    data-high-nav="200.6271"
+                    data-latest-nav="178.3121">
+                    <td style="padding: 12px; color: #58a6ff; text-decoration: underline;">Maximiser Fund II</td>
+                    <td style="padding: 12px;">May 20, 2004</td>
+                    <td style="padding: 12px;">S&amp;P BSE 100</td>
+                    <td style="padding: 12px; color: #00FF00;">14.14%</td>
+                    <td style="padding: 12px;">200.6271</td>
+                    <td style="padding: 12px; color: #00FF00;">178.3121</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
 </div>
 
-<!-- Fund Performance Modal -->
-<div id="fundModal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" onclick="closeFundModal()">&times;</span>
+<!-- Fund Performance Modal Popup -->
+<div id="fundModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.85); align-items:center; justify-content:center;">
+    <div style="background:#111827; padding:25px; border-radius:8px; width:90%; max-width:600px; color:#fff; position:relative; border: 1px solid #374151;">
+        <span onclick="closeFundModal()" style="position:absolute; right:15px; top:10px; font-size:24px; cursor:pointer; color:#9ca3af;">&times;</span>
         <h3 id="modalFundTitle" style="margin-top:0; color:#f59e0b;">Fund Performance</h3>
         <p style="font-size:13px; color:#9ca3af;"><span id="modalInceptionDate"></span> | <span id="modalBenchmark"></span></p>
         <div id="modalTableContainer" style="max-height:400px; overflow-y:auto; margin-top:15px;">
@@ -157,35 +188,36 @@
         location.reload();
     }, 300000);
 
-    // 2. Click Handler for Funds Modal Popup
-    document.querySelectorAll('.fund-row, .fund-link').forEach(item => {
-        item.style.cursor = 'pointer';
-        item.addEventListener('click', function() {
-            const row = this.closest('tr');
-            if (!row) return;
-            
-            const fundName = row.dataset.fundName;
-            const inceptionDate = row.dataset.inception;
-            const benchmark = row.dataset.benchmark;
-            
-            document.getElementById('modalFundTitle').innerText = fundName;
-            document.getElementById('modalInceptionDate').innerText = "Inception Date: " + inceptionDate;
-            document.getElementById('modalBenchmark').innerText = "Benchmark Name: " + benchmark;
+    // 2. Real-Time Clock & Sensex Second-by-Second Update Script
+    function updateClockAndSensex() {
+        const now = new Date();
+        const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+        document.getElementById('live-clock').innerText = now.toLocaleString('en-US', options);
+        document.getElementById('sensex-time').innerText = "Live as of: " + now.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    }
+    setInterval(updateClockAndSensex, 1000);
+    updateClockAndSensex();
+
+    // 3. Fund Modal Click Handlers
+    document.querySelectorAll('.fund-row').forEach(row => {
+        row.addEventListener('click', function() {
+            document.getElementById('modalFundTitle').innerText = this.dataset.fundName;
+            document.getElementById('modalInceptionDate').innerText = "Inception Date: " + this.dataset.inception;
+            document.getElementById('modalBenchmark').innerText = "Benchmark Name: " + this.dataset.benchmark;
             
             const container = document.getElementById('modalTableContainer');
             container.innerHTML = `
                 <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
                     <tr style="border-bottom:1px solid #374151; color:#9ca3af;"><th style="padding:8px;">Metric / Period</th><th style="padding:8px;">Value / Return</th></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Since Inception</td><td style="padding:8px; color:${getColor(row.dataset.sinceInception)};">${row.dataset.sinceInception}</td></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">1 Year</td><td style="padding:8px; color:${getColor(row.dataset.y1)};">${row.dataset.y1}</td></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">3 Year</td><td style="padding:8px; color:${getColor(row.dataset.y3)};">${row.dataset.y3}</td></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">5 Year</td><td style="padding:8px; color:${getColor(row.dataset.y5)};">${row.dataset.y5}</td></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">10 Year</td><td style="padding:8px; color:${getColor(row.dataset.y10)};">${row.dataset.y10}</td></tr>
-                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Highest NAV</td><td style="padding:8px;">${row.dataset.highNav}</td></tr>
-                    <tr><td style="padding:8px;">Latest NAV</td><td style="padding:8px; color:${Number(row.dataset.latestNav) >= 10 ? '#00FF00' : '#FF0800'};">${row.dataset.latestNav}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Since Inception</td><td style="padding:8px; color:${getColor(this.dataset.sinceInception)};">${this.dataset.sinceInception}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">1 Year</td><td style="padding:8px; color:${getColor(this.dataset.y1)};">${this.dataset.y1}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">3 Year</td><td style="padding:8px; color:${getColor(this.dataset.y3)};">${this.dataset.y3}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">5 Year</td><td style="padding:8px; color:${getColor(this.dataset.y5)};">${this.dataset.y5}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">10 Year</td><td style="padding:8px; color:${getColor(this.dataset.y10)};">${this.dataset.y10}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Highest NAV</td><td style="padding:8px;">${this.dataset.highNav}</td></tr>
+                    <tr><td style="padding:8px;">Latest NAV</td><td style="padding:8px; color:${Number(this.dataset.latestNav) >= 10 ? '#00FF00' : '#FF0800'};">${this.dataset.latestNav}</td></tr>
                 </table>
             `;
-            
             document.getElementById('fundModal').style.display = 'flex';
         });
     });
@@ -194,14 +226,12 @@
         document.getElementById('fundModal').style.display = 'none';
     }
 
-    // Color helpers adhering strictly to Electric Green (#00FF00) and Candy Apple Red (#FF0800)
     function getColor(val) {
         const num = parseFloat(val);
         if (isNaN(num)) return '#fff';
         return num > 0 ? '#00FF00' : '#FF0800';
     }
 
-    // Close modal when clicking outside the window box
     window.onclick = function(event) {
         const modal = document.getElementById('fundModal');
         if (event.target === modal) {
