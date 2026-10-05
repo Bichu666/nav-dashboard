@@ -14,8 +14,8 @@
             --text-muted: #9ca3af;
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
-            --green: #10b981;
-            --red: #ef4444;
+            --green: #00FF00; /* Electric Green */
+            --red: #FF0800;   /* Candy Apple Red */
         }
 
         body { 
@@ -101,7 +101,7 @@
             font-size: 13px !important;
             font-weight: 600 !important;
             color: var(--green) !important;
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(0, 255, 0, 0.1);
             padding: 4px 8px;
             border-radius: 4px;
             display: inline-block;
@@ -248,7 +248,6 @@
                 <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
                 <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
                 
-                <!-- Admin Online / Offline Status Indicator added right below Admin Name -->
                 <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
                     {% if admin_online %}
                         <span style="color: var(--green);">● Admin Online</span>
@@ -264,7 +263,7 @@
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
                 <p class="admin-identity">User Name: {{ username }}</p>
                 <p class="session-badge">30 Days Active Session</p>
-                <!-- Admin Update Status Indicator shown right below 30 Days Active Session -->
+                
                 <div style="margin-top: 4px; font-size: 12px;">
                     {% if latest_data_updated %}
                         <span style="color: var(--green); font-weight: 600;">● Admin Updated: Latest Data Live</span>
@@ -494,96 +493,4 @@
         function updateClock() {
             const now = new Date();
             const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString('en-US', options);
-            document.getElementById('live-clock').innerText = timeString;
-            document.getElementById('sensex-time-label').innerText = "Live as of: " + timeString;
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-
-        function openModal(data) {
-            document.getElementById('modal-fund-name').innerText = data.fund;
-            document.getElementById('modal-inception').innerText = data.inception;
-            document.getElementById('modal-benchmark').innerText = data.benchmark;
-
-            const percentageFields = [
-                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
-            ];
-
-            percentageFields.forEach(f => {
-                let cell = document.getElementById(f.id);
-                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
-                let num = parseFloat(String(rawVal).replace('%', ''));
-                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
-                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
-            });
-
-            let highCell = document.getElementById('m-high');
-            highCell.innerText = data.high;
-            highCell.className = "nav-green";
-
-            let latestCell = document.getElementById('m-latest');
-            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
-            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
-            latestCell.innerText = latestRaw;
-            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
-
-            document.getElementById('fundModal').style.display = 'flex';
-        }
-
-        function closeModal() {
-            document.getElementById('fundModal').style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            let modal = document.getElementById('fundModal');
-            if (event.target == modal) { closeModal(); }
-        }
-
-        function loadArchiveFiles() {
-            const year = document.getElementById('archive-year-select').value;
-            const month = document.getElementById('archive-month-select').value;
-            const fileSelect = document.getElementById('archive-file-select');
-
-            fetch(`/get-archive-files?year=${year}&month=${month}`)
-                .then(response => response.json())
-                .then(data => {
-                    fileSelect.innerHTML = '<option value="">-- Select specific date/file --</option>';
-                    if (data.success && data.files.length > 0) {
-                        data.files.forEach(filename => {
-                            let opt = document.createElement('option');
-                            opt.value = filename;
-                            opt.textContent = filename;
-                            fileSelect.appendChild(opt);
-                        });
-                    }
-                })
-                .catch(err => console.error('Error fetching archive files:', err));
-        }
-
-        document.getElementById('archive-year-select').addEventListener('change', loadArchiveFiles);
-        document.getElementById('archive-month-select').addEventListener('change', loadArchiveFiles);
-
-        document.getElementById('btn-view-archive').addEventListener('click', function() {
-            const filename = document.getElementById('archive-file-select').value;
-            if (!filename) { alert('Please select a specific file to view.'); return; }
-            window.open(`/view-archive-file/${filename}`, '_blank');
-        });
-
-        document.getElementById('btn-download-archive').addEventListener('click', function() {
-            const filename = document.getElementById('archive-file-select').value;
-            if (!filename) { alert('Please select a specific file to download.'); return; }
-            window.location.href = `/view-archive-file/${filename}?download=true`;
-        });
-
-        loadArchiveFiles();
-
-        // Auto-refresh dashboard every 2 minutes (120000 ms) to keep Sensex and data live
-        setTimeout(function() {
-            location.reload();
-        }, 120000);
-    </script>
-</body>
-</html>
+            const timeString = now.toLocaleString

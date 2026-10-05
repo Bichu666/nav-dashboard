@@ -14,8 +14,8 @@
             --text-muted: #9ca3af;
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
-            --green: #10b981;
-            --red: #ef4444;
+            --green: #00FF00; /* Electric Green */
+            --red: #FF0800;   /* Candy Apple Red */
         }
 
         body { 
@@ -66,7 +66,7 @@
         .control-center-text { font-size: 14px !important; color: var(--text-muted) !important; }
         .live-datetime, .admin-identity, .session-badge { font-size: 14px !important; }
         .admin-identity { color: var(--accent-gold) !important; font-style: italic; margin: 3px 0; }
-        .session-badge { color: var(--green) !important; background: rgba(16, 185, 129, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+        .session-badge { color: var(--green) !important; background: rgba(0, 255, 0, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-weight: 600; }
 
         .panel {
             background: var(--bg-panel);
@@ -251,7 +251,7 @@
         }
         .approval-table th { background: var(--bg-card); color: var(--accent-gold); }
         
-        .btn-app { background: var(--green); color: #fff; border: none; padding: 7px 14px; border-radius: 5px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+        .btn-app { background: var(--green); color: #000; border: none; padding: 7px 14px; border-radius: 5px; font-weight: 700; cursor: pointer; transition: opacity 0.2s; }
         .btn-dec { background: var(--red); color: #fff; border: none; padding: 7px 14px; border-radius: 5px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
         .btn-app:hover, .btn-dec:hover { opacity: 0.9; }
 
@@ -396,7 +396,12 @@
         </div>
 
         <div class="panel approval-panel" style="margin-bottom: 24px;">
-            <h3>User Approval & Unique Visitors</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; border: none; padding: 0;">User Approval & Unique Visitors</h3>
+                <form action="{{ url_for('approve_all_users') }}" method="POST" style="margin: 0;">
+                    <button type="submit" class="btn-app" style="padding: 8px 16px; font-size: 13px;">Approve All Pending Users</button>
+                </form>
+            </div>
             <table class="approval-table">
                 <thead>
                     <tr>
@@ -635,7 +640,6 @@
             if (event.target == modal) { closeModal(); }
         }
 
-        // Auto-refresh admin dashboard every 2 minutes (120000 ms) to sync live Sensex and data
         setTimeout(function() {
             location.reload();
         }, 120000);

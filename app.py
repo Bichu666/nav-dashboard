@@ -2,6 +2,8 @@ from datetime import datetime, timedelta, timezone
 import json
 import os
 import shutil
+import threading
+import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
@@ -16,6 +18,9 @@ from flask import (
     session,
     url_for,
 )
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 
@@ -39,12 +44,15 @@ os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 # Track last admin activity timestamp for online/offline status
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
+ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
+
 REGISTERED_USERS = [
     {
         'id': 1,
         'name': 'Rahul Sharma',
         'mobile': '+91 9876543210',
         'status': 'Pending',
+        'registered_at': datetime.now() - timedelta(minutes=15), # Test auto-approval
         'approved_at': None,
     },
     {
@@ -52,6 +60,7 @@ REGISTERED_USERS = [
         'name': 'Priya Nair',
         'mobile': '+91 9876522888',
         'status': 'Approved',
+        'registered_at': datetime.now() - timedelta(days=5),
         'approved_at': datetime.now().isoformat(),
     },
     {
@@ -59,6 +68,7 @@ REGISTERED_USERS = [
         'name': 'biju',
         'mobile': '+917034788666',
         'status': 'Approved',
+        'registered_at': datetime.now() - timedelta(days=10),
         'approved_at': datetime.now().isoformat(),
     },
 ]
@@ -80,11 +90,74 @@ USER_FEEDBACKS = [
 
 
 def check_user_validity(user):
+  now = datetime.now()
+  # 10-Minute Auto Approval for Pending Users
+  if user['status'] == 'Pending':
+    reg_time = user.get('registered_at', now)
+    if now - reg_time > timedelta(minutes=10):
+      user['status'] = 'Approved'
+      user['approved_at'] = now.isoformat()
+
+  # 30-Day Session Expiry for Approved Users
   if user['status'] == 'Approved' and user.get('approved_at'):
     approved_date = datetime.fromisoformat(user['approved_at'])
-    if datetime.now() - approved_date > timedelta(days=30):
+    if now - approved_date > timedelta(days=30):
       user['status'] = 'Pending'
       user['approved_at'] = None
+      user['registered_at'] = now
+
+
+def send_email_notification(subject, body):
+  sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
+  sender_password = os.getenv("MAIL_PASSWORD", "")
+  if not sender_password:
+    print("Email password not configured in environment variables (MAIL_PASSWORD).")
+    return
+  try:
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ADMIN_EMAIL
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+      server.login(sender_email, sender_password)
+      server.send_message(msg)
+    print(f"Email sent successfully: {subject}")
+  except Exception as e:
+    print(f"Failed to send email: {e}")
+
+
+def daily_scheduler():
+  last_8am_sent = None
+  last_10pm_sent = None
+  while True:
+    now_utc = datetime.now(timezone.utc)
+    ist_now = now_utc + timedelta(hours=5, minutes=30)
+    current_date = ist_now.date()
+    current_hour = ist_now.hour
+    current_minute = ist_now.minute
+
+    # 8:00 AM Reminder to upload latest data
+    if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
+      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal.\n\nBest Regards,\nNAV Portal Automated System"
+      send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
+      last_8am_sent = current_date
+
+    # 10:00 PM User Details Summary
+    if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
+      user_summary = "Here is the daily summary of registered users and their details:\n\n"
+      for u in REGISTERED_USERS:
+        user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
+      user_summary += "\nBest Regards,\nNAV Portal Automated System"
+      send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
+      last_10pm_sent = current_date
+
+    time.sleep(30)
+
+
+# Start background email scheduler thread
+threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
 def get_sensex_data():
@@ -121,60 +194,6 @@ def get_sensex_data():
       return live_info, trend_data
   except Exception as e:
     print(f'yfinance fetch error: {e}')
-
-  try:
-    url = 'https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d'
-    req = urllib.request.Request(
-        url, headers={'User-Agent': 'Mozilla/5.0'}
-    )
-    with urllib.request.urlopen(req, timeout=5) as response:
-      data = json.loads(response.read().decode())
-      result = data['chart']['result'][0]
-      timestamps = result['timestamp']
-      closes = result['indicators']['quote'][0]['close']
-
-      valid_data = []
-      for ts, cl in zip(timestamps, closes):
-        if cl is not None:
-          dt = datetime.fromtimestamp(ts)
-          valid_data.append(
-              {'date': dt.strftime('%d %b'), 'close': round(cl, 2)}
-          )
-
-      if valid_data:
-        current_val = valid_data[-1]['close']
-        prev_val = (
-            valid_data[-2]['close']
-            if len(valid_data) > 1
-            else valid_data[-1]['close']
-        )
-        pts_change = round(current_val - prev_val, 2)
-        pct_change = (
-            round((pts_change / prev_val) * 100, 2) if prev_val else 0.0
-        )
-
-        recent_5 = valid_data[-5:]
-        trend_data = []
-        p_close = None
-        for item in recent_5:
-          chg = (
-              round(item['close'] - p_close, 2) if p_close is not None else 0.0
-          )
-          trend_data.append({
-              'date': item['date'],
-              'value': f'{item["close"]:,.2f}',
-              'change': chg,
-          })
-          p_close = item['close']
-
-        live_info = {
-            'value': f'{current_val:,.2f}',
-            'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
-            'is_positive': pts_change >= 0,
-        }
-        return live_info, trend_data
-  except Exception as alt_e:
-    print(f'Alternative Sensex fetch error: {alt_e}')
 
   live_info = {
       'value': '81,235.40',
@@ -289,6 +308,7 @@ def login():
             'name': username,
             'mobile': mobile,
             'status': 'Pending',
+            'registered_at': datetime.now(),
             'approved_at': None,
         }
         REGISTERED_USERS.append(user_record)
@@ -306,8 +326,10 @@ def pending_approval():
   user_record = next(
       (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
   )
-  if user_record and user_record['status'] == 'Approved':
-    return redirect(url_for('user_dashboard'))
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
   return render_template(
       'pending_approval.html', username=session.get('username', 'User')
   )
@@ -328,7 +350,6 @@ def user_dashboard():
 
   sensex_info, sensex_trend_data = get_sensex_data()
   
-  # Check for today's date in both IST and UTC to handle Render server timezone offset
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
   today_ist = ist_now.strftime('%d-%m-%Y')
@@ -342,7 +363,6 @@ def user_dashboard():
   except Exception as e:
     print(f"Error checking today's upload: {e}")
 
-  # Determine if admin is online (active within the last 5 minutes)
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
 
   return render_template(
@@ -402,7 +422,6 @@ def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
   
-  # Update admin activity timestamp on dashboard visit/actions
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   for user in REGISTERED_USERS:
@@ -436,6 +455,21 @@ def update_user_status(user_id, status):
         user['approved_at'] = datetime.now().isoformat()
       else:
         user['approved_at'] = None
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/approve-all-users', methods=['POST'])
+def approve_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  now_iso = datetime.now().isoformat()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Approved'
+      user['approved_at'] = now_iso
+  flash('All pending users approved successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
 
@@ -485,13 +519,11 @@ def upload_nav():
             if not filename:
               filename = f'nav_{int(datetime.now().timestamp())}.jpg'
 
-            # 1. Save to main UPLOAD_FOLDER for latest NAV tracking
             file_path_upload = os.path.join(
                 app.config['UPLOAD_FOLDER'], filename
             )
             file.save(file_path_upload)
 
-            # 2. Automatically extract date from filename or fallback to current datetime
             base_name = os.path.splitext(filename)[0]
             file_date = None
             for fmt in (
@@ -511,10 +543,9 @@ def upload_nav():
               file_date = datetime.now()
 
             year_str = str(file_date.year)
-            month_name = file_date.strftime('%B')  # e.g., 'October'
-            month_num = file_date.strftime('%m')  # e.g., '10'
+            month_name = file_date.strftime('%B')
+            month_num = file_date.strftime('%m')
 
-            # 3. Automatically route and save into archive year/month folder
             archive_month_dir = os.path.join(
                 ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}'
             )
