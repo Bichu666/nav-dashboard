@@ -2,495 +2,213 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>User Portal - NAV Updates</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Portal - NAV Dashboard</title>
+    <!-- Add your original stylesheets/links here if any -->
     <style>
-        :root {
-            --bg-main: #0b0f19;
-            --bg-panel: #111827;
-            --bg-card: #1f2937;
-            --border-color: #374151;
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
-            --accent-gold: #fbbf24;
-            --accent-orange: #f59e0b;
-            --green: #00FF00; /* Electric Green */
-            --red: #FF0800;   /* Candy Apple Red */
-        }
-
-        body { 
-            font-size: 16px !important; 
-            background-color: var(--bg-main) !important;
-            color: var(--text-main) !important;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
         }
-
-        .dashboard-container { 
-            max-width: 1440px; 
-            margin: 0 auto; 
-            padding: 24px; 
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        
-        .main-header {
-            background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-card) 100%);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        h2 {
+            color: #f0f6fc;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px;
         }
-
-        .main-header h2 { 
-            font-size: 22px !important; 
-            margin: 0 0 4px 0;
-            background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #161b22;
         }
-
-        .main-header h1 { 
-            font-size: 34px !important; 
-            margin: 0;
-            letter-spacing: 1px;
-            background: linear-gradient(135deg, #ff8c00 0%, #f59e0b 50%, #fcd34d 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 2px 12px rgba(245, 158, 11, 0.2);
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #30363d;
         }
-
-        .control-center-text { font-size: 14px !important; }
-        .panel h3 { 
-            font-size: 17px !important; 
-            margin-top: 0;
-            margin-bottom: 15px; 
-            color: var(--accent-gold); 
-            border-bottom: 1px solid var(--border-color); 
-            padding-bottom: 8px; 
+        th {
+            background-color: #21262d;
+            color: #8b949e;
         }
-        
-        .sensex-main-val { font-size: 30px !important; font-weight: 700; color: #fff; margin-top: 8px; }
-        .sensex-change-val { font-size: 16px !important; font-weight: 600; margin-top: 4px; }
-        
-        .fund-table-full th, .fund-table-full td { font-size: 14px !important; padding: 14px 12px !important; }
-        .section-title-bar { 
-            font-size: 16px !important; 
-            padding: 14px 18px !important; 
-            background: linear-gradient(90deg, #1f2937 0%, #111827 100%);
-            border-left: 4px solid var(--accent-orange);
-            font-weight: 600;
-            color: #fff;
-            border-radius: 6px 6px 0 0;
-            margin-top: 24px;
+        tr:hover {
+            background-color: #1f6feb15;
         }
-
-        .live-datetime {
-            font-size: 15px !important;
-            font-weight: 600 !important;
-            color: #fcd34d !important;
-            margin-bottom: 4px;
+        .fund-link {
+            color: #58a6ff;
+            cursor: pointer;
+            text-decoration: underline;
         }
-        
-        .admin-identity { font-size: 14px !important; color: var(--accent-gold) !important; }
-        
-        .session-badge {
-            font-size: 13px !important;
-            font-weight: 600 !important;
-            color: var(--green) !important;
-            background: rgba(0, 255, 0, 0.1);
-            padding: 4px 8px;
-            border-radius: 4px;
-            display: inline-block;
-            margin-top: 4px;
-        }
-
-        .nav-red-alert, .sensex-neg { color: var(--red) !important; font-weight: 600; }
-        .nav-green, .sensex-pos { color: var(--green) !important; font-weight: 600; }
-
-        .modal-overlay {
+        /* Modal Styles */
+        .modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            justify-content: center;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
             align-items: center;
+            justify-content: center;
         }
-
         .modal-content {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            padding: 30px;
-            border-radius: 12px;
-            width: 650px;
-            max-width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
+            background: #111827;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            color: #fff;
             position: relative;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
-
-        .modal-close {
+        .close-btn {
             position: absolute;
-            top: 15px; right: 20px;
-            font-size: 26px;
-            font-weight: bold;
-            color: var(--text-muted);
+            right: 15px;
+            top: 10px;
+            font-size: 24px;
             cursor: pointer;
-            transition: color 0.2s;
+            color: #9ca3af;
         }
-        .modal-close:hover { color: #fff; }
-
-        .modal-returns-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .modal-returns-table th, .modal-returns-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            text-align: left;
-            font-size: 14px;
-        }
-        .modal-returns-table th { background: var(--bg-card); color: var(--accent-gold); }
-
-        .top-grid {
-            display: grid;
-            grid-template-columns: 1fr 1.6fr 1.4fr 1.2fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-
-        .panel {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 22px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        .archive-controls-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .archive-controls-row label {
-            display: block;
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-        }
-
-        .archive-controls-row select {
-            width: 100%;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            padding: 10px;
-            color: var(--text-main);
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .btn-batch {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: #000;
-            font-weight: 700;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 14px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
-        }
-        .btn-batch:hover { 
-            filter: brightness(1.1);
-            transform: translateY(-1px); 
-        }
-
-        .fund-table-full {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-panel);
-            border-radius: 0 0 8px 8px;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            border-top: none;
-        }
-        .fund-table-full th {
-            background: var(--bg-card);
-            color: var(--accent-gold);
-            text-align: left;
-        }
-        .fund-table-full tr:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-        .fund-table-full td {
-            border-bottom: 1px solid var(--border-color);
+        .close-btn:hover {
+            color: #fff;
         }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
-        
-        <header class="main-header">
-            <div class="header-left">
-                <h2>User Portal</h2>
-                <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
-                <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
-                
-                <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
-                    {% if admin_online %}
-                        <span style="color: var(--green);">● Admin Online</span>
-                    {% else %}
-                        <span style="color: var(--text-muted);">● Admin Offline</span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="header-center-banner">
-                <h1>NAV UPDATES</h1>
-            </div>
-            <div class="header-right" style="text-align: right;">
-                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
-                <p class="admin-identity">User Name: {{ username }}</p>
-                <p class="session-badge">30 Days Active Session</p>
-                
-                <div style="margin-top: 4px; font-size: 12px;">
-                    {% if latest_data_updated %}
-                        <span style="color: var(--green); font-weight: 600;">● Admin Updated: Latest Data Live</span>
-                    {% else %}
-                        <span style="color: var(--accent-orange); font-weight: 600;">● Status: Showing Previous Data</span>
-                    {% endif %}
-                </div>
-            </div>
-        </header>
 
-        <div class="top-grid">
-            <div class="panel sensex-panel">
-                <h3>BSE Sensex Live Tracker</h3>
-                <span class="sub-label" id="sensex-time-label" style="font-size: 13px; color: var(--text-muted);">Live as of</span>
-                <div class="sensex-main-val">{{ sensex.value }}</div>
-                <div class="sensex-change-val {% if sensex.is_positive %}sensex-pos{% else %}sensex-neg{% endif %}">
-                    {{ sensex.change }}
-                </div>
-            </div>
+<div class="container">
+    <h2>Equity (Click any fund for full performance details)</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>FUNDS</th>
+                <th>Inception Date</th>
+                <th>Benchmark Name</th>
+                <th>Since Inception</th>
+                <th>Highest NAV</th>
+                <th>Latest NAV</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Example row format with data attributes to power the modal -->
+            <tr class="fund-row" 
+                data-fund-name="Maximiser Fund" 
+                data-inception="November 19, 2001" 
+                data-benchmark="S&amp;P BSE 100"
+                data-since-inception="14.64%"
+                data-y1="1.66%"
+                data-y3="8.72%"
+                data-y5="8.35%"
+                data-y10="9.58%"
+                data-high-nav="313.3828"
+                data-latest-nav="276.343">
+                <td class="fund-link">Maximiser Fund</td>
+                <td>November 19, 2001</td>
+                <td>S&amp;P BSE 100</td>
+                <td style="color: #00FF00;">14.64%</td>
+                <td>313.3828</td>
+                <td style="color: #00FF00;">276.343</td>
+            </tr>
+            <tr class="fund-row" 
+                data-fund-name="Maximiser Fund II" 
+                data-inception="May 20, 2004" 
+                data-benchmark="S&amp;P BSE 100"
+                data-since-inception="14.14%"
+                data-y1="1.42%"
+                data-y3="8.12%"
+                data-y5="7.95%"
+                data-y10="9.12%"
+                data-high-nav="200.6271"
+                data-latest-nav="178.3121">
+                <td class="fund-link">Maximiser Fund II</td>
+                <td>May 20, 2004</td>
+                <td>S&amp;P BSE 100</td>
+                <td style="color: #00FF00;">14.14%</td>
+                <td>200.6271</td>
+                <td style="color: #00FF00;">178.3121</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 
-            <div class="panel trend-panel">
-                <h3>Previous 5 days Market Trend</h3>
-                <div class="trend-boxes" style="display: flex; gap: 8px;">
-                    {% for item in sensex_trend %}
-                    <div class="t-box" style="background: var(--bg-card); padding: 8px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
-                        <div class="t-date" style="font-size: 11px; color: var(--text-muted);">{{ item.date }}</div>
-                        <div class="t-val" style="font-size: 12px; font-weight: 600; color: #fff; margin: 4px 0;">{{ item.value }}</div>
-                        <div class="t-chg {% if item.change >= 0 %}sensex-pos{% else %}sensex-neg{% endif %}" style="font-size: 11px;">
-                            {% if item.change >= 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="panel">
-                <h3>NAV Sharing Options</h3>
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Share latest NAV data with peers or clients instantly.</p>
-                <div style="display: flex; gap: 10px;">
-                    <a href="https://whatsapp.com" target="_blank" class="btn-batch" style="background: #25d366; color: #fff; text-decoration: none; flex: 1; text-align: center;">WhatsApp</a>
-                    <a href="mailto:?subject=Latest NAV Data" class="btn-batch" style="background: #0288d1; color: #fff; text-decoration: none; flex: 1; text-align: center;">Email</a>
-                </div>
-            </div>
-
-            <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Download Today's NAV Image</h3>
-                <span style="font-size: 13px; color: var(--text-muted);">JPEG Format</span>
-                <a href="{{ url_for('download_latest_nav') }}" class="btn-batch" style="display: block; text-decoration: none; text-align: center; margin-top: 10px;">Download Image</a>
-            </div>
+<!-- Fund Performance Modal -->
+<div id="fundModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeFundModal()">&times;</span>
+        <h3 id="modalFundTitle" style="margin-top:0; color:#f59e0b;">Fund Performance</h3>
+        <p style="font-size:13px; color:#9ca3af;"><span id="modalInceptionDate"></span> | <span id="modalBenchmark"></span></p>
+        <div id="modalTableContainer" style="max-height:400px; overflow-y:auto; margin-top:15px;">
+            <!-- Metrics populate dynamically -->
         </div>
-
-        <div class="panel" style="margin-bottom: 24px;">
-            <h3>Old NAV Image Viewer (Month & Date Wise)</h3>
-            <div class="archive-controls-row">
-                <div>
-                    <label>Select Year</label>
-                    <select id="archive-year-select">
-                        {% for y in range(2024, 2032) %}
-                            <option value="{{ y }}" {% if y == 2026 %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label>Select Month</label>
-                    <select id="archive-month-select">
-                        <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
-                        <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
-                        <option value="Jul">Jul</option><option value="Aug">Aug</option><option value="Sep" selected>Sep</option>
-                        <option value="Oct">Oct</option><option value="Nov">Nov</option><option value="Dec">Dec</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Select Specific File / Date</label>
-                    <select id="archive-file-select">
-                        <option value="">-- Select specific date/file --</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display: flex; gap: 15px;">
-                <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View</button>
-                <button type="button" id="btn-download-archive" class="btn-batch">Download</button>
-            </div>
-        </div>
-
-        <div class="panel" style="margin-bottom: 24px;">
-            <h3>User Feedback and Suggestion / Rating</h3>
-            <form action="{{ url_for('submit_feedback') }}" method="POST">
-                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
-                    <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
-                    <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="funds-stack-container">
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in equity_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in balancer_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
-                <table class="fund-table-full">
-                    <thead>
-                        <tr>
-                            <th>FUNDS</th>
-                            <th>Inception Date</th>
-                            <th>Benchmark Name</th>
-                            <th>Since Inception</th>
-                            <th>Highest NAV</th>
-                            <th>Latest NAV</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in debt_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
-                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
-                            <td>{{ row.inception }}</td>
-                            <td>{{ row.benchmark }}</td>
-                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                            <td>{{ row.high }}</td>
-                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
-                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <footer class="portal-footer" style="font-size: 14px; padding: 30px 0; text-align: center; color: var(--text-muted);">
-            <p>User Portal - NAV Updates</p>
-        </footer>
     </div>
+</div>
 
-    <div id="fundModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">Fund Name</h2>
-            <div class="modal-info-grid" style="font-size: 14px; margin-bottom: 15px; display: flex; gap: 20px; color: var(--text-muted);">
-                <div><strong>Inception Date:</strong> <span id="modal-inception" style="color:#fff;"></span></div>
-                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark" style="color:#fff;"></span></div>
-            </div>
+<script>
+    // 1. 5-Minute Auto-Refresh (300,000 milliseconds)
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+
+    // 2. Click Handler for Funds Modal Popup
+    document.querySelectorAll('.fund-row, .fund-link').forEach(item => {
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', function() {
+            const row = this.closest('tr');
+            if (!row) return;
             
-            <table class="modal-returns-table">
-                <thead>
-                    <tr>
-                        <th>Metric / Period</th>
-                        <th>Value / Return</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
-                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
-                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
-                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
-                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
-                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
-                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
-                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
-                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
-                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
-                    <tr><td>Highest NAV</td><td id="m-high"></td></tr>
-                    <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+            const fundName = row.dataset.fundName;
+            const inceptionDate = row.dataset.inception;
+            const benchmark = row.dataset.benchmark;
+            
+            document.getElementById('modalFundTitle').innerText = fundName;
+            document.getElementById('modalInceptionDate').innerText = "Inception Date: " + inceptionDate;
+            document.getElementById('modalBenchmark').innerText = "Benchmark Name: " + benchmark;
+            
+            const container = document.getElementById('modalTableContainer');
+            container.innerHTML = `
+                <table style="width:100%; border-collapse:collapse; text-align:left; font-size:14px;">
+                    <tr style="border-bottom:1px solid #374151; color:#9ca3af;"><th style="padding:8px;">Metric / Period</th><th style="padding:8px;">Value / Return</th></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Since Inception</td><td style="padding:8px; color:${getColor(row.dataset.sinceInception)};">${row.dataset.sinceInception}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">1 Year</td><td style="padding:8px; color:${getColor(row.dataset.y1)};">${row.dataset.y1}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">3 Year</td><td style="padding:8px; color:${getColor(row.dataset.y3)};">${row.dataset.y3}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">5 Year</td><td style="padding:8px; color:${getColor(row.dataset.y5)};">${row.dataset.y5}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">10 Year</td><td style="padding:8px; color:${getColor(row.dataset.y10)};">${row.dataset.y10}</td></tr>
+                    <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px;">Highest NAV</td><td style="padding:8px;">${row.dataset.highNav}</td></tr>
+                    <tr><td style="padding:8px;">Latest NAV</td><td style="padding:8px; color:${Number(row.dataset.latestNav) >= 10 ? '#00FF00' : '#FF0800'};">${row.dataset.latestNav}</td></tr>
+                </table>
+            `;
+            
+            document.getElementById('fundModal').style.display = 'flex';
+        });
+    });
 
-    <script>
-        function updateClock() {
-            const now = new Date();
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString
+    function closeFundModal() {
+        document.getElementById('fundModal').style.display = 'none';
+    }
+
+    // Color helpers adhering strictly to Electric Green (#00FF00) and Candy Apple Red (#FF0800)
+    function getColor(val) {
+        const num = parseFloat(val);
+        if (isNaN(num)) return '#fff';
+        return num > 0 ? '#00FF00' : '#FF0800';
+    }
+
+    // Close modal when clicking outside the window box
+    window.onclick = function(event) {
+        const modal = document.getElementById('fundModal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
