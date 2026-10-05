@@ -14,8 +14,8 @@
             --text-muted: #9ca3af;
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
-            --green: #10b981;
-            --red: #ef4444;
+            --green: #00FF00; /* Electric Green matched from Admin Dashboard */
+            --red: #FF0800;   /* Candy Apple Red matched from Admin Dashboard */
         }
 
         body { 
@@ -101,7 +101,7 @@
             font-size: 13px !important;
             font-weight: 600 !important;
             color: var(--green) !important;
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(0, 255, 0, 0.1);
             padding: 4px 8px;
             border-radius: 4px;
             display: inline-block;
@@ -248,7 +248,6 @@
                 <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
                 <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
                 
-                <!-- Admin Online / Offline Status Indicator added right below Admin Name -->
                 <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
                     {% if admin_online %}
                         <span style="color: var(--green);">● Admin Online</span>
@@ -264,7 +263,6 @@
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
                 <p class="admin-identity">User Name: {{ username }}</p>
                 <p class="session-badge">30 Days Active Session</p>
-                <!-- Admin Update Status Indicator shown right below 30 Days Active Session -->
                 <div style="margin-top: 4px; font-size: 12px;">
                     {% if latest_data_updated %}
                         <span style="color: var(--green); font-weight: 600;">● Admin Updated: Latest Data Live</span>
@@ -580,7 +578,6 @@
 
         loadArchiveFiles();
 
-        // Auto-refresh dashboard every 2 minutes (120000 ms) to keep Sensex and data live
         setTimeout(function() {
             location.reload();
         }, 120000);
