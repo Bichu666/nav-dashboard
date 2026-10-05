@@ -93,7 +93,7 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    if now - reg_time > timedelta(minutes=10):
+    if now - reg_time > timedelta(minutes=18):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
@@ -159,21 +159,29 @@ def get_sensex_data():
   try:
     sensex = yf.Ticker('^BSESN')
     df = sensex.history(period='15d')
-    if not df.empty and len(df) >= 6:
-      latest_row = df.iloc[-1]
+    if not df.empty and len(df) >= 5:
+      recent_df = df.tail(5)
+      latest_row = recent_df.iloc[-1]
       current_val = round(latest_row['Close'], 2)
-      prev_val = df.iloc[-2]['Close'] if len(df) > 1 else latest_row['Open']
-      pts_change = round(current_val - prev_val, 2)
-      pct_change = round((pts_change / prev_val) * 100, 2) if prev_val else 0.0
+      
+      latest_idx = df.index.get_loc(recent_df.index[-1])
+      prev_val_overall = df.iloc[latest_idx - 1]['Close'] if latest_idx > 0 else latest_row['Open']
+      
+      pts_change = round(current_val - prev_val_overall, 2)
+      pct_change = round((pts_change / prev_val_overall) * 100, 2) if prev_val_overall else 0.0
 
       trend_data = []
-      for i in range(len(df) - 5, len(df)):
-        row = df.iloc[i]
-        prev_row = df.iloc[i - 1]
+      for i in range(len(recent_df)):
+        row = recent_df.iloc[i]
+        if i == 0:
+          abs_idx = df.index.get_loc(recent_df.index[0])
+          prev_close = df.iloc[abs_idx - 1]['Close'] if abs_idx > 0 else row['Open']
+        else:
+          prev_close = recent_df.iloc[i - 1]['Close']
+        
         date_str = row.name.strftime('%d %b')
         close_val = round(row['Close'], 2)
-        prev_close_val = prev_row['Close']
-        chg = round(close_val - prev_close_val, 2)
+        chg = round(close_val - prev_close, 2)
         trend_data.append({
             'date': date_str,
             'value': f'{close_val:,.2f}',
@@ -189,18 +197,25 @@ def get_sensex_data():
   except Exception as e:
     print(f'yfinance fetch error: {e}')
 
+  # Fallback using current dates if yfinance is unreachable
+  now = datetime.now()
+  fallback_val = 81235.40
   live_info = {
-      'value': '81,235.40',
+      'value': f'{fallback_val:,.2f}',
       'change': '+312.50 pts (+0.39%)',
       'is_positive': True,
   }
-  trend_data = [
-      {'date': '24 Sep', 'value': '80,500.10', 'change': 120.00},
-      {'date': '25 Sep', 'value': '80,850.20', 'change': 350.10},
-      {'date': '26 Sep', 'value': '80,620.00', 'change': -230.20},
-      {'date': '29 Sep', 'value': '80,922.90', 'change': 302.90},
-      {'date': '30 Sep', 'value': '81,235.40', 'change': 312.50},
-  ]
+  trend_data = []
+  base_date = now - timedelta(days=6)
+  for i in range(5):
+    d = base_date + timedelta(days=i+1)
+    chg_val = 120.00 + (i * 35.1)
+    val = fallback_val - (4 - i) * 120
+    trend_data.append({
+        'date': d.strftime('%d %b'),
+        'value': f'{val:,.2f}',
+        'change': round(chg_val, 2),
+    })
   return live_info, trend_data
 
 
