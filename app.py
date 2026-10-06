@@ -158,16 +158,16 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 
 # In-memory store and background sync for Sensex live data to prevent yfinance rate-limiting bottlenecks
 SENSEX_CACHE = {
-    'value': 72916.22,
-    'base_change_pts': 533.75,
-    'pct_change': 0.74,
+    'value': 73067.81,
+    'base_change_pts': 685.34,
+    'pct_change': 0.95,
     'is_positive': True,
+    'last_close_time': '03:31:13 PM GMT+5:30',
     'trend_data': [
-        {'date': '29 Sep', 'value': '72,529.07', 'change': -242.65},
         {'date': '30 Sep', 'value': '72,480.29', 'change': -48.78},
         {'date': '01 Oct', 'value': '71,909.70', 'change': -570.59},
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
-        {'date': '06 Oct', 'value': '72,916.22', 'change': 533.75},
+        {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
     ]
 }
 
@@ -208,6 +208,10 @@ def sync_sensex_from_yahoo():
         SENSEX_CACHE['pct_change'] = pct_change
         SENSEX_CACHE['is_positive'] = pts_change >= 0
         SENSEX_CACHE['trend_data'] = trend_data
+        
+        # Capture market close time string if available
+        if hasattr(latest_row.name, 'strftime'):
+          SENSEX_CACHE['last_close_time'] = latest_row.name.strftime('%I:%M:%S %p GMT+5:30')
     except Exception as e:
       print(f'yfinance background sync error: {e}')
     time.sleep(60)  # Sync with Yahoo Finance every 60 seconds
@@ -217,16 +221,34 @@ threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
 
 
 def get_sensex_data():
-  # Apply realistic micro-fluctuations for second-by-second live updates
-  tick_delta = round(random.uniform(-1.5, 1.5), 2)
-  current_val = round(SENSEX_CACHE['value'] + tick_delta, 2)
-  pts_change = round(SENSEX_CACHE['base_change_pts'] + tick_delta, 2)
-  pct_change = round((pts_change / (current_val - pts_change)) * 100, 2) if (current_val - pts_change) else SENSEX_CACHE['pct_change']
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  weekday = ist_now.weekday()  # 0 = Monday, 6 = Sunday
+  current_total_minutes = ist_now.hour * 60 + ist_now.minute
+
+  # Indian Stock Market trading hours: Mon-Fri, 9:15 AM (555 mins) to 3:30 PM (930 mins) IST
+  is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
+
+  if is_market_open:
+    # Live micro-fluctuations during active market hours
+    tick_delta = round(random.uniform(-0.5, 0.5), 2)
+    current_val = round(SENSEX_CACHE['value'] + tick_delta, 2)
+    pts_change = round(SENSEX_CACHE['base_change_pts'] + tick_delta, 2)
+    pct_change = round((pts_change / (current_val - pts_change)) * 100, 2) if (current_val - pts_change) else SENSEX_CACHE['pct_change']
+    time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
+  else:
+    # Market Closed: Use exact official closing values without synthetic fluctuations
+    current_val = SENSEX_CACHE['value']
+    pts_change = SENSEX_CACHE['base_change_pts']
+    pct_change = SENSEX_CACHE['pct_change']
+    time_label = f"At close: {SENSEX_CACHE.get('last_close_time', '03:30:00 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
       'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
       'is_positive': pts_change >= 0,
+      'time_label': time_label,
+      'is_market_open': is_market_open,
   }
   return live_info, SENSEX_CACHE['trend_data']
 
