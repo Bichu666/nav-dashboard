@@ -411,7 +411,7 @@ def user_dashboard():
   latest_data_updated = False
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    if any(today_ist in f or today_utc in f for f in files):
+    if any((today_ist in f or today_utc in f) and f != 'latest_nav.jpg' for f in files):
       latest_data_updated = True
   except Exception as e:
     print(f"Error checking today's upload: {e}")
