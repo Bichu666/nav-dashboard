@@ -406,13 +406,16 @@ def user_dashboard():
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
   today_ist = ist_now.strftime('%d-%m-%Y')
-  today_utc = utc_now.strftime('%d-%m-%Y')
+  today_alt = ist_now.strftime('%Y-%m-%d')
 
   latest_data_updated = False
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    if any((today_ist in f or today_utc in f) and f != 'latest_nav.jpg' for f in files):
-      latest_data_updated = True
+    # Only set to True if a file matching today's date exists (excluding generic helper files like latest_nav.jpg)
+    for f in files:
+      if f != 'latest_nav.jpg' and (today_ist in f or today_alt in f):
+        latest_data_updated = True
+        break
   except Exception as e:
     print(f"Error checking today's upload: {e}")
 
