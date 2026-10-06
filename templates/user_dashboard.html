@@ -359,7 +359,7 @@
 
         <div class="funds-stack-container">
             <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Equity (Click any fund for full performance details)[cite: 21]</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -389,7 +389,7 @@
             </div>
 
             <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Balancer (Click any fund for full performance details)[cite: 21]</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -419,7 +419,7 @@
             </div>
 
             <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
+                <div class="section-title-bar">Debt (Click any fund for full performance details)[cite: 21]</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -450,7 +450,7 @@
         </div>
 
         <footer class="portal-footer" style="font-size: 14px; padding: 30px 0; text-align: center; color: var(--text-muted);">
-            <p>User Portal - NAV Updates</p>
+            <p>User Portal - NAV Updates[cite: 21]</p>
         </footer>
     </div>
 
@@ -498,7 +498,7 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // 1-Second Live Sensex Auto-Refresh Script
+        // 1-Second Live Sensex Auto-Refresh Script[cite: 21]
         setInterval(() => {
             fetch('/api/sensex-live')
                 .then(response => response.json())
@@ -595,7 +595,8 @@
 
         loadArchiveFiles();
 
-        setTimeout(function() {
+        // Continuous Auto-Refresh interval for the dashboard every 2 minutes (120,000 ms)
+        setInterval(function() {
             location.reload();
         }, 120000);
     </script>
