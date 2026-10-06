@@ -315,8 +315,8 @@
             <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
                 <span class="sub-label" id="sensex-time-label" style="font-size: 13px; color: var(--text-muted);">Date and Time</span>
-                <div class="sensex-main-val">{{ sensex.value }}</div>
-                <div class="sensex-change-val {% if sensex.is_positive %}nav-green{% else %}nav-red-alert{% endif %}">{{ sensex.change }}</div>
+                <div class="sensex-main-val" id="sensex-live-value">{{ sensex.value }}</div>
+                <div class="sensex-change-val {% if sensex.is_positive %}nav-green{% else %}nav-red-alert{% endif %}" id="sensex-live-change">{{ sensex.change }}</div>
             </div>
 
             <div class="panel trend-panel">
@@ -598,6 +598,22 @@
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // 1-Second Live Sensex Auto-Refresh Script
+        setInterval(() => {
+            fetch('/api/sensex-live')
+                .then(response => response.json())
+                .then(data => {
+                    const valElem = document.getElementById('sensex-live-value');
+                    const chgElem = document.getElementById('sensex-live-change');
+                    if (valElem) valElem.innerText = data.value;
+                    if (chgElem) {
+                        chgElem.innerText = data.change;
+                        chgElem.className = 'sensex-change-val ' + (data.is_positive ? 'nav-green' : 'nav-red-alert');
+                    }
+                })
+                .catch(err => console.error('Sensex live refresh error:', err));
+        }, 1000);
 
         function openModal(data) {
             document.getElementById('modal-fund-name').innerText = data.fund;
