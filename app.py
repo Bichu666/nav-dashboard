@@ -301,6 +301,10 @@ def parse_fund_excel_from_db(table_name):
 
 def get_latest_nav_filename():
   try:
+    standard_latest = 'latest_nav.jpg'
+    if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], standard_latest)):
+      return standard_latest
+
     files = os.listdir(app.config['UPLOAD_FOLDER'])
     image_files = [
         f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
@@ -573,6 +577,10 @@ def upload_nav():
             )
             file.save(file_path_upload)
 
+            # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy
+            latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+            shutil.copy(file_path_upload, latest_ref_path)
+
             base_name = os.path.splitext(filename)[0]
             file_date = None
             for fmt in (
@@ -709,7 +717,7 @@ def get_archive_files():
 
     upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
     for f in upload_files:
-      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
         is_matched = False
         base_name = os.path.splitext(f)[0]
 
