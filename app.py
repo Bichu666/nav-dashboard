@@ -156,12 +156,12 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
-# In-memory store and background sync for Sensex live data to prevent yfinance rate-limiting bottlenecks
+# In-memory store and background sync for Sensex live data from Yahoo Finance
 SENSEX_CACHE = {
-    'value': 73067.81,
-    'base_change_pts': 685.34,
-    'pct_change': 0.95,
-    'is_positive': True,
+    'value': 72961.00,
+    'base_change_pts': -106.81,
+    'pct_change': -0.15,
+    'is_positive': False,
     'last_close_time': '03:31:13 PM GMT+5:30',
     'trend_data': [
         {'date': '30 Sep', 'value': '72,480.29', 'change': -48.78},
@@ -176,27 +176,34 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       sensex = yf.Ticker('^BSESN')
+      fi = sensex.fast_info
+      live_price = fi.get('last_price') or fi.get('regularMarketPrice')
+      prev_close = fi.get('previous_close')
+      
       df = sensex.history(period='15d')
-      if not df.empty and len(df) >= 5:
-        recent_df = df.tail(5)
-        latest_row = recent_df.iloc[-1]
-        current_val = round(float(latest_row['Close']), 2)
+      if not df.empty:
+        latest_row = df.iloc[-1]
+        current_val = round(float(live_price if live_price else latest_row['Close']), 2)
         
-        latest_idx = df.index.get_loc(recent_df.index[-1])
-        prev_val_overall = float(df.iloc[latest_idx - 1]['Close']) if latest_idx > 0 else float(latest_row['Open'])
-        
-        pts_change = round(current_val - prev_val_overall, 2)
-        pct_change = round((pts_change / prev_val_overall) * 100, 2) if prev_val_overall else 0.0
+        if prev_close:
+          base_prev = float(prev_close)
+        elif len(df) >= 2:
+          base_prev = float(df.iloc[-2]['Close'])
+        else:
+          base_prev = float(latest_row['Open'])
+          
+        pts_change = round(current_val - base_prev, 2)
+        pct_change = round((pts_change / base_prev) * 100, 2) if base_prev else 0.0
 
         trend_data = []
+        recent_df = df.tail(5)
         for i in range(len(recent_df)):
           row = recent_df.iloc[i]
           abs_idx = df.index.get_loc(recent_df.index[i])
-          prev_close = float(df.iloc[abs_idx - 1]['Close']) if abs_idx > 0 else float(row['Open'])
-          
+          prev_c = float(df.iloc[abs_idx - 1]['Close']) if abs_idx > 0 else float(row['Open'])
           date_str = row.name.strftime('%d %b')
           close_val = round(float(row['Close']), 2)
-          chg = round(close_val - prev_close, 2)
+          chg = round(close_val - prev_c, 2)
           trend_data.append({
               'date': date_str,
               'value': f'{close_val:,.2f}',
@@ -209,12 +216,11 @@ def sync_sensex_from_yahoo():
         SENSEX_CACHE['is_positive'] = pts_change >= 0
         SENSEX_CACHE['trend_data'] = trend_data
         
-        # Capture market close time string if available
         if hasattr(latest_row.name, 'strftime'):
           SENSEX_CACHE['last_close_time'] = latest_row.name.strftime('%I:%M:%S %p GMT+5:30')
     except Exception as e:
       print(f'yfinance background sync error: {e}')
-    time.sleep(60)  # Sync with Yahoo Finance every 60 seconds
+    time.sleep(30)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -229,18 +235,13 @@ def get_sensex_data():
   # Indian Stock Market trading hours: Mon-Fri, 9:15 AM (555 mins) to 3:30 PM (930 mins) IST
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
+  current_val = SENSEX_CACHE['value']
+  pts_change = SENSEX_CACHE['base_change_pts']
+  pct_change = SENSEX_CACHE['pct_change']
+
   if is_market_open:
-    # Live micro-fluctuations during active market hours
-    tick_delta = round(random.uniform(-0.5, 0.5), 2)
-    current_val = round(SENSEX_CACHE['value'] + tick_delta, 2)
-    pts_change = round(SENSEX_CACHE['base_change_pts'] + tick_delta, 2)
-    pct_change = round((pts_change / (current_val - pts_change)) * 100, 2) if (current_val - pts_change) else SENSEX_CACHE['pct_change']
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    # Market Closed: Use exact official closing values without synthetic fluctuations
-    current_val = SENSEX_CACHE['value']
-    pts_change = SENSEX_CACHE['base_change_pts']
-    pct_change = SENSEX_CACHE['pct_change']
     time_label = f"At close: {SENSEX_CACHE.get('last_close_time', '03:30:00 PM GMT+5:30')}"
 
   live_info = {
@@ -411,7 +412,6 @@ def user_dashboard():
   latest_data_updated = False
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
-    # Only set to True if a file matching today's date exists (excluding generic helper files like latest_nav.jpg)
     for f in files:
       if f != 'latest_nav.jpg' and (today_ist in f or today_alt in f):
         latest_data_updated = True
