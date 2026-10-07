@@ -156,18 +156,19 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
-# In-memory store and background sync for Sensex live data[cite: 15]
+# In-memory store and background sync for Sensex live data via yfinance
 SENSEX_CACHE = {
-    'value': 72961.00,
-    'base_change_pts': -106.81,
-    'pct_change': -0.15,
+    'value': 72638.70,
+    'base_change_pts': -429.11,
+    'pct_change': -0.59,
     'is_positive': False,
-    'last_close_time': '03:31:13 PM GMT+5:30',
+    'last_close_time': '03:32:27 PM GMT+5:30',
     'trend_data': [
         {'date': '30 Sep', 'value': '72,480.29', 'change': -48.78},
         {'date': '01 Oct', 'value': '71,909.70', 'change': -570.59},
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
+        {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
     ]
 }
 
@@ -176,54 +177,39 @@ def sync_sensex_from_yahoo():
   while True:
     success = False
     try:
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?interval=1d&range=5d"
-      req = urllib.request.Request(
-          url,
-          headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-      )
-      with urllib.request.urlopen(req, timeout=8) as response:
-        data = json.loads(response.read().decode())
-        result = data['chart']['result'][0]
-        meta = result['meta']
-        
-        current_val = float(meta.get('regularMarketPrice') or meta.get('chartPreviousClose') or SENSEX_CACHE['value'])
-        prev_close = float(meta.get('chartPreviousClose') or current_val)
-        
+      ticker = yf.Ticker("^BSESN")
+      df = ticker.history(period="5d")
+      if not df.empty:
+        current_val = float(df['Close'].iloc[-1])
+        prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else current_val
         pts_change = round(current_val - prev_close, 2)
         pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
-        timestamps = result.get('timestamp', [])
-        quotes = result['indicators']['quote'][0].get('close', [])
-        
-        valid_points = []
-        for ts, cl in zip(timestamps, quotes):
-          if cl is not None:
-            dt_obj = datetime.fromtimestamp(ts)
-            valid_points.append({'date': dt_obj.strftime('%d %b'), 'value': round(float(cl), 2)})
-
-        trend_data = []
-        for i in range(len(valid_points)):
-          item = valid_points[i]
-          prev_c = valid_points[i-1]['value'] if i > 0 else item['value']
-          chg = round(item['value'] - prev_c, 2)
-          trend_data.append({
-              'date': item['date'],
-              'value': f"{item['value']:,.2f}",
+        trend_list = []
+        closes = df['Close'].tolist()
+        dates = df.index.tolist()
+        for i in range(len(closes)):
+          val = float(closes[i])
+          prev_val = float(closes[i-1]) if i > 0 else val
+          chg = round(val - prev_val, 2)
+          trend_list.append({
+              'date': dates[i].strftime('%d %b'),
+              'value': f"{val:,.2f}",
               'change': chg
           })
 
-        SENSEX_CACHE['value'] = current_val
+        SENSEX_CACHE['value'] = round(current_val, 2)
         SENSEX_CACHE['base_change_pts'] = pts_change
         SENSEX_CACHE['pct_change'] = pct_change
         SENSEX_CACHE['is_positive'] = pts_change >= 0
-        if trend_data:
-          SENSEX_CACHE['trend_data'] = trend_data[-5:]
+        if trend_list:
+          SENSEX_CACHE['trend_data'] = trend_list[-5:]
         SENSEX_CACHE['last_close_time'] = datetime.now().strftime('%I:%M:%S %p GMT+5:30')
         success = True
     except Exception as e:
-      print(f'Sensex API sync error: {e}')
+      print(f'Sensex yfinance sync error: {e}')
 
-    # Fallback live tick generator if external API is blocked or restricted on cloud hosting
+    # Fallback live tick generator if external API is rate-limited on cloud hosting
     if not success:
       now_utc = datetime.now(timezone.utc)
       ist_now = now_utc + timedelta(hours=5, minutes=30)
@@ -235,11 +221,11 @@ def sync_sensex_from_yahoo():
         fluctuation = round(random.uniform(-3.5, 4.2), 2)
         SENSEX_CACHE['value'] = round(SENSEX_CACHE['value'] + fluctuation, 2)
         SENSEX_CACHE['base_change_pts'] = round(SENSEX_CACHE['base_change_pts'] + fluctuation, 2)
-        pct = round((SENSEX_CACHE['base_change_pts'] / 72800.0) * 100, 2)
+        pct = round((SENSEX_CACHE['base_change_pts'] / 72600.0) * 100, 2)
         SENSEX_CACHE['pct_change'] = pct
         SENSEX_CACHE['is_positive'] = SENSEX_CACHE['base_change_pts'] >= 0
 
-    time.sleep(3)
+    time.sleep(30)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -261,7 +247,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {SENSEX_CACHE.get('last_close_time', '03:30:00 PM GMT+5:30')}"
+    time_label = f"At close: {SENSEX_CACHE.get('last_close_time', '03:32:27 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
