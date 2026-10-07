@@ -31,7 +31,7 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable
+# Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -42,7 +42,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status
+# Track last admin activity timestamp for online/offline status[cite: 15]
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
@@ -156,7 +156,7 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
-# In-memory store and background sync for Sensex live data from Yahoo Finance
+# In-memory store and background sync for Sensex live data from Yahoo Finance[cite: 15]
 SENSEX_CACHE = {
     'value': 72961.00,
     'base_change_pts': -106.81,
@@ -175,51 +175,51 @@ SENSEX_CACHE = {
 def sync_sensex_from_yahoo():
   while True:
     try:
-      sensex = yf.Ticker('^BSESN')
-      fi = sensex.fast_info
-      live_price = fi.get('last_price') or fi.get('regularMarketPrice')
-      prev_close = fi.get('previous_close')
-      
-      df = sensex.history(period='15d')
-      if not df.empty:
-        latest_row = df.iloc[-1]
-        current_val = round(float(live_price if live_price else latest_row['Close']), 2)
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?interval=1d&range=5d"
+      req = urllib.request.Request(
+          url,
+          headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+      )
+      with urllib.request.urlopen(req, timeout=10) as response:
+        data = json.loads(response.read().decode())
+        result = data['chart']['result'][0]
+        meta = result['meta']
         
-        if prev_close:
-          base_prev = float(prev_close)
-        elif len(df) >= 2:
-          base_prev = float(df.iloc[-2]['Close'])
-        else:
-          base_prev = float(latest_row['Open'])
-          
-        pts_change = round(current_val - base_prev, 2)
-        pct_change = round((pts_change / base_prev) * 100, 2) if base_prev else 0.0
+        current_val = float(meta.get('regularMarketPrice') or meta.get('chartPreviousClose') or SENSEX_CACHE['value'])
+        prev_close = float(meta.get('chartPreviousClose') or current_val)
+        
+        pts_change = round(current_val - prev_close, 2)
+        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+
+        timestamps = result.get('timestamp', [])
+        quotes = result['indicators']['quote'][0].get('close', [])
+        
+        valid_points = []
+        for ts, cl in zip(timestamps, quotes):
+          if cl is not None:
+            dt_obj = datetime.fromtimestamp(ts)
+            valid_points.append({'date': dt_obj.strftime('%d %b'), 'value': round(float(cl), 2)})
 
         trend_data = []
-        recent_df = df.tail(5)
-        for i in range(len(recent_df)):
-          row = recent_df.iloc[i]
-          abs_idx = df.index.get_loc(recent_df.index[i])
-          prev_c = float(df.iloc[abs_idx - 1]['Close']) if abs_idx > 0 else float(row['Open'])
-          date_str = row.name.strftime('%d %b')
-          close_val = round(float(row['Close']), 2)
-          chg = round(close_val - prev_c, 2)
+        for i in range(len(valid_points)):
+          item = valid_points[i]
+          prev_c = valid_points[i-1]['value'] if i > 0 else item['value']
+          chg = round(item['value'] - prev_c, 2)
           trend_data.append({
-              'date': date_str,
-              'value': f'{close_val:,.2f}',
-              'change': chg,
+              'date': item['date'],
+              'value': f"{item['value']:,.2f}",
+              'change': chg
           })
 
         SENSEX_CACHE['value'] = current_val
         SENSEX_CACHE['base_change_pts'] = pts_change
         SENSEX_CACHE['pct_change'] = pct_change
         SENSEX_CACHE['is_positive'] = pts_change >= 0
-        SENSEX_CACHE['trend_data'] = trend_data
-        
-        if hasattr(latest_row.name, 'strftime'):
-          SENSEX_CACHE['last_close_time'] = latest_row.name.strftime('%I:%M:%S %p GMT+5:30')
+        if trend_data:
+          SENSEX_CACHE['trend_data'] = trend_data[-5:]
+        SENSEX_CACHE['last_close_time'] = datetime.now().strftime('%I:%M:%S %p GMT+5:30')
     except Exception as e:
-      print(f'yfinance background sync error: {e}')
+      print(f'Sensex API background sync error: {e}')
     time.sleep(30)
 
 
@@ -580,7 +580,7 @@ def upload_nav():
             )
             file.save(file_path_upload)
 
-            # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy
+            # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy[cite: 15]
             latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
             shutil.copy(file_path_upload, latest_ref_path)
 
