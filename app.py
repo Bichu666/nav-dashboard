@@ -412,6 +412,31 @@ def user_dashboard():
   sensex_info, sensex_trend_data = get_sensex_data()
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
 
+  # Check if today's actual date file has been uploaded by admin
+  utc_now = datetime.now(timezone.utc)
+  ist_now = utc_now + timedelta(hours=5, minutes=30)
+  today_ist = ist_now.strftime('%d-%m-%Y')
+  today_alt = ist_now.strftime('%Y-%m-%d')
+
+  latest_data_updated = False
+  try:
+    if supabase:
+      files_response = supabase.storage.from_(BUCKET_NAME.strip()).list()
+      if files_response:
+        for f in files_response:
+          f_name = f.get('name', '')
+          if today_ist in f_name or today_alt in f_name:
+            latest_data_updated = True
+            break
+    else:
+      files = os.listdir(app.config['UPLOAD_FOLDER'])
+      for f in files:
+        if today_ist in f or today_alt in f:
+          latest_data_updated = True
+          break
+  except Exception as e:
+    print(f"Error checking today's upload status: {e}")
+
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
@@ -421,7 +446,7 @@ def user_dashboard():
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
-      latest_data_updated=True,
+      latest_data_updated=latest_data_updated,
       admin_online=admin_online,
   )
 
@@ -590,6 +615,7 @@ def upload_nav():
         file_bytes = file.read()
 
         if supabase:
+          # Upload with upsert for fast single-file sequential handling
           supabase.storage.from_(BUCKET_NAME.strip()).upload(
               path=filename,
               file=file_bytes,
