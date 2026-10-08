@@ -31,7 +31,7 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
+# Initialize Supabase Database Connection via Render Environment Variable
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -42,8 +42,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status[cite: 15]
+# Track last admin activity timestamp for online/offline status
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
+
+# Admin Auto-Approval Global Configuration Toggle
+ADMIN_SETTINGS = {'auto_approval_enabled': True}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 
@@ -91,11 +94,13 @@ USER_FEEDBACKS = [
 
 
 def check_user_validity(user):
+  if not ADMIN_SETTINGS.get('auto_approval_enabled', True):
+    return
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    # 2 minutes auto-approval time limit
-    if now - reg_time > timedelta(minutes=2):
+    # Updated to 5 minutes auto-approval time limit
+    if now - reg_time > timedelta(minutes=5):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
@@ -514,8 +519,19 @@ def admin_dashboard():
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
+      auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
   )
+
+
+@app.route('/toggle-auto-approval', methods=['POST'])
+def toggle_auto_approval():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
+  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  flash(f'Auto-approval has been {status_text} successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
@@ -611,7 +627,7 @@ def upload_nav():
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path_upload)
 
-        # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy[cite: 15]
+        # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy
         latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
         shutil.copy(file_path_upload, latest_ref_path)
 
