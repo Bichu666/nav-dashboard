@@ -615,7 +615,6 @@ def upload_nav():
         file_bytes = file.read()
 
         if supabase:
-          # Upload with upsert for fast single-file sequential handling
           supabase.storage.from_(BUCKET_NAME.strip()).upload(
               path=filename,
               file=file_bytes,
@@ -727,12 +726,20 @@ def get_archive_files():
           if f_name and f_name != 'latest_nav.jpg':
             if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               year_match = not year or year in f_name
-              month_match = (
-                  not target_month_num 
-                  or f'-{target_month_num}-' in f_name 
-                  or f'{target_month_num}' in f_name 
-                  or month_input in f_name.lower()
-              )
+              
+              # Strict Month Matching to prevent cross-month leakage
+              month_match = True
+              if target_month_num:
+                month_patterns = [
+                    f'-{target_month_num}-',
+                    f'.{target_month_num}.',
+                    f'/{target_month_num}/',
+                    f'_{target_month_num}_',
+                    f'{target_month_num}-'
+                ]
+                name_lower = f_name.lower()
+                month_match = any(p in name_lower for p in month_patterns) or month_input in name_lower
+
               if year_match and month_match:
                 matched_files.add(f_name)
     else:
