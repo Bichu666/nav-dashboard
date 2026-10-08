@@ -24,6 +24,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
+from supabase import create_client, Client
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -31,9 +32,15 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable
+# Initialize Supabase Database Connection via Render Environment Variable[cite: 9]
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
+
+# Initialize Supabase Client & Storage Bucket
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+BUCKET_NAME = "nav-bucket"
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -42,10 +49,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status
+# Track last admin activity timestamp for online/offline status[cite: 9]
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
-# Admin Auto-Approval Global Configuration Toggle
+# Admin Auto-Approval Global Configuration Toggle[cite: 9]
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
@@ -99,7 +106,7 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    # Updated to 5 minutes auto-approval time limit
+    # 5 minutes auto-approval time limit[cite: 9]
     if now - reg_time > timedelta(minutes=5):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
@@ -162,7 +169,7 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
-# Shared File-Based Cache for Gunicorn Multi-Worker Synchronization on Render
+# Shared File-Based Cache for Gunicorn Multi-Worker Synchronization on Render[cite: 9]
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
@@ -329,6 +336,12 @@ def parse_fund_excel_from_db(table_name):
 def get_latest_nav_filename():
   try:
     standard_latest = 'latest_nav.jpg'
+    if supabase:
+      try:
+        supabase.storage.from_(BUCKET_NAME).get_public_url(standard_latest)
+        return standard_latest
+      except Exception:
+        pass
     if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], standard_latest)):
       return standard_latest
 
@@ -437,11 +450,14 @@ def user_dashboard():
 
   latest_data_updated = False
   try:
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in files:
-      if f != 'latest_nav.jpg' and (today_ist in f or today_alt in f):
-        latest_data_updated = True
-        break
+    if supabase:
+      latest_data_updated = True
+    else:
+      files = os.listdir(app.config['UPLOAD_FOLDER'])
+      for f in files:
+        if f != 'latest_nav.jpg' and (today_ist in f or today_alt in f):
+          latest_data_updated = True
+          break
   except Exception as e:
     print(f"Error checking today's upload: {e}")
 
@@ -624,36 +640,30 @@ def upload_nav():
         if not filename:
           filename = f'nav_{int(datetime.now().timestamp())}.jpg'
 
-        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path_upload)
+        file_bytes = file.read()
 
-        # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy
-        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-        shutil.copy(file_path_upload, latest_ref_path)
+        if supabase:
+          # Upload original filename and reference copy to Supabase Storage Bucket permanently
+          supabase.storage.from_(BUCKET_NAME).upload(
+              path=filename,
+              file=file_bytes,
+              file_options={"content-type": "image/jpeg", "upsert": "true"}
+          )
+          supabase.storage.from_(BUCKET_NAME).upload(
+              path='latest_nav.jpg',
+              file=file_bytes,
+              file_options={"content-type": "image/jpeg", "upsert": "true"}
+          )
+          flash('NAV Image uploaded and stored permanently in Supabase Storage!', 'success')
+        else:
+          # Fallback to local storage if Supabase credentials are not set
+          file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          with open(file_path_upload, 'wb') as f:
+            f.write(file_bytes)
 
-        base_name = os.path.splitext(filename)[0]
-        file_date = None
-        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
-          try:
-            file_date = datetime.strptime(base_name[:10], fmt)
-            break
-          except ValueError:
-            pass
-
-        if not file_date:
-          file_date = datetime.now()
-
-        year_str = str(file_date.year)
-        month_name = file_date.strftime('%B')
-        month_num = file_date.strftime('%m')
-
-        archive_month_dir = os.path.join(ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}')
-        os.makedirs(archive_month_dir, exist_ok=True)
-
-        file_path_archive = os.path.join(archive_month_dir, filename)
-        shutil.copy(file_path_upload, file_path_archive)
-
-        flash('NAV Image uploaded and automatically archived successfully!', 'success')
+          latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+          shutil.copy(file_path_upload, latest_ref_path)
+          flash('NAV Image saved locally (Supabase not configured).', 'warning')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
@@ -676,13 +686,24 @@ def upload_archive():
           if file and file.filename != '':
             filename = secure_filename(file.filename)
             if not filename:
-              filename = (
-                  f'archive_{int(datetime.now().timestamp())}_{file.filename}'
+              filename = f'archive_{int(datetime.now().timestamp())}_{file.filename}'
+            
+            file_bytes = file.read()
+            if supabase:
+              supabase.storage.from_(BUCKET_NAME).upload(
+                  path=filename,
+                  file=file_bytes,
+                  file_options={"upsert": "true"}
               )
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            saved_any = True
+              saved_any = True
+            else:
+              file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+              with open(file_path, 'wb') as f:
+                f.write(file_bytes)
+              saved_any = True
+
       if saved_any:
-        flash('Archive files uploaded successfully!', 'success')
+        flash('Archive files uploaded successfully to Supabase Storage!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -698,12 +719,16 @@ def delete_archive_file(filename):
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   try:
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    if os.path.exists(file_path):
-      os.remove(file_path)
-      flash(f'Successfully deleted: {filename}', 'success')
+    if supabase:
+      supabase.storage.from_(BUCKET_NAME).remove([filename])
+      flash(f'Successfully deleted from cloud: {filename}', 'success')
     else:
-      flash('File not found.', 'danger')
+      file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+      if os.path.exists(file_path):
+        os.remove(file_path)
+        flash(f'Successfully deleted: {filename}', 'success')
+      else:
+        flash('File not found.', 'danger')
   except Exception as e:
     flash(f'Error deleting file: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
@@ -737,47 +762,20 @@ def get_archive_files():
       break
 
   try:
-    year_dir = os.path.join(ARCHIVE_FOLDER, year)
-    if os.path.exists(year_dir):
-      for d in os.listdir(year_dir):
-        if (
-            month_input in d.lower()
-            or (target_month_num and target_month_num in d)
-        ):
-          target_month_dir = os.path.join(year_dir, d)
-          if os.path.exists(target_month_dir):
-            for root, dirs, files in os.walk(target_month_dir):
-              for f in files:
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                  matched_files.add(f)
-
-    upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in upload_files:
-      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-        is_matched = False
-        base_name = os.path.splitext(f)[0]
-
-        parsed_date = None
-        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d'):
-          try:
-            parsed_date = datetime.strptime(base_name[:10], fmt)
-            break
-          except ValueError:
-            pass
-
-        if parsed_date:
-          file_year = str(parsed_date.year)
-          file_month_num = f'{parsed_date.month:02d}'
-          if file_year == year and file_month_num == target_month_num:
-            is_matched = True
-        else:
-          if year in f and (
-              (target_month_num and f'-{target_month_num}-' in f)
-              or (month_input and month_input in f.lower())
-          ):
-            is_matched = True
-
-        if is_matched:
+    if supabase:
+      files_response = supabase.storage.from_(BUCKET_NAME).list()
+      if files_response:
+        for file_obj in files_response:
+          f_name = file_obj.get('name')
+          if f_name and f_name != 'latest_nav.jpg':
+            if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+              if not year or year in f_name:
+                if not target_month_num or f'-{target_month_num}-' in f_name or target_month_num in f_name or month_input in f_name.lower():
+                  matched_files.add(f_name)
+    else:
+      upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
+      for f in upload_files:
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
           matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
@@ -789,25 +787,28 @@ def get_archive_files():
 
 @app.route('/view-archive-file/<filename>')
 def view_archive_file(filename):
-  as_attachment = request.args.get('download') == 'true'
-  for root, dirs, files in os.walk(ARCHIVE_FOLDER):
-    if filename in files:
-      return send_from_directory(root, filename, as_attachment=as_attachment)
-  return send_from_directory(
-      app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
-  )
+  try:
+    if supabase:
+      public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(filename)
+      if public_url:
+        return redirect(public_url)
+  except Exception as e:
+    print(f'Supabase view archive error: {e}')
+  
+  flash('File not found in cloud storage.', 'danger')
+  return redirect(url_for('user_dashboard'))
 
 
 @app.route('/download-latest-nav')
 def download_latest_nav():
   try:
-    latest_file = get_latest_nav_filename()
-    if latest_file:
-      return send_from_directory(
-          app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
-      )
+    if supabase:
+      public_url = supabase.storage.from_(BUCKET_NAME).get_public_url('latest_nav.jpg')
+      if public_url:
+        return redirect(public_url)
   except Exception as e:
-    print(f'Download error: {e}')
+    print(f'Supabase download error: {e}')
+  
   flash('No NAV image available for download.', 'danger')
   return redirect(url_for('user_dashboard'))
 
