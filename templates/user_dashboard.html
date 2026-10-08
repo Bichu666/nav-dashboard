@@ -595,9 +595,10 @@
 
         loadArchiveFiles();
 
-        setInterval(function() {
+        // User dashboard auto-refresh every 1 minute (60,000 ms)
+        setTimeout(function() {
             location.reload();
-        }, 120000);
+        }, 60000);
     </script>
 </body>
 </html>
