@@ -8,3 +8,5 @@ Werkzeug==3.0.1
 yfinance==0.2.36
 SQLAlchemy==2.0.27
 psycopg2-binary==2.9.9
+supabase==2.3.0
+Flask-Limiter==3.5.0
