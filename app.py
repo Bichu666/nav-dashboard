@@ -25,6 +25,8 @@ from email.mime.multipart import MIMEMultipart
 from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 from supabase import create_client, Client
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -32,7 +34,15 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable[cite: 9]
+# Initialize Flask-Limiter for Brute-Force Protection
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
+
+# Initialize Supabase Database Connection via Render Environment Variable
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -49,10 +59,10 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status[cite: 9]
+# Track last admin activity timestamp for online/offline status
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
-# Admin Auto-Approval Global Configuration Toggle[cite: 9]
+# Admin Auto-Approval Global Configuration Toggle
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
@@ -341,6 +351,7 @@ def health_check():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
   if request.method == 'POST':
     username = request.form.get('username')
@@ -432,6 +443,7 @@ def submit_feedback():
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def admin_login():
   if request.method == 'POST':
     mobile_input = request.form.get('mobile')
@@ -622,7 +634,6 @@ def upload_archive():
             
             file_bytes = file.read()
             if supabase:
-              # Streamlined single-file upsert for fast sequential processing
               supabase.storage.from_(BUCKET_NAME.strip()).upload(
                   path=filename,
                   file=file_bytes,
