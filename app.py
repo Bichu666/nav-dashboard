@@ -106,7 +106,6 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    # 5 minutes auto-approval time limit[cite: 9]
     if now - reg_time > timedelta(minutes=5):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
@@ -123,7 +122,6 @@ def send_email_notification(subject, body):
   sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
   sender_password = os.getenv("MAIL_PASSWORD", "")
   if not sender_password:
-    print("Email password not configured in environment variables (MAIL_PASSWORD).")
     return
   try:
     msg = MIMEMultipart()
@@ -135,7 +133,6 @@ def send_email_notification(subject, body):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
       server.login(sender_email, sender_password)
       server.send_message(msg)
-    print(f"Email sent successfully: {subject}")
   except Exception as e:
     print(f"Failed to send email: {e}")
 
@@ -151,7 +148,7 @@ def daily_scheduler():
     current_minute = ist_now.minute
 
     if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
-      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal.\n\nBest Regards,\nNAV Portal Automated System"
+      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
       send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
       last_8am_sent = current_date
 
@@ -159,7 +156,6 @@ def daily_scheduler():
       user_summary = "Here is the daily summary of registered users and their details:\n\n"
       for u in REGISTERED_USERS:
         user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
-      user_summary += "\nBest Regards,\nNAV Portal Automated System"
       send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
       last_10pm_sent = current_date
 
@@ -168,8 +164,6 @@ def daily_scheduler():
 
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
-
-# Shared File-Based Cache for Gunicorn Multi-Worker Synchronization on Render[cite: 9]
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
@@ -193,8 +187,8 @@ def load_sensex_cache():
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r') as f:
         return json.load(f)
-  except Exception as e:
-    print(f"Error loading cache file: {e}")
+  except Exception:
+    pass
   return DEFAULT_SENSEX_CACHE.copy()
 
 
@@ -202,8 +196,8 @@ def save_sensex_cache(cache_data):
   try:
     with open(CACHE_FILE, 'w') as f:
       json.dump(cache_data, f)
-  except Exception as e:
-    print(f"Error saving cache file: {e}")
+  except Exception:
+    pass
 
 
 if not os.path.exists(CACHE_FILE):
@@ -215,9 +209,12 @@ def sync_sensex_from_yahoo():
     try:
       ticker = yf.Ticker("^BSESN")
       hist = ticker.history(period="1d")
-      if not hist.empty:
+      if hist is not None and not hist.empty:
         current_val = float(hist['Close'].iloc[-1])
-        info = ticker.info
+        try:
+          info = ticker.info or {}
+        except Exception:
+          info = {}
         prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
         
         pts_change = round(current_val - prev_close, 2)
@@ -250,10 +247,10 @@ def sync_sensex_from_yahoo():
             cache['trend_data'].pop(0)
 
         save_sensex_cache(cache)
-    except Exception as e:
-      print(f'Sensex Yahoo sync error: {e}')
+    except Exception:
+      pass
 
-    time.sleep(1)
+    time.sleep(15)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -402,14 +399,6 @@ def user_dashboard():
     return redirect(url_for('login'))
 
   sensex_info, sensex_trend_data = get_sensex_data()
-  
-  utc_now = datetime.now(timezone.utc)
-  ist_now = utc_now + timedelta(hours=5, minutes=30)
-  today_ist = ist_now.strftime('%d-%m-%Y')
-  today_alt = ist_now.strftime('%Y-%m-%d')
-
-  latest_data_updated = True # Ensure live indicator triggers correctly
-
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
 
   return render_template(
@@ -421,7 +410,7 @@ def user_dashboard():
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
-      latest_data_updated=latest_data_updated,
+      latest_data_updated=True,
       admin_online=admin_online,
   )
 
@@ -563,10 +552,7 @@ def upload_master_category():
           table_name = f'{category}_funds'
           if engine:
             df.to_sql(table_name, engine, if_exists='replace', index=False)
-            flash(
-                f'{category.capitalize()} funds updated permanently in Supabase!',
-                'success',
-            )
+            flash(f'{category.capitalize()} funds updated permanently in Supabase!', 'success')
           else:
             flash('Database connection error.', 'danger')
     except Exception as e:
@@ -592,7 +578,6 @@ def upload_nav():
         file_bytes = file.read()
 
         if supabase:
-          # Optimized upload using upsert to prevent lagging and timeouts
           supabase.storage.from_(BUCKET_NAME.strip()).upload(
               path=filename,
               file=file_bytes,
@@ -603,15 +588,14 @@ def upload_nav():
               file=file_bytes,
               file_options={"content-type": "image/jpeg", "upsert": "true"}
           )
-          flash('NAV Image uploaded and stored permanently in Supabase Storage!', 'success')
+          flash(f'Successfully uploaded and published: {filename}', 'success')
         else:
           file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
           with open(file_path_upload, 'wb') as f:
             f.write(file_bytes)
-
           latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
           shutil.copy(file_path_upload, latest_ref_path)
-          flash('NAV Image saved locally (Supabase not configured).', 'warning')
+          flash(f'Saved locally: {filename}', 'warning')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
@@ -628,7 +612,7 @@ def upload_archive():
 
   if request.method == 'POST':
     try:
-      saved_any = False
+      saved_count = 0
       for key in request.files:
         for file in request.files.getlist(key):
           if file and file.filename != '':
@@ -638,21 +622,21 @@ def upload_archive():
             
             file_bytes = file.read()
             if supabase:
-              # Optimized batch chunk upload with upsert=true for fast processing
+              # Streamlined single-file upsert for fast sequential processing
               supabase.storage.from_(BUCKET_NAME.strip()).upload(
                   path=filename,
                   file=file_bytes,
                   file_options={"upsert": "true"}
               )
-              saved_any = True
+              saved_count += 1
             else:
               file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
               with open(file_path, 'wb') as f:
                 f.write(file_bytes)
-              saved_any = True
+              saved_count += 1
 
-      if saved_any:
-        flash('Archive files uploaded successfully to Supabase Storage!', 'success')
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} file(s) sequentially to Supabase Storage!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -690,18 +674,9 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': '01',
-      'feb': '02',
-      'mar': '03',
-      'apr': '04',
-      'may': '05',
-      'jun': '06',
-      'jul': '07',
-      'aug': '08',
-      'sep': '09',
-      'oct': '10',
-      'nov': '11',
-      'dec': '12',
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
   }
 
   target_month_num = month_map.get(month_input, '')
@@ -714,7 +689,6 @@ def get_archive_files():
           f_name = file_obj.get('name')
           if f_name and f_name != 'latest_nav.jpg':
             if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              # Match year and month robustly for user dashboard dropdowns
               year_match = not year or year in f_name
               month_match = (
                   not target_month_num 
