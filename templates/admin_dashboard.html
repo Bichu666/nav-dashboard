@@ -396,9 +396,14 @@
         </div>
 
         <div class="panel approval-panel" style="margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0; border: none; padding: 0;">User Approval & Unique Visitors</h3>
-                <div style="display: flex; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                <h3 style="margin: 0; border: none; padding: 0;">User Approval & Unique Visitors (5-Min Auto-Approval)</h3>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <form action="{{ url_for('toggle_auto_approval') }}" method="POST" style="margin: 0;">
+                        <button type="submit" style="background: {% if auto_approval_enabled %}var(--green){% else %}var(--red){% endif %}; color: {% if auto_approval_enabled %}#000{% else %}#fff{% endif %}; border: none; padding: 8px 16px; border-radius: 5px; font-weight: 700; cursor: pointer; font-size: 13px;">
+                            Auto-Approval: {% if auto_approval_enabled %}Enabled (ON){% else %}Disabled (OFF){% endif %}
+                        </button>
+                    </form>
                     <form action="{{ url_for('approve_all_users') }}" method="POST" style="margin: 0;">
                         <button type="submit" class="btn-app" style="padding: 8px 16px; font-size: 13px;">Bulk Approve All</button>
                     </form>
