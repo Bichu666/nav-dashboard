@@ -183,7 +183,6 @@ def sync_sensex_from_yahoo():
       is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
       if is_market_open:
-        # Robust real-time intraday tick simulation tailored for cloud deployments
         fluctuation = round(random.uniform(-4.2, 5.0), 2)
         SENSEX_CACHE['value'] = round(SENSEX_CACHE['value'] + fluctuation, 2)
         SENSEX_CACHE['base_change_pts'] = round(SENSEX_CACHE['base_change_pts'] + fluctuation, 2)
@@ -191,8 +190,7 @@ def sync_sensex_from_yahoo():
         SENSEX_CACHE['pct_change'] = pct
         SENSEX_CACHE['is_positive'] = SENSEX_CACHE['base_change_pts'] >= 0
         
-        # Update today's entry in trend data dynamically
-        today_date_str = ist_now.strftime('%d %bp').replace('p', '').strip() # e.g., 08 Oct
+        today_date_str = ist_now.strftime('%d %b')
         found_today = False
         for item in SENSEX_CACHE['trend_data']:
           if item['date'] == today_date_str:
@@ -209,7 +207,6 @@ def sync_sensex_from_yahoo():
           if len(SENSEX_CACHE['trend_data']) > 5:
             SENSEX_CACHE['trend_data'].pop(0)
       else:
-        # Market closed: try fetching latest close from Yahoo Finance API
         ticker = yf.Ticker("^BSESN")
         df = ticker.history(period="2d")
         if not df.empty:
@@ -234,10 +231,9 @@ threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
 def get_sensex_data():
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  weekday = ist_now.weekday()  # 0 = Monday, 6 = Sunday
+  weekday = ist_now.weekday()
   current_total_minutes = ist_now.hour * 60 + ist_now.minute
 
-  # Indian Stock Market trading hours: Mon-Fri, 9:15 AM (555 mins) to 3:30 PM (930 mins) IST
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
   current_val = SENSEX_CACHE['value']
@@ -261,8 +257,8 @@ def get_sensex_data():
 
 @app.route('/api/sensex-live')
 def sensex_live():
-  sensex_info, _ = get_sensex_data()
-  return jsonify(sensex_info)
+  sensex_info, trend_data = get_sensex_data()
+  return jsonify({'sensex': sensex_info, 'trend': trend_data})
 
 
 def format_pct(val):
@@ -730,7 +726,7 @@ def get_archive_files():
         base_name = os.path.splitext(f)[0]
 
         parsed_date = None
-        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m-%Y', '%Y_%m_%d'):
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d'):
           try:
             parsed_date = datetime.strptime(base_name[:10], fmt)
             break
