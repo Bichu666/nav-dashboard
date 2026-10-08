@@ -200,51 +200,43 @@ if not os.path.exists(CACHE_FILE):
 def sync_sensex_from_yahoo():
   while True:
     try:
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?interval=1m&range=1d"
-      req = urllib.request.Request(
-          url,
-          headers={
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-          }
-      )
-      with urllib.request.urlopen(req, timeout=5) as response:
-        data = json.loads(response.read().decode())
-        meta = data['chart']['result'][0]['meta']
-        current_val = float(meta['regularMarketPrice'])
-        prev_close = float(meta.get('chartPreviousClose', meta.get('previousClose', current_val)))
-        
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+      ticker = yf.Ticker("^BSESN")
+      fi = ticker.fast_info
+      current_val = float(fi.get('last_price') or fi.get('regularMarketPrice'))
+      prev_close = float(fi.get('previous_close') or fi.get('regularMarketPreviousClose') or current_val)
+      
+      pts_change = round(current_val - prev_close, 2)
+      pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
-        cache = load_sensex_cache()
-        cache['value'] = round(current_val, 2)
-        cache['base_change_pts'] = pts_change
-        cache['pct_change'] = pct_change
-        cache['is_positive'] = pts_change >= 0
+      cache = load_sensex_cache()
+      cache['value'] = round(current_val, 2)
+      cache['base_change_pts'] = pts_change
+      cache['pct_change'] = pct_change
+      cache['is_positive'] = pts_change >= 0
 
-        now_utc = datetime.now(timezone.utc)
-        ist_now = now_utc + timedelta(hours=5, minutes=30)
-        today_date_str = ist_now.strftime('%d %b')
-        
-        found_today = False
-        for item in cache['trend_data']:
-          if item['date'] == today_date_str:
-            item['value'] = f"{cache['value']:,.2f}"
-            item['change'] = cache['base_change_pts']
-            found_today = True
-            break
-        if not found_today:
-          cache['trend_data'].append({
-              'date': today_date_str,
-              'value': f"{cache['value']:,.2f}",
-              'change': cache['base_change_pts']
-          })
-          if len(cache['trend_data']) > 5:
-            cache['trend_data'].pop(0)
+      now_utc = datetime.now(timezone.utc)
+      ist_now = now_utc + timedelta(hours=5, minutes=30)
+      today_date_str = ist_now.strftime('%d %b')
+      
+      found_today = False
+      for item in cache['trend_data']:
+        if item['date'] == today_date_str:
+          item['value'] = f"{cache['value']:,.2f}"
+          item['change'] = cache['base_change_pts']
+          found_today = True
+          break
+      if not found_today:
+        cache['trend_data'].append({
+            'date': today_date_str,
+            'value': f"{cache['value']:,.2f}",
+            'change': cache['base_change_pts']
+        })
+        if len(cache['trend_data']) > 5:
+          cache['trend_data'].pop(0)
 
-        save_sensex_cache(cache)
+      save_sensex_cache(cache)
     except Exception as e:
-      print(f'Sensex Yahoo API sync error: {e}')
+      print(f'Sensex Yahoo fast_info sync error: {e}')
 
     time.sleep(1)
 
@@ -635,6 +627,4 @@ def upload_nav():
             archive_month_dir = os.path.join(
                 ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}'
             )
-            os.makedirs(archive_month_dir, exist_ok=True)
-
-            file_path_archive = os
+            os
