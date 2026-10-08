@@ -156,8 +156,10 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
-# In-memory store and background sync for Sensex live data
-SENSEX_CACHE = {
+# Shared File-Based Cache for Gunicorn Multi-Worker Synchronization on Render
+CACHE_FILE = 'sensex_cache.json'
+
+DEFAULT_SENSEX_CACHE = {
     'value': 72638.70,
     'base_change_pts': 118.45,
     'pct_change': 0.16,
@@ -168,14 +170,37 @@ SENSEX_CACHE = {
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '08 Oct', 'value': '72,638.18', 'change': 117.93},
+        {'date': '08 Oct', 'value': '72,638.76', 'change': 118.51},
     ]
 }
+
+
+def load_sensex_cache():
+  try:
+    if os.path.exists(CACHE_FILE):
+      with open(CACHE_FILE, 'r') as f:
+        return json.load(f)
+  except Exception as e:
+    print(f"Error loading cache file: {e}")
+  return DEFAULT_SENSEX_CACHE.copy()
+
+
+def save_sensex_cache(cache_data):
+  try:
+    with open(CACHE_FILE, 'w') as f:
+      json.dump(cache_data, f)
+  except Exception as e:
+    print(f"Error saving cache file: {e}")
+
+
+if not os.path.exists(CACHE_FILE):
+  save_sensex_cache(DEFAULT_SENSEX_CACHE)
 
 
 def sync_sensex_from_yahoo():
   while True:
     try:
+      cache = load_sensex_cache()
       now_utc = datetime.now(timezone.utc)
       ist_now = now_utc + timedelta(hours=5, minutes=30)
       weekday = ist_now.weekday()
@@ -184,28 +209,28 @@ def sync_sensex_from_yahoo():
 
       if is_market_open:
         fluctuation = round(random.uniform(-4.2, 5.0), 2)
-        SENSEX_CACHE['value'] = round(SENSEX_CACHE['value'] + fluctuation, 2)
-        SENSEX_CACHE['base_change_pts'] = round(SENSEX_CACHE['base_change_pts'] + fluctuation, 2)
-        pct = round((SENSEX_CACHE['base_change_pts'] / 72638.70) * 100, 2)
-        SENSEX_CACHE['pct_change'] = pct
-        SENSEX_CACHE['is_positive'] = SENSEX_CACHE['base_change_pts'] >= 0
+        cache['value'] = round(cache['value'] + fluctuation, 2)
+        cache['base_change_pts'] = round(cache['base_change_pts'] + fluctuation, 2)
+        pct = round((cache['base_change_pts'] / 72638.70) * 100, 2)
+        cache['pct_change'] = pct
+        cache['is_positive'] = cache['base_change_pts'] >= 0
         
         today_date_str = ist_now.strftime('%d %b')
         found_today = False
-        for item in SENSEX_CACHE['trend_data']:
+        for item in cache['trend_data']:
           if item['date'] == today_date_str:
-            item['value'] = f"{SENSEX_CACHE['value']:,.2f}"
-            item['change'] = SENSEX_CACHE['base_change_pts']
+            item['value'] = f"{cache['value']:,.2f}"
+            item['change'] = cache['base_change_pts']
             found_today = True
             break
         if not found_today:
-          SENSEX_CACHE['trend_data'].append({
+          cache['trend_data'].append({
               'date': today_date_str,
-              'value': f"{SENSEX_CACHE['value']:,.2f}",
-              'change': SENSEX_CACHE['base_change_pts']
+              'value': f"{cache['value']:,.2f}",
+              'change': cache['base_change_pts']
           })
-          if len(SENSEX_CACHE['trend_data']) > 5:
-            SENSEX_CACHE['trend_data'].pop(0)
+          if len(cache['trend_data']) > 5:
+            cache['trend_data'].pop(0)
       else:
         ticker = yf.Ticker("^BSESN")
         df = ticker.history(period="2d")
@@ -214,11 +239,13 @@ def sync_sensex_from_yahoo():
           prev_close = float(df['Close'].iloc[-2]) if len(df) > 1 else current_val
           pts_change = round(current_val - prev_close, 2)
           pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
-          SENSEX_CACHE['value'] = round(current_val, 2)
-          SENSEX_CACHE['base_change_pts'] = pts_change
-          SENSEX_CACHE['pct_change'] = pct_change
-          SENSEX_CACHE['is_positive'] = pts_change >= 0
-          SENSEX_CACHE['last_close_time'] = datetime.now().strftime('%I:%M:%S %p GMT+5:30')
+          cache['value'] = round(current_val, 2)
+          cache['base_change_pts'] = pts_change
+          cache['pct_change'] = pct_change
+          cache['is_positive'] = pts_change >= 0
+          cache['last_close_time'] = datetime.now().strftime('%I:%M:%S %p GMT+5:30')
+
+      save_sensex_cache(cache)
     except Exception as e:
       print(f'Sensex background sync error: {e}')
 
@@ -229,6 +256,7 @@ threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
 
 
 def get_sensex_data():
+  cache = load_sensex_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
   weekday = ist_now.weekday()
@@ -236,14 +264,14 @@ def get_sensex_data():
 
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
-  current_val = SENSEX_CACHE['value']
-  pts_change = SENSEX_CACHE['base_change_pts']
-  pct_change = SENSEX_CACHE['pct_change']
+  current_val = cache['value']
+  pts_change = cache['base_change_pts']
+  pct_change = cache['pct_change']
 
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {SENSEX_CACHE.get('last_close_time', '03:32:27 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -252,7 +280,7 @@ def get_sensex_data():
       'time_label': time_label,
       'is_market_open': is_market_open,
   }
-  return live_info, SENSEX_CACHE['trend_data']
+  return live_info, cache['trend_data']
 
 
 @app.route('/api/sensex-live')
