@@ -53,7 +53,7 @@ REGISTERED_USERS = [
         'name': 'Rahul Sharma',
         'mobile': '+91 9876543210',
         'status': 'Pending',
-        'registered_at': datetime.now() - timedelta(minutes=15),
+        'registered_at': datetime.now() - timedelta(minutes=3),
         'approved_at': None,
     },
     {
@@ -94,7 +94,8 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    if now - reg_time > timedelta(minutes=18):
+    # 2 minutes auto-approval time limit
+    if now - reg_time > timedelta(minutes=2):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
@@ -160,8 +161,8 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 71589.94,
-    'base_change_pts': -1048.77,
+    'value': 71593.24,
+    'base_change_pts': -1045.46,
     'pct_change': -1.44,
     'is_positive': False,
     'last_close_time': '03:32:27 PM GMT+5:30',
@@ -170,7 +171,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '08 Oct', 'value': '71,589.94', 'change': -1048.77},
+        {'date': '08 Oct', 'value': '71,593.24', 'change': -1045.46},
     ]
 }
 
@@ -549,6 +550,20 @@ def approve_all_users():
   return redirect(url_for('admin_dashboard'))
 
 
+@app.route('/decline-all-users', methods=['POST'])
+def decline_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+  flash('All pending users declined successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
 @app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
   if not session.get('is_admin'):
@@ -587,60 +602,42 @@ def upload_nav():
 
   if request.method == 'POST':
     try:
-      saved_any = False
-      for key in request.files:
-        for file in request.files.getlist(key):
-          if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            if not filename:
-              filename = f'nav_{int(datetime.now().timestamp())}.jpg'
+      file = request.files.get('nav_image')
+      if file and file.filename != '':
+        filename = secure_filename(file.filename)
+        if not filename:
+          filename = f'nav_{int(datetime.now().timestamp())}.jpg'
 
-            file_path_upload = os.path.join(
-                app.config['UPLOAD_FOLDER'], filename
-            )
-            file.save(file_path_upload)
+        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path_upload)
 
-            # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy[cite: 15]
-            latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-            shutil.copy(file_path_upload, latest_ref_path)
+        # ALWAYS create/update a standardized 'latest_nav.jpg' reference copy[cite: 15]
+        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+        shutil.copy(file_path_upload, latest_ref_path)
 
-            base_name = os.path.splitext(filename)[0]
-            file_date = None
-            for fmt in (
-                '%d-%m-%Y',
-                '%Y-%m-%d',
-                '%d_%m_%Y',
-                '%Y_%m_%d',
-                '%d%m%Y',
-            ):
-              try:
-                file_date = datetime.strptime(base_name[:10], fmt)
-                break
-              except ValueError:
-                pass
+        base_name = os.path.splitext(filename)[0]
+        file_date = None
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
+          try:
+            file_date = datetime.strptime(base_name[:10], fmt)
+            break
+          except ValueError:
+            pass
 
-            if not file_date:
-              file_date = datetime.now()
+        if not file_date:
+          file_date = datetime.now()
 
-            year_str = str(file_date.year)
-            month_name = file_date.strftime('%B')
-            month_num = file_date.strftime('%m')
+        year_str = str(file_date.year)
+        month_name = file_date.strftime('%B')
+        month_num = file_date.strftime('%m')
 
-            archive_month_dir = os.path.join(
-                ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}'
-            )
-            os.makedirs(archive_month_dir, exist_ok=True)
+        archive_month_dir = os.path.join(ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}')
+        os.makedirs(archive_month_dir, exist_ok=True)
 
-            file_path_archive = os.path.join(archive_month_dir, filename)
-            shutil.copy(file_path_upload, file_path_archive)
+        file_path_archive = os.path.join(archive_month_dir, filename)
+        shutil.copy(file_path_upload, file_path_archive)
 
-            saved_any = True
-
-      if saved_any:
-        flash(
-            'NAV Image uploaded and automatically archived successfully!',
-            'success',
-        )
+        flash('NAV Image uploaded and automatically archived successfully!', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
