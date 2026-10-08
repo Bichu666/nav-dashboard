@@ -168,7 +168,7 @@ SENSEX_CACHE = {
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '08 Oct', 'value': '72,757.15', 'change': 118.45},
+        {'date': '08 Oct', 'value': '72,638.18', 'change': 117.93},
     ]
 }
 
@@ -257,8 +257,8 @@ def get_sensex_data():
 
 @app.route('/api/sensex-live')
 def sensex_live():
-  sensex_info, trend_data = get_sensex_data()
-  return jsonify({'sensex': sensex_info, 'trend': trend_data})
+  sensex_info, _ = get_sensex_data()
+  return jsonify(sensex_info)
 
 
 def format_pct(val):
