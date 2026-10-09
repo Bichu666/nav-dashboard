@@ -667,33 +667,50 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+      'jan': 'January', 'january': 'January', '01': 'January', '1': 'January',
+      'feb': 'February', 'february': 'February', '02': 'February', '2': 'February',
+      'mar': 'March', 'march': 'March', '03': 'March', '3': 'March',
+      'apr': 'April', 'april': 'April', '04': 'April', '4': 'April',
+      'may': 'May', '05': 'May', '5': 'May',
+      'jun': 'June', 'june': 'June', '06': 'June', '6': 'June',
+      'jul': 'July', 'july': 'July', '07': 'July', '7': 'July',
+      'aug': 'August', 'august': 'August', '08': 'August', '8': 'August',
+      'sep': 'September', 'september': 'September', '09': 'September', '9': 'September',
+      'oct': 'October', 'october': 'October', '10': 'October',
+      'nov': 'November', 'november': 'November', '11': 'November',
+      'dec': 'December', 'december': 'December', '12': 'December'
   }
 
-  target_month_num = month_map.get(month_input, '')
+  target_month_full = month_map.get(month_input, month_input.capitalize())
 
   try:
-    upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in upload_files:
-      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-        year_match = not year or year in f
-        
-        month_match = True
-        if target_month_num:
-          month_patterns = [
-              f'-{target_month_num}-',
-              f'.{target_month_num}.',
-              f'/{target_month_num}/',
-              f'_{target_month_num}_',
-              f'{target_month_num}-'
-          ]
-          name_lower = f.lower()
-          month_match = any(p in name_lower for p in month_patterns) or month_input in name_lower
+    archive_base = 'archive_nav'
+    target_dir = None
+    
+    if year and month_input:
+      year_path = os.path.join(archive_base, year)
+      if os.path.exists(year_path):
+        for sub in os.listdir(year_path):
+          if sub.lower() == target_month_full.lower() or sub.lower() == month_input:
+            target_dir = os.path.join(year_path, sub)
+            break
+      if not target_dir:
+        target_dir = os.path.join(archive_base, year, target_month_full)
 
-        if year_match and month_match:
-          matched_files.add(f)
+    if target_dir and os.path.exists(target_dir):
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          rel_path = os.path.join(year, os.path.basename(target_dir), f).replace("\\", "/")
+          matched_files.add(rel_path)
+    
+    # Fallback search inside archive_nav if specific folder didn't resolve
+    if not matched_files and os.path.exists(archive_base):
+      for root, dirs, files in os.walk(archive_base):
+        for f in files:
+          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+            if (not year or year in root) and (not month_input or month_input in root.lower() or target_month_full.lower() in root.lower()):
+              rel_path = os.path.relpath(os.path.join(root, f), archive_base).replace("\\", "/")
+              matched_files.add(rel_path)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
@@ -702,9 +719,9 @@ def get_archive_files():
     return jsonify({'success': False, 'files': []})
 
 
-@app.route('/view-archive-file/<filename>')
+@app.route('/view-archive-file/<path:filename>')
 def view_archive_file(filename):
-  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+  return send_from_directory('archive_nav', filename)
 
 
 @app.route('/download-latest-nav')
