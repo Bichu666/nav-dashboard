@@ -170,17 +170,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 71593.24,
-    'base_change_pts': -1045.46,
-    'pct_change': -1.44,
-    'is_positive': False,
-    'last_close_time': '03:32:27 PM GMT+5:30',
+    'value': 72472.33,
+    'base_change_pts': 879.09,
+    'pct_change': 1.23,
+    'is_positive': True,
+    'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
         {'date': '01 Oct', 'value': '71,909.70', 'change': -570.59},
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '09 Oct', 'value': '71,593.24', 'change': -1045.46},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
     ]
 }
 
@@ -211,15 +211,24 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       ticker = yf.Ticker("^BSESN")
-      hist = ticker.history(period="1d")
-      if hist is not None and not hist.empty:
-        current_val = float(hist['Close'].iloc[-1])
-        try:
-          info = ticker.info or {}
-        except Exception:
-          info = {}
-        prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-        
+      fi = getattr(ticker, 'fast_info', {})
+      current_val = float(fi.get('last_price') or fi.get('lastPrice') or 0)
+      prev_close = float(fi.get('previous_close') or fi.get('previousClose') or 0)
+
+      if not current_val or not prev_close:
+        hist = ticker.history(period="1d")
+        if hist is not None and not hist.empty:
+          current_val = float(hist['Close'].iloc[-1])
+          try:
+            info = ticker.info or {}
+          except Exception:
+            info = {}
+          prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
+
+      if current_val > 0:
+        if not prev_close:
+          prev_close = current_val
+
         pts_change = round(current_val - prev_close, 2)
         pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
@@ -253,7 +262,7 @@ def sync_sensex_from_yahoo():
     except Exception:
       pass
 
-    time.sleep(15)
+    time.sleep(1)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -275,7 +284,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:32:26 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -405,7 +414,6 @@ def user_dashboard():
   sensex_info, sensex_trend_data = get_sensex_data()
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
 
-  # Check if today's actual date file has been uploaded by admin locally
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
   today_ist = ist_now.strftime('%d-%m-%Y')
@@ -703,7 +711,6 @@ def get_archive_files():
           rel_path = os.path.join(year, os.path.basename(target_dir), f).replace("\\", "/")
           matched_files.add(rel_path)
     
-    # Fallback search inside archive_nav if specific folder didn't resolve
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
