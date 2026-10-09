@@ -706,7 +706,7 @@ def delete_archive_file(filename):
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
   year = request.args.get('year', '').strip()
-  month_input = request.args.get('month', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
   month_map = {
@@ -724,33 +724,46 @@ def get_archive_files():
       'dec': 'December', 'december': 'December', '12': 'December'
   }
 
+  target_month_full = month_map.get(month_input, month_input.capitalize())
+
   try:
     if supabase:
       bucket = supabase.storage.from_(BUCKET_NAME.strip())
       
-      candidates = set()
-      if year and month_input:
-        m_lower = month_input.lower()
-        full_name = month_map.get(m_lower, month_input.capitalize())
-        candidates.add(f"{year}/{full_name}")
-        candidates.add(f"{year}/{month_input}")
-        candidates.add(f"{year}/{month_input.capitalize()}")
-        candidates.add(f"{year}/{month_input.upper()}")
-      elif year:
-        candidates.add(year)
-
+      candidates = [
+          f"{year}/{target_month_full}",
+          f"{year}/{month_input}",
+          f"{year}/{month_input.capitalize()}"
+      ]
+      
       for folder in candidates:
         try:
-          files_response = bucket.list(folder)
-          if files_response:
-            for file_obj in files_response:
-              f_name = file_obj.get('name')
+          res = bucket.list(folder, {"limit": 1000})
+          if res:
+            for item in res:
+              f_name = item.get('name')
               if f_name and f_name != 'latest_nav.jpg':
                 if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                  full_path = f"{folder}/{f_name}"
-                  matched_files.add(full_path)
-        except Exception as sub_e:
-          print(f"Skipping folder {folder}: {sub_e}")
+                  matched_files.add(f"{folder}/{f_name}")
+        except Exception:
+          pass
+
+      if not matched_files and year:
+        try:
+          year_res = bucket.list(year, {"limit": 1000})
+          if year_res:
+            for sub in year_res:
+              sub_name = sub.get('name', '')
+              if month_input in sub_name.lower() or target_month_full.lower() in sub_name.lower():
+                sub_folder = f"{year}/{sub_name}"
+                sub_files = bucket.list(sub_folder, {"limit": 1000})
+                if sub_files:
+                  for sf in sub_files:
+                    sf_name = sf.get('name')
+                    if sf_name and sf_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                      matched_files.add(f"{sub_folder}/{sf_name}")
+        except Exception:
+          pass
     else:
       upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
       for f in upload_files:
