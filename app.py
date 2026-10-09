@@ -709,53 +709,48 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip()
   matched_files = set()
 
-  month_mapping = {
-      'january': 'January', 'jan': 'January', '01': 'January', '1': 'January',
-      'february': 'February', 'feb': 'February', '02': 'February', '2': 'February',
-      'march': 'March', 'mar': 'March', '03': 'March', '3': 'March',
-      'april': 'April', 'apr': 'April', '04': 'April', '4': 'April',
+  month_map = {
+      'jan': 'January', 'january': 'January', '01': 'January', '1': 'January',
+      'feb': 'February', 'february': 'February', '02': 'February', '2': 'February',
+      'mar': 'March', 'march': 'March', '03': 'March', '3': 'March',
+      'apr': 'April', 'april': 'April', '04': 'April', '4': 'April',
       'may': 'May', '05': 'May', '5': 'May',
-      'june': 'June', 'jun': 'June', '06': 'June', '6': 'June',
-      'july': 'July', 'jul': 'July', '07': 'July', '7': 'July',
-      'august': 'August', 'aug': 'August', '08': 'August', '8': 'August',
-      'september': 'September', 'sep': 'September', '09': 'September', '9': 'September',
-      'october': 'October', 'oct': 'October', '10': 'October',
-      'november': 'November', 'nov': 'November', '11': 'November',
-      'december': 'December', 'dec': 'December', '12': 'December'
+      'jun': 'June', 'june': 'June', '06': 'June', '6': 'June',
+      'jul': 'July', 'july': 'July', '07': 'July', '7': 'July',
+      'aug': 'August', 'august': 'August', '08': 'August', '8': 'August',
+      'sep': 'September', 'september': 'September', '09': 'September', '9': 'September',
+      'oct': 'October', 'october': 'October', '10': 'October',
+      'nov': 'November', 'november': 'November', '11': 'November',
+      'dec': 'December', 'december': 'December', '12': 'December'
   }
 
   try:
     if supabase:
       bucket = supabase.storage.from_(BUCKET_NAME.strip())
       
-      # List items in the year folder to find matching subfolder
-      year_list = bucket.list(year) if year else []
-      normalized_month = month_mapping.get(month_input.lower(), month_input)
-      
-      target_folders = []
-      if year_list:
-        for item in year_list:
-          item_name = item.get('name', '')
-          if item_name and '.' not in item_name:
-            if item_name.lower() == month_input.lower() or item_name.lower() == normalized_month.lower():
-              target_folders.append(f"{year}/{item_name}")
+      candidates = set()
+      if year and month_input:
+        m_lower = month_input.lower()
+        full_name = month_map.get(m_lower, month_input.capitalize())
+        candidates.add(f"{year}/{full_name}")
+        candidates.add(f"{year}/{month_input}")
+        candidates.add(f"{year}/{month_input.capitalize()}")
+        candidates.add(f"{year}/{month_input.upper()}")
+      elif year:
+        candidates.add(year)
 
-      if not target_folders and year and month_input:
-        target_folders = [
-            f"{year}/{normalized_month}",
-            f"{year}/{month_input}",
-            f"{year}/{month_input.capitalize()}"
-        ]
-
-      for folder_path in target_folders:
-        files_response = bucket.list(folder_path)
-        if files_response:
-          for file_obj in files_response:
-            f_name = file_obj.get('name')
-            if f_name and f_name != 'latest_nav.jpg':
-              if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                full_path = f"{folder_path}/{f_name}"
-                matched_files.add(full_path)
+      for folder in candidates:
+        try:
+          files_response = bucket.list(folder)
+          if files_response:
+            for file_obj in files_response:
+              f_name = file_obj.get('name')
+              if f_name and f_name != 'latest_nav.jpg':
+                if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                  full_path = f"{folder}/{f_name}"
+                  matched_files.add(full_path)
+        except Exception as sub_e:
+          print(f"Skipping folder {folder}: {sub_e}")
     else:
       upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
       for f in upload_files:
