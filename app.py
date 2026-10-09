@@ -706,42 +706,23 @@ def delete_archive_file(filename):
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
   year = request.args.get('year', '').strip()
-  month_input = request.args.get('month', '').strip().lower()
+  month_input = request.args.get('month', '').strip()
   matched_files = set()
-
-  month_map = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
-  }
-
-  target_month_num = month_map.get(month_input, '')
 
   try:
     if supabase:
-      files_response = supabase.storage.from_(BUCKET_NAME.strip()).list()
+      # Target folder path matching the recursive upload script structure (e.g., 2026/September)
+      folder_path = f"{year}/{month_input}" if year and month_input else year
+      
+      files_response = supabase.storage.from_(BUCKET_NAME.strip()).list(folder_path)
       if files_response:
         for file_obj in files_response:
           f_name = file_obj.get('name')
           if f_name and f_name != 'latest_nav.jpg':
             if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              year_match = not year or year in f_name
-              
-              # Strict Month Matching to prevent cross-month leakage
-              month_match = True
-              if target_month_num:
-                month_patterns = [
-                    f'-{target_month_num}-',
-                    f'.{target_month_num}.',
-                    f'/{target_month_num}/',
-                    f'_{target_month_num}_',
-                    f'{target_month_num}-'
-                ]
-                name_lower = f_name.lower()
-                month_match = any(p in name_lower for p in month_patterns) or month_input in name_lower
-
-              if year_match and month_match:
-                matched_files.add(f_name)
+              # Construct the full storage path for viewing/downloading
+              full_path = f"{folder_path}/{f_name}" if folder_path else f_name
+              matched_files.add(full_path)
     else:
       upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
       for f in upload_files:
@@ -755,7 +736,7 @@ def get_archive_files():
     return jsonify({'success': False, 'files': []})
 
 
-@app.route('/view-archive-file/<filename>')
+@app.route('/view-archive-file/<path:filename>')
 def view_archive_file(filename):
   try:
     if supabase:
