@@ -709,20 +709,53 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip()
   matched_files = set()
 
+  month_mapping = {
+      'january': 'January', 'jan': 'January', '01': 'January', '1': 'January',
+      'february': 'February', 'feb': 'February', '02': 'February', '2': 'February',
+      'march': 'March', 'mar': 'March', '03': 'March', '3': 'March',
+      'april': 'April', 'apr': 'April', '04': 'April', '4': 'April',
+      'may': 'May', '05': 'May', '5': 'May',
+      'june': 'June', 'jun': 'June', '06': 'June', '6': 'June',
+      'july': 'July', 'jul': 'July', '07': 'July', '7': 'July',
+      'august': 'August', 'aug': 'August', '08': 'August', '8': 'August',
+      'september': 'September', 'sep': 'September', '09': 'September', '9': 'September',
+      'october': 'October', 'oct': 'October', '10': 'October',
+      'november': 'November', 'nov': 'November', '11': 'November',
+      'december': 'December', 'dec': 'December', '12': 'December'
+  }
+
   try:
     if supabase:
-      # Target folder path matching the recursive upload script structure (e.g., 2026/September)
-      folder_path = f"{year}/{month_input}" if year and month_input else year
+      bucket = supabase.storage.from_(BUCKET_NAME.strip())
       
-      files_response = supabase.storage.from_(BUCKET_NAME.strip()).list(folder_path)
-      if files_response:
-        for file_obj in files_response:
-          f_name = file_obj.get('name')
-          if f_name and f_name != 'latest_nav.jpg':
-            if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              # Construct the full storage path for viewing/downloading
-              full_path = f"{folder_path}/{f_name}" if folder_path else f_name
-              matched_files.add(full_path)
+      # List items in the year folder to find matching subfolder
+      year_list = bucket.list(year) if year else []
+      normalized_month = month_mapping.get(month_input.lower(), month_input)
+      
+      target_folders = []
+      if year_list:
+        for item in year_list:
+          item_name = item.get('name', '')
+          if item_name and '.' not in item_name:
+            if item_name.lower() == month_input.lower() or item_name.lower() == normalized_month.lower():
+              target_folders.append(f"{year}/{item_name}")
+
+      if not target_folders and year and month_input:
+        target_folders = [
+            f"{year}/{normalized_month}",
+            f"{year}/{month_input}",
+            f"{year}/{month_input.capitalize()}"
+        ]
+
+      for folder_path in target_folders:
+        files_response = bucket.list(folder_path)
+        if files_response:
+          for file_obj in files_response:
+            f_name = file_obj.get('name')
+            if f_name and f_name != 'latest_nav.jpg':
+              if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                full_path = f"{folder_path}/{f_name}"
+                matched_files.add(full_path)
     else:
       upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
       for f in upload_files:
