@@ -355,6 +355,16 @@ def is_today_filename(filename):
 
 def extract_date_from_filename(filename):
   fn = filename.lower()
+  clean_name = os.path.splitext(filename)[0]
+  
+  # Try strict date parsing first (e.g., 01-10-2026, 2026-10-01, etc.)
+  for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
+    try:
+      dt = datetime.strptime(clean_name, fmt)
+      return dt.strftime('%Y'), dt.strftime('%B')
+    except ValueError:
+      continue
+
   year = datetime.now().strftime('%Y')
   match_year = re.search(r'(20\d{2})', fn)
   if match_year:
@@ -362,23 +372,16 @@ def extract_date_from_filename(filename):
 
   month = datetime.now().strftime('%B')
   month_map = {
-      '01': 'January', '1': 'January', 'jan': 'January', 'january': 'January',
-      '02': 'February', '2': 'February', 'feb': 'February', 'february': 'February',
-      '03': 'March', '3': 'March', 'mar': 'March', 'march': 'March',
-      '04': 'April', '4': 'April', 'apr': 'April', 'april': 'April',
-      '05': 'May', '5': 'May', 'may': 'May',
-      '06': 'June', '6': 'June', 'jun': 'June', 'june': 'June',
-      '07': 'July', '7': 'July', 'jul': 'July', 'july': 'July',
-      '08': 'August', '8': 'August', 'aug': 'August', 'august': 'August',
-      '09': 'September', '9': 'September', 'sep': 'September', 'september': 'September',
-      '10': 'October', 'oct': 'October', 'october': 'October',
-      '11': 'November', 'nov': 'November', 'november': 'November',
-      '12': 'December', 'dec': 'December', 'december': 'December'
+      'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+      'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
   }
-  parts = re.split(r'[-_./\s]', fn)
-  for p in parts:
-    if p in month_map:
-      month = month_map[p]
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
       break
   return year, month
 
@@ -656,7 +659,7 @@ def upload_nav():
         with open(meta_path, 'w') as mf:
           json.dump({'filename': filename, 'upload_time': datetime.now().isoformat()}, mf)
 
-        # Automatically extract target year and month and save to correct archive folder
+        # Automatically extract target year and month using robust datetime parsing and save to correct archive folder
         target_year, target_month = extract_date_from_filename(filename)
         archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
