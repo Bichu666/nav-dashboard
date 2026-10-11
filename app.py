@@ -417,13 +417,18 @@ def user_dashboard():
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
   today_date_str = ist_now.strftime('%d-%m-%Y')
+  today_date_alt = ist_now.strftime('%Y-%m-%d')
 
   latest_data_updated = False
   try:
     latest_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
     if os.path.exists(latest_file_path):
+      # Check if the filename of latest_nav or its upload date matches today's date strictly
+      filename_lower = os.path.basename(latest_file_path).lower()
       mtime = datetime.fromtimestamp(os.path.getmtime(latest_file_path), timezone.utc) + timedelta(hours=5, minutes=30)
-      if mtime.strftime('%d-%m-%Y') == today_date_str:
+      mtime_str = mtime.strftime('%d-%m-%Y')
+      
+      if today_date_str in filename_lower or today_date_alt in filename_lower or mtime_str == today_date_str:
         latest_data_updated = True
   except Exception as e:
     print(f"Error checking today's upload status: {e}")
@@ -609,7 +614,9 @@ def upload_nav():
           f.write(file_bytes)
         
         latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-        shutil.copy(file_path_upload, latest_ref_path)
+        with open(latest_ref_path, 'wb') as f:
+          f.write(file_bytes)
+
         flash(f'Successfully uploaded and published: {filename}', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
