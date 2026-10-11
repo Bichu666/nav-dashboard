@@ -416,16 +416,18 @@ def user_dashboard():
 
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
-  today_ist = ist_now.strftime('%d-%m-%Y')
-  today_alt = ist_now.strftime('%Y-%m-%d')
+  today_date_str = ist_now.strftime('%Y-%m-%d')
 
   latest_data_updated = False
   try:
     files = os.listdir(app.config['UPLOAD_FOLDER'])
     for f in files:
-      if today_ist in f or today_alt in f:
-        latest_data_updated = True
-        break
+      f_path = os.path.join(app.config['UPLOAD_FOLDER'], f)
+      if os.path.isfile(f_path):
+        mtime = datetime.fromtimestamp(os.path.getmtime(f_path), timezone.utc) + timedelta(hours=5, minutes=30)
+        if mtime.strftime('%Y-%m-%d') == today_date_str:
+          latest_data_updated = True
+          break
   except Exception as e:
     print(f"Error checking today's upload status: {e}")
 
@@ -602,7 +604,7 @@ def upload_nav():
       if file and file.filename != '':
         filename = secure_filename(file.filename)
         if not filename:
-          filename = f'nav_{int(datetime.now().timestamp())}.jpg'
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
         file_bytes = file.read()
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -628,20 +630,33 @@ def upload_archive():
 
   if request.method == 'POST':
     try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Jan').strip().lower()
+
+      month_map = {
+          'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+          'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+          'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+      }
+      full_month_name = month_map.get(month_input, month_input.capitalize())
+
+      target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month_name)
+      os.makedirs(target_dir, exist_ok=True)
+
       saved_count = 0
-      for key in request.files:
-        for file in request.files.getlist(key):
-          if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            if not filename:
-              filename = f'archive_{int(datetime.now().timestamp())}_{file.filename}'
-            
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            saved_count += 1
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          filename = secure_filename(file.filename)
+          if not filename:
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
+          saved_count += 1
 
       if saved_count > 0:
-        flash(f'Successfully uploaded {saved_count} file(s) locally!', 'success')
+        flash(f'Successfully uploaded {saved_count} file(s) to {year}/{full_month_name}!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -708,16 +723,14 @@ def get_archive_files():
     if target_dir and os.path.exists(target_dir):
       for f in os.listdir(target_dir):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-          rel_path = os.path.join(year, os.path.basename(target_dir), f).replace("\\", "/")
-          matched_files.add(rel_path)
+          matched_files.add(f)
     
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
             if (not year or year in root) and (not month_input or month_input in root.lower() or target_month_full.lower() in root.lower()):
-              rel_path = os.path.relpath(os.path.join(root, f), archive_base).replace("\\", "/")
-              matched_files.add(rel_path)
+              matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
@@ -728,7 +741,11 @@ def get_archive_files():
 
 @app.route('/view-archive-file/<path:filename>')
 def view_archive_file(filename):
-  return send_from_directory('archive_nav', filename)
+  archive_base = 'archive_nav'
+  for root, dirs, files in os.walk(archive_base):
+    if filename in files:
+      return send_from_directory(root, filename)
+  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route('/download-latest-nav')
