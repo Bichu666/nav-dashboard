@@ -416,18 +416,15 @@ def user_dashboard():
 
   utc_now = datetime.now(timezone.utc)
   ist_now = utc_now + timedelta(hours=5, minutes=30)
-  today_date_str = ist_now.strftime('%Y-%m-%d')
+  today_date_str = ist_now.strftime('%d-%m-%Y')
 
   latest_data_updated = False
   try:
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in files:
-      f_path = os.path.join(app.config['UPLOAD_FOLDER'], f)
-      if os.path.isfile(f_path):
-        mtime = datetime.fromtimestamp(os.path.getmtime(f_path), timezone.utc) + timedelta(hours=5, minutes=30)
-        if mtime.strftime('%Y-%m-%d') == today_date_str:
-          latest_data_updated = True
-          break
+    latest_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+    if os.path.exists(latest_file_path):
+      mtime = datetime.fromtimestamp(os.path.getmtime(latest_file_path), timezone.utc) + timedelta(hours=5, minutes=30)
+      if mtime.strftime('%d-%m-%Y') == today_date_str:
+        latest_data_updated = True
   except Exception as e:
     print(f"Error checking today's upload status: {e}")
 
