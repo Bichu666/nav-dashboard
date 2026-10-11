@@ -180,7 +180,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': -1045.46},
     ]
 }
 
@@ -418,6 +418,7 @@ def user_dashboard():
   ist_now = utc_now + timedelta(hours=5, minutes=30)
   today_date_str = ist_now.strftime('%d-%m-%Y')
   today_date_alt = ist_now.strftime('%Y-%m-%d')
+  today_date_dots = ist_now.strftime('%d.%m.%Y')
 
   latest_data_updated = False
   try:
@@ -427,7 +428,8 @@ def user_dashboard():
       mtime = datetime.fromtimestamp(os.path.getmtime(latest_file_path), timezone.utc) + timedelta(hours=5, minutes=30)
       mtime_str = mtime.strftime('%d-%m-%Y')
       
-      if today_date_str in filename_lower or today_date_alt in filename_lower or mtime_str == today_date_str:
+      # Strict check: only true if uploaded filename or modification date matches today's date strictly
+      if today_date_str in filename_lower or today_date_alt in filename_lower or today_date_dots in filename_lower or mtime_str == today_date_str:
         latest_data_updated = True
   except Exception as e:
     print(f"Error checking today's upload status: {e}")
@@ -616,7 +618,42 @@ def upload_nav():
         with open(latest_ref_path, 'wb') as f:
           f.write(file_bytes)
 
-        flash(f'Successfully uploaded and published: {filename}', 'success')
+        # Also automatically extract date and save to the correct archive month folder
+        fname_lower = filename.lower()
+        parts = fname_lower.replace('_', '-').replace('.', '-').split('-')
+        
+        target_year = datetime.now().strftime('%Y')
+        target_month = datetime.now().strftime('%B')
+
+        month_map = {
+            '01': 'January', '1': 'January', 'jan': 'January',
+            '02': 'February', '2': 'February', 'feb': 'February',
+            '03': 'March', '3': 'March', 'mar': 'March',
+            '04': 'April', '4': 'April', 'apr': 'April',
+            '05': 'May', '5': 'May', 'may': 'May',
+            '06': 'June', '6': 'June', 'jun': 'June',
+            '07': 'July', '7': 'July', 'jul': 'July',
+            '08': 'August', '8': 'August', 'aug': 'August',
+            '09': 'September', '9': 'September', 'sep': 'September',
+            '10': 'October', 'oct': 'October',
+            '11': 'November', 'nov': 'November',
+            '12': 'December', 'dec': 'December'
+        }
+
+        for part in parts:
+          if part in month_map:
+            target_month = month_map[part]
+            break
+          if len(part) == 4 and part.isdigit() and int(part) >= 2024:
+            target_year = part
+
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        with open(archive_file_path, 'wb') as f:
+          f.write(file_bytes)
+
+        flash(f'Successfully uploaded and published: {filename} (Saved to {target_year}/{target_month})', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
@@ -757,7 +794,6 @@ def download_latest_nav():
   if os.path.exists(latest_path):
     return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
   
-  # Fallback to the most recent image in uploads if latest_nav.jpg is missing
   try:
     files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     if files:
