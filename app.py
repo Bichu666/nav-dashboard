@@ -423,7 +423,6 @@ def user_dashboard():
   try:
     latest_file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
     if os.path.exists(latest_file_path):
-      # Check if the filename of latest_nav or its upload date matches today's date strictly
       filename_lower = os.path.basename(latest_file_path).lower()
       mtime = datetime.fromtimestamp(os.path.getmtime(latest_file_path), timezone.utc) + timedelta(hours=5, minutes=30)
       mtime_str = mtime.strftime('%d-%m-%Y')
@@ -754,7 +753,19 @@ def view_archive_file(filename):
 
 @app.route('/download-latest-nav')
 def download_latest_nav():
-  return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
+  # Fallback to the most recent image in uploads if latest_nav.jpg is missing
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
 
 
 if __name__ == '__main__':
