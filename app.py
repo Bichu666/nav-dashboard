@@ -354,12 +354,10 @@ def parse_fund_excel_from_db(table_name):
 
 
 def is_today_uploaded():
-  """Checks if any NAV file was uploaded or modified today in IST."""
   try:
     now_utc = datetime.now(timezone.utc)
     ist_now = now_utc + timedelta(hours=5, minutes=30)
     
-    # Check uploads folder for any image modified today
     if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.jpg', '.jpeg', '.png', '.pdf')):
@@ -671,6 +669,7 @@ def upload_nav():
 
         file_bytes = file.read()
         
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         with open(file_path_upload, 'wb') as f:
           f.write(file_bytes)
@@ -690,6 +689,7 @@ def upload_nav():
         target_year, target_month = extract_date_from_filename(filename)
         archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
+        
         archive_file_path = os.path.join(archive_target_dir, filename)
         with open(archive_file_path, 'wb') as f:
           f.write(file_bytes)
@@ -790,7 +790,6 @@ def get_archive_files():
   try:
     archive_base = 'archive_nav'
     
-    # Comprehensive multi-tier search across archive folders and uploads
     if os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
@@ -801,7 +800,6 @@ def get_archive_files():
             if match_year and match_month:
               matched_files.add(f)
 
-    # Fallback to uploads directory if needed
     if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
@@ -829,11 +827,19 @@ def download_latest_nav():
   if os.path.exists(latest_path):
     return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
   
-  try:
-    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+  oct_folder = os.path.join(ARCHIVE_FOLDER, '2026', 'October')
+  if os.path.exists(oct_folder):
+    files = [f for f in os.listdir(oct_folder) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
     if files:
-      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
-      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(oct_folder, x)), reverse=True)
+      return send_from_directory(oct_folder, files[0], as_attachment=True)
+
+  try:
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+      files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+      if files:
+        files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+        return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
   except Exception:
     pass
   return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
