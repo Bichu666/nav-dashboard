@@ -172,17 +172,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72472.33,
-    'base_change_pts': 879.09,
-    'pct_change': 1.23,
-    'is_positive': True,
+    'value': 71935.87,
+    'base_change_pts': -536.46,
+    'pct_change': -0.74,
+    'is_positive': False,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
-        {'date': '01 Oct', 'value': '71,909.70', 'change': -570.59},
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
+        {'date': '12 Oct', 'value': '71,935.87', 'change': -536.46},
     ]
 }
 
@@ -215,7 +215,7 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Attempt 1: Direct Yahoo Chart API with User-Agent header to avoid cloud blocks
+      # Attempt 1: Direct Yahoo Finance Endpoint
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       headers = {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -226,7 +226,7 @@ def sync_sensex_from_yahoo():
         current_val = float(meta.get("regularMarketPrice") or 0)
         prev_close = float(meta.get("chartPreviousClose") or current_val)
 
-      # Attempt 2: Fallback to yfinance if direct API returns empty
+      # Attempt 2: yfinance library fallback
       if not current_val:
         ticker = yf.Ticker("^BSESN")
         hist = ticker.history(period="1d", interval="1m")
@@ -275,7 +275,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(10)  # Safe 10-second interval
+    time.sleep(10)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -355,14 +355,33 @@ def parse_fund_excel_from_db(table_name):
   return fund_list
 
 
-def is_today_filename(filename):
+def is_today_filename(filename, upload_timestamp=None):
+  """Checks if file contains today's date or was uploaded today."""
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  d_str = ist_now.strftime('%d-%m-%Y')
-  d_alt = ist_now.strftime('%Y-%m-%d')
-  d_dots = ist_now.strftime('%d.%m.%Y')
+  
+  today_patterns = [
+      ist_now.strftime('%d-%m-%Y'),
+      ist_now.strftime('%d_%m_%Y'),
+      ist_now.strftime('%d.%m.%Y'),
+      ist_now.strftime('%Y-%m-%d'),
+      ist_now.strftime('%Y_%m_%d'),
+  ]
+  
   fn = filename.lower()
-  return (d_str in fn) or (d_alt in fn) or (d_dots in fn)
+  for pattern in today_patterns:
+    if pattern in fn:
+      return True
+
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
+  return False
 
 
 def extract_date_from_filename(filename):
@@ -476,10 +495,11 @@ def user_dashboard():
       with open(meta_path, 'r') as mf:
         meta = json.load(mf)
         last_fn = meta.get('filename', '')
-        if is_today_filename(last_fn):
+        last_time = meta.get('upload_time', '')
+        if is_today_filename(last_fn, last_time):
           latest_data_updated = True
   except Exception as e:
-    print(f"Error checking today's upload status: {e}")
+    print(f"Error checking upload status: {e}")
 
   return render_template(
       'user_dashboard.html',
@@ -652,11 +672,14 @@ def upload_nav():
     try:
       file = request.files.get('nav_image')
       if file and file.filename != '':
-        filename = secure_filename(file.filename)
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
         if not filename:
           filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
         file_bytes = file.read()
+        
+        # Save to main uploads
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         with open(file_path_upload, 'wb') as f:
           f.write(file_bytes)
@@ -665,18 +688,24 @@ def upload_nav():
         with open(latest_ref_path, 'wb') as f:
           f.write(file_bytes)
 
+        # Record upload metadata with ISO timestamp
         meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
         with open(meta_path, 'w') as mf:
-          json.dump({'filename': filename, 'upload_time': datetime.now().isoformat()}, mf)
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
 
-        target_year, target_month = extract_date_from_filename(filename)
+        # Extract targeted Month/Year and save to structured archive directory
+        target_year, target_month = extract_date_from_filename(raw_fn)
         archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
         archive_file_path = os.path.join(archive_target_dir, filename)
         with open(archive_file_path, 'wb') as f:
           f.write(file_bytes)
 
-        flash(f'Successfully uploaded and published: {filename} (Saved to {target_year}/{target_month})', 'success')
+        flash(f'Successfully published NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
@@ -771,29 +800,33 @@ def get_archive_files():
 
   try:
     archive_base = 'archive_nav'
-    target_dir = None
     
+    # 1. Look in specified year/month subfolder
     if year and month_input:
-      year_path = os.path.join(archive_base, year)
-      if os.path.exists(year_path):
-        for sub in os.listdir(year_path):
-          if sub.lower() == target_month_full.lower() or sub.lower() == month_input:
-            target_dir = os.path.join(year_path, sub)
-            break
-      if not target_dir:
-        target_dir = os.path.join(archive_base, year, target_month_full)
+      for y_dir in os.listdir(archive_base) if os.path.exists(archive_base) else []:
+        if y_dir == year:
+          year_path = os.path.join(archive_base, y_dir)
+          for m_dir in os.listdir(year_path):
+            if m_dir.lower() in [target_month_full.lower(), month_input]:
+              full_dir = os.path.join(year_path, m_dir)
+              for f in os.listdir(full_dir):
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                  matched_files.add(f)
 
-    if target_dir and os.path.exists(target_dir):
-      for f in os.listdir(target_dir):
-        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-          matched_files.add(f)
-    
+    # 2. Fallback search across whole archive tree if specific folder was empty
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            if (not year or year in root) and (not month_input or month_input in root.lower() or target_month_full.lower() in root.lower()):
+            r_low = root.lower()
+            if (not year or year in root) and (not month_input or month_input in r_low or target_month_full.lower() in r_low):
               matched_files.add(f)
+
+    # 3. Fallback to main uploads folder
+    if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
+      for f in os.listdir(app.config['UPLOAD_FOLDER']):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
+          matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
