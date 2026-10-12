@@ -356,24 +356,19 @@ def is_today_uploaded():
   try:
     now_utc = datetime.now(timezone.utc)
     ist_now = now_utc + timedelta(hours=5, minutes=30)
+    today_str = ist_now.strftime('%d-%m-%Y')
     
     if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
-        if f.lower().endswith(('.jpg', '.jpeg', '.png', '.pdf')):
-          f_path = os.path.join(app.config['UPLOAD_FOLDER'], f)
-          mtime = datetime.fromtimestamp(os.path.getmtime(f_path))
-          if mtime.date() == ist_now.date():
-            return True
+        if today_str in f or f == 'latest_nav.jpg':
+          return True
 
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
-    if os.path.exists(meta_path):
-      with open(meta_path, 'r') as mf:
-        meta = json.load(mf)
-        upload_time = meta.get('upload_time', '')
-        if upload_time:
-          dt = datetime.fromisoformat(upload_time)
-          if dt.date() == ist_now.date():
-            return True
+    target_year, target_month = ist_now.strftime('%Y'), ist_now.strftime('%B')
+    archive_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+    if os.path.exists(archive_dir):
+      for f in os.listdir(archive_dir):
+        if today_str in f:
+          return True
   except Exception as e:
     print(f"Error checking today upload: {e}")
   return False
@@ -765,7 +760,7 @@ def delete_archive_file(filename):
 
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
-  year = request.args.get('year', '').strip()
+  year = request.args.get('year', datetime.now().strftime('%Y')).strip()
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
@@ -787,19 +782,13 @@ def get_archive_files():
   target_month_full = month_map.get(month_input, month_input.capitalize())
 
   try:
-    archive_base = 'archive_nav'
-    
-    if os.path.exists(archive_base):
-      for root, dirs, files in os.walk(archive_base):
-        for f in files:
-          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            r_low = root.lower()
-            match_year = (not year or year in root)
-            match_month = (not month_input or month_input in r_low or target_month_full.lower() in r_low or 'oct' in r_low)
-            if match_year and match_month:
-              matched_files.add(f)
+    target_dir = os.path.join(ARCHIVE_FOLDER, year, target_month_full)
+    if os.path.exists(target_dir):
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          matched_files.add(f)
 
-    if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
           matched_files.add(f)
