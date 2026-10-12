@@ -8,7 +8,6 @@ import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
-import requests
 from flask import (
     Flask,
     flash,
@@ -209,14 +208,17 @@ def sync_sensex_from_yahoo():
       prev_close = 0
 
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      headers = {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      }
-      resp = requests.get(url, headers=headers, timeout=5)
-      if resp.status_code == 200:
-        meta = resp.json()["chart"]["result"][0]["meta"]
-        current_val = float(meta.get("regularMarketPrice") or 0)
-        prev_close = float(meta.get("chartPreviousClose") or current_val)
+      req = urllib.request.Request(
+          url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+      )
+      try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+          data = json.loads(resp.read().decode())
+          meta = data["chart"]["result"][0]["meta"]
+          current_val = float(meta.get("regularMarketPrice") or 0)
+          prev_close = float(meta.get("chartPreviousClose") or current_val)
+      except Exception:
+        pass
 
       if not current_val:
         ticker = yf.Ticker("^BSESN")
@@ -362,7 +364,7 @@ def get_latest_nav_filename():
     for f in image_files:
       base_name = os.path.splitext(f)[0]
       try:
-        file_date = datetime.strptime(base_name, '%d-%m-%Y')
+        file_date = datetime.strptime(base_name[:10], fmt)
         valid_date_files.append((file_date, f))
       except ValueError:
         pass
@@ -738,4 +740,62 @@ def delete_archive_file(filename):
       flash('File not found.', 'danger')
   except Exception as e:
     flash(f'Error deleting file: {e}', 'danger')
-  return redirect(url_for('admin_dashboard
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
+  matched_files = set()
+
+  try:
+    year_dir = os.path.join(ARCHIVE_FOLDER, year)
+    if os.path.exists(year_dir):
+      for d in os.listdir(year_dir):
+        if month_input in d.lower() or '10' in d or 'oct' in d.lower():
+          target_month_dir = os.path.join(year_dir, d)
+          if os.path.exists(target_month_dir):
+            for f in os.listdir(target_month_dir):
+              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                matched_files.add(f)
+
+    if os.path.exists(app.config['UPLOAD_FOLDER']):
+      for f in os.listdir(app.config['UPLOAD_FOLDER']):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
+          matched_files.add(f)
+
+    sorted_files = sorted(list(matched_files), reverse=True)
+    return jsonify({'success': True, 'files': sorted_files})
+  except Exception as e:
+    print(f'Error in get_archive_files: {e}')
+    return jsonify({'success': False, 'files': []})
+
+
+@app.route('/view-archive-file/<filename>')
+def view_archive_file(filename):
+  as_attachment = request.args.get('download') == 'true'
+  for root, dirs, files in os.walk(ARCHIVE_FOLDER):
+    if filename in files:
+      return send_from_directory(root, filename, as_attachment=as_attachment)
+  return send_from_directory(
+      app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
+  )
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  try:
+    latest_file = get_latest_nav_filename()
+    if latest_file:
+      return send_from_directory(
+          app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
+      )
+  except Exception as e:
+    print(f'Download error: {e}')
+  flash('No NAV image available for download.', 'danger')
+  return redirect(url_for('user_dashboard'))
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
