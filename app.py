@@ -8,6 +8,7 @@ import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
+import requests
 from flask import (
     Flask,
     flash,
@@ -703,14 +704,14 @@ def upload_archive():
       os.makedirs(target_dir, exist_ok=True)
 
       saved_count = 0
-      for key in request.files:
-        for file in request.files.getlist(key):
-          if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            if not filename:
-              filename = f'archive_{int(datetime.now().timestamp())}.jpg'
-            file.save(os.path.join(target_dir, filename))
-            saved_count += 1
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          filename = secure_filename(file.filename)
+          if not filename:
+            filename = f'archive_{int(datetime.now().timestamp())}.jpg'
+          file.save(os.path.join(target_dir, filename))
+          saved_count += 1
 
       if saved_count > 0:
         flash(f'Successfully uploaded {saved_count} file(s) to archive ({year}/{month_name})!', 'success')
@@ -737,65 +738,4 @@ def delete_archive_file(filename):
       flash('File not found.', 'danger')
   except Exception as e:
     flash(f'Error deleting file: {e}', 'danger')
-  return redirect(url_for('admin_dashboard'))
-
-
-@app.route('/get-archive-files', methods=['GET'])
-def get_archive_files():
-  year = request.args.get('year', '').strip()
-  month_input = request.args.get('month', '').strip().lower()
-  matched_files = set()
-
-  month_map = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
-  }
-
-  target_month_num = month_map.get(month_input[:3], '10')
-
-  try:
-    year_dir = os.path.join(ARCHIVE_FOLDER, year)
-    if os.path.exists(year_dir):
-      for d in os.listdir(year_dir):
-        if month_input in d.lower() or target_month_num in d:
-          target_month_dir = os.path.join(year_dir, d)
-          if os.path.exists(target_month_dir):
-            for f in os.listdir(target_month_dir):
-              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                matched_files.add(f)
-
-    sorted_files = sorted(list(matched_files), reverse=True)
-    return jsonify({'success': True, 'files': sorted_files})
-  except Exception as e:
-    print(f'Error in get_archive_files: {e}')
-    return jsonify({'success': False, 'files': []})
-
-
-@app.route('/view-archive-file/<filename>')
-def view_archive_file(filename):
-  as_attachment = request.args.get('download') == 'true'
-  for root, dirs, files in os.walk(ARCHIVE_FOLDER):
-    if filename in files:
-      return send_from_directory(root, filename, as_attachment=as_attachment)
-  return send_from_directory(
-      app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
-  )
-
-
-@app.route('/download-latest-nav')
-def download_latest_nav():
-  try:
-    latest_file = get_latest_nav_filename()
-    if latest_file:
-      return send_from_directory(
-          app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
-      )
-  except Exception as e:
-    print(f'Download error: {e}')
-  flash('No NAV image available for download.', 'danger')
-  return redirect(url_for('user_dashboard'))
-
-
-if __name__ == '__main__':
-  app.run(debug=True)
+  return redirect(url_for('admin_dashboard
