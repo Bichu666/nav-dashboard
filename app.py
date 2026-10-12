@@ -35,11 +35,10 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Flask-Limiter for Brute-Force Protection
+# Initialize Flask-Limiter without global default restrictions to prevent dashboard 429 errors
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
 )
 
