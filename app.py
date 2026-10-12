@@ -8,6 +8,7 @@ import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
+import requests
 from flask import (
     Flask,
     flash,
@@ -31,7 +32,7 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable
+# Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -42,7 +43,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status
+# Track last admin activity timestamp for online/offline status[cite: 15]
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
 # Admin Auto-Approval Global Configuration Toggle
@@ -164,17 +165,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 71593.24,
-    'base_change_pts': -1045.46,
-    'pct_change': -1.44,
+    'value': 71924.68,
+    'base_change_pts': -547.65,
+    'pct_change': -0.76,
     'is_positive': False,
-    'last_close_time': '03:32:27 PM GMT+5:30',
+    'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
-        {'date': '01 Oct', 'value': '71,909.70', 'change': -570.59},
         {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '08 Oct', 'value': '71,593.24', 'change': -1045.46},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
+        {'date': '12 Oct', 'value': '71,924.68', 'change': -547.65},
     ]
 }
 
@@ -204,13 +205,34 @@ if not os.path.exists(CACHE_FILE):
 def sync_sensex_from_yahoo():
   while True:
     try:
-      ticker = yf.Ticker("^BSESN")
-      hist = ticker.history(period="1d")
-      if not hist.empty:
-        current_val = float(hist['Close'].iloc[-1])
-        info = ticker.info
-        prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-        
+      current_val = 0
+      prev_close = 0
+
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
+      headers = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+      resp = requests.get(url, headers=headers, timeout=5)
+      if resp.status_code == 200:
+        meta = resp.json()["chart"]["result"][0]["meta"]
+        current_val = float(meta.get("regularMarketPrice") or 0)
+        prev_close = float(meta.get("chartPreviousClose") or current_val)
+
+      if not current_val:
+        ticker = yf.Ticker("^BSESN")
+        hist = ticker.history(period="1d", interval="1m")
+        if hist is not None and not hist.empty:
+          current_val = float(hist['Close'].iloc[-1])
+          try:
+            info = ticker.info or {}
+            prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
+          except Exception:
+            prev_close = current_val
+
+      if current_val > 0:
+        if not prev_close:
+          prev_close = current_val
+
         pts_change = round(current_val - prev_close, 2)
         pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
@@ -242,9 +264,9 @@ def sync_sensex_from_yahoo():
 
         save_sensex_cache(cache)
     except Exception as e:
-      print(f'Sensex Yahoo sync error: {e}')
+      print(f"Sensex sync error: {e}")
 
-    time.sleep(1)
+    time.sleep(10)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -266,7 +288,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:32:26 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
