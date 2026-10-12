@@ -8,7 +8,6 @@ import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
-import requests
 from flask import (
     Flask,
     flash,
@@ -689,19 +688,32 @@ def upload_archive():
 
   if request.method == 'POST':
     try:
-      saved_any = False
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
+
+      month_map = {
+          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
+          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
+          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
+          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
+      }
+      
+      month_num, month_name = month_map.get(month_input[:3], ('10', 'October'))
+      target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{month_num}_{month_name}')
+      os.makedirs(target_dir, exist_ok=True)
+
+      saved_count = 0
       for key in request.files:
         for file in request.files.getlist(key):
           if file and file.filename != '':
             filename = secure_filename(file.filename)
             if not filename:
-              filename = (
-                  f'archive_{int(datetime.now().timestamp())}_{file.filename}'
-              )
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            saved_any = True
-      if saved_any:
-        flash('Archive files uploaded successfully!', 'success')
+              filename = f'archive_{int(datetime.now().timestamp())}.jpg'
+            file.save(os.path.join(target_dir, filename))
+            saved_count += 1
+
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} file(s) to archive ({year}/{month_name})!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -735,69 +747,23 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': '01',
-      'feb': '02',
-      'mar': '03',
-      'apr': '04',
-      'may': '05',
-      'jun': '06',
-      'jul': '07',
-      'aug': '08',
-      'sep': '09',
-      'oct': '10',
-      'nov': '11',
-      'dec': '12',
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
   }
 
-  target_month_num = None
-  for k, v in month_map.items():
-    if k in month_input:
-      target_month_num = v
-      break
+  target_month_num = month_map.get(month_input[:3], '10')
 
   try:
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
       for d in os.listdir(year_dir):
-        if (
-            month_input in d.lower()
-            or (target_month_num and target_month_num in d)
-        ):
+        if month_input in d.lower() or target_month_num in d:
           target_month_dir = os.path.join(year_dir, d)
           if os.path.exists(target_month_dir):
-            for root, dirs, files in os.walk(target_month_dir):
-              for f in files:
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                  matched_files.add(f)
-
-    upload_files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in upload_files:
-      if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-        is_matched = False
-        base_name = os.path.splitext(f)[0]
-
-        parsed_date = None
-        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d'):
-          try:
-            parsed_date = datetime.strptime(base_name[:10], fmt)
-            break
-          except ValueError:
-            pass
-
-        if parsed_date:
-          file_year = str(parsed_date.year)
-          file_month_num = f'{parsed_date.month:02d}'
-          if file_year == year and file_month_num == target_month_num:
-            is_matched = True
-        else:
-          if year in f and (
-              (target_month_num and f'-{target_month_num}-' in f)
-              or (month_input and month_input in f.lower())
-          ):
-            is_matched = True
-
-        if is_matched:
-          matched_files.add(f)
+            for f in os.listdir(target_month_dir):
+              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
