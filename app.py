@@ -9,6 +9,7 @@ import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
+import requests
 from flask import (
     Flask,
     flash,
@@ -27,7 +28,6 @@ from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-import requests
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -275,7 +275,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(30)  # Safe 30-second interval to prevent rate-limiting
+    time.sleep(10)  # Safe 10-second interval
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
