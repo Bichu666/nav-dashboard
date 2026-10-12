@@ -172,9 +172,9 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 71935.87,
-    'base_change_pts': -536.46,
-    'pct_change': -0.74,
+    'value': 71973.53,
+    'base_change_pts': -498.80,
+    'pct_change': -0.69,
     'is_positive': False,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
@@ -182,7 +182,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
-        {'date': '12 Oct', 'value': '71,935.87', 'change': -536.46},
+        {'date': '12 Oct', 'value': '71,973.53', 'change': -498.80},
     ]
 }
 
@@ -215,7 +215,6 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Attempt 1: Direct Yahoo Finance Endpoint
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       headers = {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -226,7 +225,6 @@ def sync_sensex_from_yahoo():
         current_val = float(meta.get("regularMarketPrice") or 0)
         prev_close = float(meta.get("chartPreviousClose") or current_val)
 
-      # Attempt 2: yfinance library fallback
       if not current_val:
         ticker = yf.Ticker("^BSESN")
         hist = ticker.history(period="1d", interval="1m")
@@ -356,7 +354,6 @@ def parse_fund_excel_from_db(table_name):
 
 
 def is_today_filename(filename, upload_timestamp=None):
-  """Checks if file contains today's date or was uploaded today."""
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
   
@@ -673,13 +670,19 @@ def upload_nav():
       file = request.files.get('nav_image')
       if file and file.filename != '':
         raw_fn = file.filename
-        filename = secure_filename(raw_fn)
-        if not filename:
-          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+        base_name = os.path.splitext(raw_fn)[0]
+        
+        # Auto-correct generic mobile camera IDs (like 1000140884) to today's clean date format
+        now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+        if base_name.isdigit() or raw_fn.startswith('1000') or len(base_name) < 4:
+          filename = f"{now_ist.strftime('%d-%m-%Y')}.jpg"
+        else:
+          filename = secure_filename(raw_fn)
+          if not filename:
+            filename = f"{now_ist.strftime('%d-%m-%Y')}.jpg"
 
         file_bytes = file.read()
         
-        # Save to main uploads
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         with open(file_path_upload, 'wb') as f:
           f.write(file_bytes)
@@ -688,7 +691,6 @@ def upload_nav():
         with open(latest_ref_path, 'wb') as f:
           f.write(file_bytes)
 
-        # Record upload metadata with ISO timestamp
         meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
         with open(meta_path, 'w') as mf:
           json.dump({
@@ -697,8 +699,7 @@ def upload_nav():
               'upload_time': datetime.now().isoformat()
           }, mf)
 
-        # Extract targeted Month/Year and save to structured archive directory
-        target_year, target_month = extract_date_from_filename(raw_fn)
+        target_year, target_month = extract_date_from_filename(filename)
         archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
         archive_file_path = os.path.join(archive_target_dir, filename)
@@ -801,7 +802,6 @@ def get_archive_files():
   try:
     archive_base = 'archive_nav'
     
-    # 1. Look in specified year/month subfolder
     if year and month_input:
       for y_dir in os.listdir(archive_base) if os.path.exists(archive_base) else []:
         if y_dir == year:
@@ -813,7 +813,6 @@ def get_archive_files():
                 if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                   matched_files.add(f)
 
-    # 2. Fallback search across whole archive tree if specific folder was empty
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
@@ -822,7 +821,6 @@ def get_archive_files():
             if (not year or year in root) and (not month_input or month_input in r_low or target_month_full.lower() in r_low):
               matched_files.add(f)
 
-    # 3. Fallback to main uploads folder
     if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
