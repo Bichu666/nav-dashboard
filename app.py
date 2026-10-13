@@ -164,17 +164,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 81500.25,
-    'base_change_pts': 250.50,
-    'pct_change': 0.31,
+    'value': 72478.87,
+    'base_change_pts': 554.19,
+    'pct_change': 0.77,
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
-        {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '81,500.25', 'change': 250.50},
+        {'date': '13 Oct', 'value': '72,478.87', 'change': 554.19},
     ]
 }
 
@@ -207,6 +207,7 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
+      # Method 1: Direct Yahoo Finance chart API query for precise real-time price
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       req = urllib.request.Request(
           url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -220,6 +221,17 @@ def sync_sensex_from_yahoo():
       except Exception:
         pass
 
+      # Method 2: Fallback to yfinance fast_info
+      if not current_val or current_val < 1000:
+        try:
+          ticker = yf.Ticker("^BSESN")
+          fi = ticker.fast_info
+          current_val = float(fi.get('lastPrice') or fi.get('regularMarketPrice') or 0)
+          prev_close = float(fi.get('previousClose') or current_val)
+        except Exception:
+          pass
+
+      # Method 3: Fallback to yfinance history
       if not current_val or current_val < 1000:
         ticker = yf.Ticker("^BSESN")
         hist = ticker.history(period="1d", interval="1m")
@@ -749,17 +761,25 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
+  month_map_lookup = {
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+  }
+  target_num = month_map_lookup.get(month_input[:3], '10')
+
   try:
+    # 1. Scan archive folder recursively
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
       for d in os.listdir(year_dir):
-        if month_input in d.lower() or '10' in d or 'oct' in d.lower():
+        if (month_input and month_input in d.lower()) or (target_num and target_num in d) or ('oct' in d.lower()) or ('10' in d):
           target_month_dir = os.path.join(year_dir, d)
           if os.path.exists(target_month_dir):
             for f in os.listdir(target_month_dir):
               if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
                 matched_files.add(f)
 
+    # 2. Also check all files inside uploads folder
     if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
