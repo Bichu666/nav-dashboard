@@ -207,10 +207,10 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
+      prev_close = 0
       pts_change = 0
       pct_change = 0
 
-      # Query Yahoo Finance Chart API directly for real-time market data
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
       resp = requests.get(url, headers=headers, timeout=5)
@@ -218,16 +218,12 @@ def sync_sensex_from_yahoo():
         result = resp.json()["chart"]["result"][0]
         meta = result["meta"]
         current_val = float(meta.get("regularMarketPrice") or 0)
-        prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or current_val)
+        prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
         
-        if "regularMarketChange" in meta and meta["regularMarketChange"] is not None:
-          pts_change = float(meta["regularMarketChange"])
-          pct_change = float(meta.get("regularMarketChangePercent") or ((pts_change / prev_close) * 100 if prev_close else 0))
-        else:
+        if prev_close > 0 and current_val > 0:
           pts_change = round(current_val - prev_close, 2)
-          pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+          pct_change = round((pts_change / prev_close) * 100, 2)
 
-      # Fallback through yfinance library if API endpoint is delayed
       if not current_val or current_val < 1000:
         ticker = yf.Ticker("^BSESN")
         hist = ticker.history(period="2d", interval="1d")
@@ -268,7 +264,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(15)  # Auto-refresh cycle set to 15 seconds
+    time.sleep(15)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -774,29 +770,40 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+      'jan': ['01', 'jan', 'january'],
+      'feb': ['02', 'feb', 'february'],
+      'mar': ['03', 'mar', 'march'],
+      'apr': ['04', 'apr', 'april'],
+      'may': ['05', 'may'],
+      'jun': ['06', 'jun', 'june'],
+      'jul': ['07', 'jul', 'july'],
+      'aug': ['08', 'aug', 'august'],
+      'sep': ['09', 'sep', 'september'],
+      'oct': ['10', 'oct', 'october'],
+      'nov': ['11', 'nov', 'november'],
+      'dec': ['12', 'dec', 'december']
   }
-  target_month_num = month_map.get(month_input[:3], '10')
+  
+  keywords = month_map.get(month_input[:3], [month_input])
 
   try:
-    archive_base = 'archive_nav'
-    if os.path.exists(archive_base):
-      for root, dirs, files in os.walk(archive_base):
-        if year in root and (f"{target_month_num}_" in root or target_month_num == root.split(os.sep)[-1][:2] or month_input in root.lower()):
+    search_dirs = ['archive_nav', 'uploads']
+    for s_dir in search_dirs:
+      if os.path.exists(s_dir):
+        for root, dirs, files in os.walk(s_dir):
           for f in files:
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              matched_files.add(f)
-
-    if not matched_files and os.path.exists(archive_base):
-      for root, dirs, files in os.walk(archive_base):
-        for f in files:
-          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            if year in f:
-              clean_name = os.path.splitext(f)[0]
-              parts = clean_name.replace('_', '-').replace('.', '-').split('-')
-              if year in parts and target_month_num in parts:
+              if f == 'latest_nav.jpg':
+                continue
+              year_match = (not year) or (year in f) or (year in root)
+              f_low = f.lower()
+              root_low = root.lower()
+              month_match = (not month_input) or any(kw in f_low or kw in root_low for kw in keywords)
+              
+              if year_match and month_match:
+                # Exclude July ('07') when looking for October ('10')
+                if '10' in keywords and ('07-' in f_low or '_07_' in f_low or '/07/' in root_low or '10-07' in f_low):
+                  continue
                 matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
