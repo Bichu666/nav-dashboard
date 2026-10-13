@@ -2,12 +2,14 @@ from datetime import datetime, timedelta, timezone
 import json
 import os
 import random
+import re
 import shutil
 import threading
 import time
 import urllib.request
 import pandas as pd
 import yfinance as yf
+import requests
 from flask import (
     Flask,
     flash,
@@ -24,12 +26,22 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
 
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
+# Initialize Flask-Limiter for Brute-Force Protection
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"
+)
 
 # Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -45,6 +57,7 @@ os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 # Track last admin activity timestamp for online/offline status[cite: 15]
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
+# Admin Auto-Approval Global Configuration Toggle
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
@@ -98,7 +111,7 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    if now - reg_time > timedelta(minutes=2):
+    if now - reg_time > timedelta(minutes=5):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
@@ -114,7 +127,6 @@ def send_email_notification(subject, body):
   sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
   sender_password = os.getenv("MAIL_PASSWORD", "")
   if not sender_password:
-    print("Email password not configured in environment variables (MAIL_PASSWORD).")
     return
   try:
     msg = MIMEMultipart()
@@ -126,7 +138,6 @@ def send_email_notification(subject, body):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
       server.login(sender_email, sender_password)
       server.send_message(msg)
-    print(f"Email sent successfully: {subject}")
   except Exception as e:
     print(f"Failed to send email: {e}")
 
@@ -142,7 +153,7 @@ def daily_scheduler():
     current_minute = ist_now.minute
 
     if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
-      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal.\n\nBest Regards,\nNAV Portal Automated System"
+      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
       send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
       last_8am_sent = current_date
 
@@ -150,7 +161,6 @@ def daily_scheduler():
       user_summary = "Here is the daily summary of registered users and their details:\n\n"
       for u in REGISTERED_USERS:
         user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
-      user_summary += "\nBest Regards,\nNAV Portal Automated System"
       send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
       last_10pm_sent = current_date
 
@@ -158,7 +168,6 @@ def daily_scheduler():
 
 
 threading.Thread(target=daily_scheduler, daemon=True).start()
-
 
 CACHE_FILE = 'sensex_cache.json'
 
@@ -169,11 +178,11 @@ DEFAULT_SENSEX_CACHE = {
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
+        {'date': '05 Oct', 'value': '72,382.47', 'change': 472.77},
         {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
-        {'date': '12 Oct', 'value': '81,500.25', 'change': 250.50},
-        {'date': '13 Oct', 'value': '72,976.53', 'change': 1051.85},
+        {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
     ]
 }
 
@@ -183,8 +192,8 @@ def load_sensex_cache():
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r') as f:
         return json.load(f)
-  except Exception as e:
-    print(f"Error loading cache file: {e}")
+  except Exception:
+    pass
   return DEFAULT_SENSEX_CACHE.copy()
 
 
@@ -192,8 +201,8 @@ def save_sensex_cache(cache_data):
   try:
     with open(CACHE_FILE, 'w') as f:
       json.dump(cache_data, f)
-  except Exception as e:
-    print(f"Error saving cache file: {e}")
+  except Exception:
+    pass
 
 
 if not os.path.exists(CACHE_FILE):
@@ -206,30 +215,30 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Direct query to Yahoo Finance Chart API for exact real-time index match
+      # Attempt 1: Direct Yahoo Finance Endpoint
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      req = urllib.request.Request(
-          url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-      )
-      try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-          data = json.loads(resp.read().decode())
-          meta = data["chart"]["result"][0]["meta"]
-          current_val = float(meta.get("regularMarketPrice") or 0)
-          prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
-      except Exception as e:
-        print(f"Yahoo API fetch error: {e}")
+      headers = {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+      resp = requests.get(url, headers=headers, timeout=5)
+      if resp.status_code == 200:
+        meta = resp.json()["chart"]["result"][0]["meta"]
+        current_val = float(meta.get("regularMarketPrice") or 0)
+        prev_close = float(meta.get("chartPreviousClose") or current_val)
 
-      if not current_val or current_val < 1000:
+      # Attempt 2: yfinance library fallback
+      if not current_val:
         ticker = yf.Ticker("^BSESN")
-        try:
-          fi = ticker.fast_info
-          current_val = float(getattr(fi, 'last_price', 0) or 0)
-          prev_close = float(getattr(fi, 'previous_close', 0) or 0)
-        except Exception:
-          pass
+        hist = ticker.history(period="1d", interval="1m")
+        if hist is not None and not hist.empty:
+          current_val = float(hist['Close'].iloc[-1])
+          try:
+            info = ticker.info or {}
+            prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
+          except Exception:
+            prev_close = current_val
 
-      if current_val > 1000:
+      if current_val > 0:
         if not prev_close:
           prev_close = current_val
 
@@ -266,7 +275,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(5)
+    time.sleep(10)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -346,38 +355,64 @@ def parse_fund_excel_from_db(table_name):
   return fund_list
 
 
-def get_latest_nav_filename():
-  try:
-    standard_latest = 'latest_nav.jpg'
-    if os.path.exists(os.path.join(app.config['UPLOAD_FOLDER'], standard_latest)):
-      return standard_latest
+def is_today_filename(filename, upload_timestamp=None):
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  
+  today_patterns = [
+      ist_now.strftime('%d-%m-%Y'),
+      ist_now.strftime('%d_%m_%Y'),
+      ist_now.strftime('%d.%m.%Y'),
+      ist_now.strftime('%Y-%m-%d'),
+      ist_now.strftime('%Y_%m_%d'),
+  ]
+  
+  fn = filename.lower()
+  for pattern in today_patterns:
+    if pattern in fn:
+      return True
 
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    image_files = [
-        f for f in files if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-    ]
-    if not image_files:
-      return None
-    valid_date_files = []
-    for f in image_files:
-      base_name = os.path.splitext(f)[0]
-      try:
-        file_date = datetime.strptime(base_name[:10], '%d-%m-%Y')
-        valid_date_files.append((file_date, f))
-      except ValueError:
-        pass
-    if valid_date_files:
-      valid_date_files.sort(key=lambda x: x[0], reverse=True)
-      return valid_date_files[0][1]
-    return max(
-        image_files,
-        key=lambda x: os.path.getmtime(
-            os.path.join(app.config['UPLOAD_FOLDER'], x)
-        ),
-    )
-  except Exception as e:
-    print(f'Error resolving latest NAV: {e}')
-    return None
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
+  return False
+
+
+def extract_date_from_filename(filename):
+  fn = filename.lower()
+  clean_name = os.path.splitext(filename)[0]
+  
+  for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
+    try:
+      dt = datetime.strptime(clean_name, fmt)
+      return dt.strftime('%Y'), dt.strftime('%B')
+    except ValueError:
+      continue
+
+  year = datetime.now().strftime('%Y')
+  match_year = re.search(r'(20\d{2})', fn)
+  if match_year:
+    year = match_year.group(1)
+
+  month = datetime.now().strftime('%B')
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+      'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
+      break
+  return year, month
 
 
 @app.route('/')
@@ -391,6 +426,7 @@ def health_check():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
   if request.method == 'POST':
     username = request.form.get('username')
@@ -449,23 +485,20 @@ def user_dashboard():
     return redirect(url_for('login'))
 
   sensex_info, sensex_trend_data = get_sensex_data()
-  
-  utc_now = datetime.now(timezone.utc)
-  ist_now = utc_now + timedelta(hours=5, minutes=30)
-  today_ist = ist_now.strftime('%d-%m-%Y')
-  today_alt = ist_now.strftime('%Y-%m-%d')
+  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
 
   latest_data_updated = False
   try:
-    files = os.listdir(app.config['UPLOAD_FOLDER'])
-    for f in files:
-      if f != 'latest_nav.jpg' and (today_ist in f or today_alt in f):
-        latest_data_updated = True
-        break
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+    if os.path.exists(meta_path):
+      with open(meta_path, 'r') as mf:
+        meta = json.load(mf)
+        last_fn = meta.get('filename', '')
+        last_time = meta.get('upload_time', '')
+        if is_today_filename(last_fn, last_time):
+          latest_data_updated = True
   except Exception as e:
-    print(f"Error checking today's upload: {e}")
-
-  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    print(f"Error checking upload status: {e}")
 
   return render_template(
       'user_dashboard.html',
@@ -498,6 +531,7 @@ def submit_feedback():
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def admin_login():
   if request.method == 'POST':
     mobile_input = request.form.get('mobile')
@@ -618,10 +652,7 @@ def upload_master_category():
           table_name = f'{category}_funds'
           if engine:
             df.to_sql(table_name, engine, if_exists='replace', index=False)
-            flash(
-                f'{category.capitalize()} funds updated permanently in Supabase!',
-                'success',
-            )
+            flash(f'{category.capitalize()} funds updated permanently in Supabase database!', 'success')
           else:
             flash('Database connection error.', 'danger')
     except Exception as e:
@@ -640,39 +671,37 @@ def upload_nav():
     try:
       file = request.files.get('nav_image')
       if file and file.filename != '':
-        filename = secure_filename(file.filename)
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
         if not filename:
-          filename = f'nav_{int(datetime.now().timestamp())}.jpg'
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
+        file_bytes = file.read()
+        
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path_upload)
-
+        with open(file_path_upload, 'wb') as f:
+          f.write(file_bytes)
+        
         latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-        shutil.copy(file_path_upload, latest_ref_path)
+        with open(latest_ref_path, 'wb') as f:
+          f.write(file_bytes)
 
-        base_name = os.path.splitext(filename)[0]
-        file_date = None
-        for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
-          try:
-            file_date = datetime.strptime(base_name[:10], fmt)
-            break
-          except ValueError:
-            pass
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        with open(meta_path, 'w') as mf:
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
 
-        if not file_date:
-          file_date = datetime.now()
+        target_year, target_month = extract_date_from_filename(raw_fn)
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        with open(archive_file_path, 'wb') as f:
+          f.write(file_bytes)
 
-        year_str = str(file_date.year)
-        month_name = file_date.strftime('%B')
-        month_num = file_date.strftime('%m')
-
-        archive_month_dir = os.path.join(ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}')
-        os.makedirs(archive_month_dir, exist_ok=True)
-
-        file_path_archive = os.path.join(archive_month_dir, filename)
-        shutil.copy(file_path_upload, file_path_archive)
-
-        flash('NAV Image uploaded and automatically archived successfully!', 'success')
+        flash(f'Successfully published NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
     except Exception as e:
@@ -689,46 +718,33 @@ def upload_archive():
 
   if request.method == 'POST':
     try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Jan').strip().lower()
+
+      month_map = {
+          'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+          'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+          'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+      }
+      full_month_name = month_map.get(month_input, month_input.capitalize())
+
+      target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month_name)
+      os.makedirs(target_dir, exist_ok=True)
+
       saved_count = 0
       files = request.files.getlist('archive_files')
       for file in files:
         if file and file.filename != '':
           filename = secure_filename(file.filename)
           if not filename:
-            filename = f'archive_{int(datetime.now().timestamp())}.jpg'
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
-          file_date = None
-          base_name = os.path.splitext(filename)[0]
-          for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
-            try:
-              file_date = datetime.strptime(base_name[:10], fmt)
-              break
-            except ValueError:
-              pass
-
-          if file_date:
-            year_str = str(file_date.year)
-            month_num = file_date.strftime('%m')
-            month_name = file_date.strftime('%B')
-          else:
-            year = request.form.get('archive_year', datetime.now().strftime('%Y'))
-            month_input = request.form.get('archive_month', 'Oct').strip().lower()
-            month_map = {
-                'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
-                'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
-                'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
-                'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
-            }
-            month_num, month_name = month_map.get(month_input[:3], ('10', 'October'))
-            year_str = year
-
-          target_dir = os.path.join(ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}')
-          os.makedirs(target_dir, exist_ok=True)
-          file.save(os.path.join(target_dir, filename))
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
           saved_count += 1
 
       if saved_count > 0:
-        flash(f'Successfully uploaded {saved_count} file(s) to archive successfully!', 'success')
+        flash(f'Successfully uploaded {saved_count} file(s) to {year}/{full_month_name}!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -761,50 +777,49 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
-  month_map_lookup = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+  month_map = {
+      'jan': 'January', 'january': 'January', '01': 'January', '1': 'January',
+      'feb': 'February', 'february': 'February', '02': 'February', '2': 'February',
+      'mar': 'March', 'march': 'March', '03': 'March', '3': 'March',
+      'apr': 'April', 'april': 'April', '04': 'April', '4': 'April',
+      'may': 'May', '05': 'May', '5': 'May',
+      'jun': 'June', 'june': 'June', '06': 'June', '6': 'June',
+      'jul': 'July', 'july': 'July', '07': 'July', '7': 'July',
+      'aug': 'August', 'august': 'August', '08': 'August', '8': 'August',
+      'sep': 'September', 'september': 'September', '09': 'September', '9': 'September',
+      'oct': 'October', 'october': 'October', '10': 'October',
+      'nov': 'November', 'november': 'November', '11': 'November',
+      'dec': 'December', 'december': 'December', '12': 'December'
   }
-  target_num = month_map_lookup.get(month_input[:3], '10')
+
+  target_month_full = month_map.get(month_input, month_input.capitalize())
 
   try:
-    year_dir = os.path.join(ARCHIVE_FOLDER, year)
-    if os.path.exists(year_dir):
-      for root, dirs, files in os.walk(year_dir):
-        # Strict folder matching for month
-        folder_match = False
-        if f"{target_num}_" in root or target_num == root.split(os.sep)[-1][:2]:
-          folder_match = True
-        elif month_input and month_input in root.lower():
-          folder_match = True
+    archive_base = 'archive_nav'
+    
+    if year and month_input:
+      for y_dir in os.listdir(archive_base) if os.path.exists(archive_base) else []:
+        if y_dir == year:
+          year_path = os.path.join(archive_base, y_dir)
+          for m_dir in os.listdir(year_path):
+            if m_dir.lower() in [target_month_full.lower(), month_input]:
+              full_dir = os.path.join(year_path, m_dir)
+              for f in os.listdir(full_dir):
+                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+                  matched_files.add(f)
 
-        if folder_match:
-          for f in files:
-            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              matched_files.add(f)
-
-        # Fallback strict check on filename date structure (DD-MM-YYYY or YYYY-MM-DD)
+    if not matched_files and os.path.exists(archive_base):
+      for root, dirs, files in os.walk(archive_base):
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            base_name = os.path.splitext(f)[0]
-            # Check if filename starts with date DD-MM-YYYY
-            parts = base_name.replace('_', '-').replace('/', '-').split('-')
-            if len(parts) >= 3:
-              # parts[0] = day, parts[1] = month, parts[2] = year (or vice versa)
-              if parts[2] == year and parts[1] == target_num:
-                matched_files.add(f)
-              elif parts[0] == year and parts[1] == target_num:
-                matched_files.add(f)
+            r_low = root.lower()
+            if (not year or year in root) and (not month_input or month_input in r_low or target_month_full.lower() in r_low):
+              matched_files.add(f)
 
-    # Also check uploads folder
-    if os.path.exists(app.config['UPLOAD_FOLDER']):
+    if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-          base_name = os.path.splitext(f)[0]
-          parts = base_name.replace('_', '-').replace('/', '-').split('-')
-          if len(parts) >= 3:
-            if (parts[2] == year and parts[1] == target_num) or (parts[0] == year and parts[1] == target_num):
-              matched_files.add(f)
+          matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
@@ -813,29 +828,29 @@ def get_archive_files():
     return jsonify({'success': False, 'files': []})
 
 
-@app.route('/view-archive-file/<filename>')
+@app.route('/view-archive-file/<path:filename>')
 def view_archive_file(filename):
-  as_attachment = request.args.get('download') == 'true'
-  for root, dirs, files in os.walk(ARCHIVE_FOLDER):
+  archive_base = 'archive_nav'
+  for root, dirs, files in os.walk(archive_base):
     if filename in files:
-      return send_from_directory(root, filename, as_attachment=as_attachment)
-  return send_from_directory(
-      app.config['UPLOAD_FOLDER'], filename, as_attachment=as_attachment
-  )
+      return send_from_directory(root, filename)
+  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 @app.route('/download-latest-nav')
 def download_latest_nav():
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
   try:
-    latest_file = get_latest_nav_filename()
-    if latest_file:
-      return send_from_directory(
-          app.config['UPLOAD_FOLDER'], latest_file, as_attachment=True
-      )
-  except Exception as e:
-    print(f'Download error: {e}')
-  flash('No NAV image available for download.', 'danger')
-  return redirect(url_for('user_dashboard'))
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
 
 
 if __name__ == '__main__':
