@@ -163,9 +163,9 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72549.08,
-    'base_change_pts': 624.40,
-    'pct_change': 0.87,
+    'value': 72537.17,
+    'base_change_pts': 612.49,
+    'pct_change': 0.85,
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
@@ -173,7 +173,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '81,500.25', 'change': 250.50},
-        {'date': '13 Oct', 'value': '72,549.08', 'change': 624.40},
+        {'date': '13 Oct', 'value': '72,537.17', 'change': 612.49},
     ]
 }
 
@@ -206,7 +206,7 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Query Yahoo Finance chart API directly to match exact quotation
+      # Fetch exact live JSON feed directly from Yahoo Finance chart endpoint
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       req = urllib.request.Request(
           url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -214,21 +214,11 @@ def sync_sensex_from_yahoo():
       try:
         with urllib.request.urlopen(req, timeout=5) as resp:
           data = json.loads(resp.read().decode())
-          result = data["chart"]["result"][0]
-          meta = result["meta"]
-          
-          # Extract exact live price and previous close directly from Yahoo metadata
+          meta = data["chart"]["result"][0]["meta"]
           current_val = float(meta.get("regularMarketPrice") or 0)
           prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
-          
-          # If market is closed or regularMarketPrice is not populated, grab the last close from indicators quote
-          if not current_val:
-            closes = result["indicators"]["quote"][0]["close"]
-            valid_closes = [c for c in closes if c is not None]
-            if valid_closes:
-              current_val = float(valid_closes[-1])
       except Exception as e:
-        print(f"Yahoo API JSON parse error: {e}")
+        print(f"Yahoo API fetch error: {e}")
 
       # Fallback to yfinance if needed
       if not current_val or current_val < 1000:
