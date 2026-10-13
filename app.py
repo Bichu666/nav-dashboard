@@ -163,9 +163,9 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72780.17,
-    'base_change_pts': 855.49,
-    'pct_change': 1.19,
+    'value': 72976.53,
+    'base_change_pts': 1051.85,
+    'pct_change': 1.46,
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
@@ -173,7 +173,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '81,500.25', 'change': 250.50},
-        {'date': '13 Oct', 'value': '72,780.17', 'change': 855.49},
+        {'date': '13 Oct', 'value': '72,976.53', 'change': 1051.85},
     ]
 }
 
@@ -206,23 +206,28 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      ticker = yf.Ticker("^BSESN")
+      # Direct query to Yahoo Finance Chart API for exact real-time index match
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
+      req = urllib.request.Request(
+          url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+      )
       try:
-        fi = ticker.fast_info
-        current_val = float(getattr(fi, 'last_price', 0) or 0)
-        prev_close = float(getattr(fi, 'previous_close', 0) or 0)
-      except Exception:
-        pass
+        with urllib.request.urlopen(req, timeout=5) as resp:
+          data = json.loads(resp.read().decode())
+          meta = data["chart"]["result"][0]["meta"]
+          current_val = float(meta.get("regularMarketPrice") or 0)
+          prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
+      except Exception as e:
+        print(f"Yahoo API fetch error: {e}")
 
       if not current_val or current_val < 1000:
-        hist = ticker.history(period="1d", interval="1m")
-        if hist is not None and not hist.empty:
-          current_val = float(hist['Close'].iloc[-1])
-          try:
-            info = ticker.info or {}
-            prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-          except Exception:
-            prev_close = current_val
+        ticker = yf.Ticker("^BSESN")
+        try:
+          fi = ticker.fast_info
+          current_val = float(getattr(fi, 'last_price', 0) or 0)
+          prev_close = float(getattr(fi, 'previous_close', 0) or 0)
+        except Exception:
+          pass
 
       if current_val > 1000:
         if not prev_close:
@@ -763,26 +768,43 @@ def get_archive_files():
   target_num = month_map_lookup.get(month_input[:3], '10')
 
   try:
-    # Recursively collect files from archive folder matching year and month
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
       for root, dirs, files in os.walk(year_dir):
-        # check if current folder path contains the target month (e.g., '10_October' or 'oct')
-        if (target_num in root) or (month_input and month_input in root.lower()) or ('10' in root) or ('oct' in root.lower()):
+        # Strict folder matching for month
+        folder_match = False
+        if f"{target_num}_" in root or target_num == root.split(os.sep)[-1][:2]:
+          folder_match = True
+        elif month_input and month_input in root.lower():
+          folder_match = True
+
+        if folder_match:
           for f in files:
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               matched_files.add(f)
-        # fallback: if root didn't match directly, check if the file name itself contains the month/year
+
+        # Fallback strict check on filename date structure (DD-MM-YYYY or YYYY-MM-DD)
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            if year in f and (target_num in f or month_input in f.lower() or '10' in f or 'oct' in f.lower()):
-              matched_files.add(f)
+            base_name = os.path.splitext(f)[0]
+            # Check if filename starts with date DD-MM-YYYY
+            parts = base_name.replace('_', '-').replace('/', '-').split('-')
+            if len(parts) >= 3:
+              # parts[0] = day, parts[1] = month, parts[2] = year (or vice versa)
+              if parts[2] == year and parts[1] == target_num:
+                matched_files.add(f)
+              elif parts[0] == year and parts[1] == target_num:
+                matched_files.add(f)
 
-    # Also check uploads folder for fallback compatibility
+    # Also check uploads folder
     if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-          matched_files.add(f)
+          base_name = os.path.splitext(f)[0]
+          parts = base_name.replace('_', '-').replace('/', '-').split('-')
+          if len(parts) >= 3:
+            if (parts[2] == year and parts[1] == target_num) or (parts[0] == year and parts[1] == target_num):
+              matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
