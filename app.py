@@ -167,16 +167,16 @@ CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
     'value': 73033.78,
-    'base_change_pts': 561.48,
-    'pct_change': 0.77,
+    'base_change_pts': 1109.10,
+    'pct_change': 1.54,
     'is_positive': True,
-    'last_close_time': '03:32:26 PM GMT+5:30',
+    'last_close_time': '03:32:27 PM GMT+5:30',
     'trend_data': [
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '73,033.78', 'change': 561.48},
+        {'date': '13 Oct', 'value': '73,033.78', 'change': 1109.10},
+        {'date': '14 Oct', 'value': '73,033.78', 'change': 1109.10},
     ]
 }
 
@@ -207,37 +207,41 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
-      prev_close = 0
+      pts_change = 0
+      pct_change = 0
 
-      ticker = yf.Ticker("^BSESN")
-      hist = ticker.history(period="2d", interval="1d")
-      if hist is not None and not hist.empty:
-        current_val = float(hist['Close'].iloc[-1])
-        if len(hist) >= 2:
-          prev_close = float(hist['Close'].iloc[-2])
+      # Query Yahoo Finance Chart API directly for real-time market data
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
+      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+      resp = requests.get(url, headers=headers, timeout=5)
+      if resp.status_code == 200:
+        result = resp.json()["chart"]["result"][0]
+        meta = result["meta"]
+        current_val = float(meta.get("regularMarketPrice") or 0)
+        prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or current_val)
+        
+        if "regularMarketChange" in meta and meta["regularMarketChange"] is not None:
+          pts_change = float(meta["regularMarketChange"])
+          pct_change = float(meta.get("regularMarketChangePercent") or ((pts_change / prev_close) * 100 if prev_close else 0))
         else:
-          prev_close = current_val
+          pts_change = round(current_val - prev_close, 2)
+          pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
+      # Fallback through yfinance library if API endpoint is delayed
       if not current_val or current_val < 1000:
-        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        resp = requests.get(url, headers=headers, timeout=5)
-        if resp.status_code == 200:
-          meta = resp.json()["chart"]["result"][0]["meta"]
-          current_val = float(meta.get("regularMarketPrice") or 0)
-          prev_close = float(meta.get("chartPreviousClose") or current_val)
+        ticker = yf.Ticker("^BSESN")
+        hist = ticker.history(period="2d", interval="1d")
+        if hist is not None and not hist.empty:
+          current_val = float(hist['Close'].iloc[-1])
+          prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+          pts_change = round(current_val - prev_close, 2)
+          pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
       if current_val > 0:
-        if not prev_close:
-          prev_close = current_val
-
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
-
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
-        cache['base_change_pts'] = pts_change
-        cache['pct_change'] = pct_change
+        cache['base_change_pts'] = round(pts_change, 2)
+        cache['pct_change'] = round(pct_change, 2)
         cache['is_positive'] = pts_change >= 0
 
         now_utc = datetime.now(timezone.utc)
@@ -264,7 +268,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(30)
+    time.sleep(15)  # Auto-refresh cycle set to 15 seconds
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -286,7 +290,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:32:26 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
