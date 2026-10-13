@@ -163,9 +163,9 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72537.17,
-    'base_change_pts': 612.49,
-    'pct_change': 0.85,
+    'value': 72780.17,
+    'base_change_pts': 855.49,
+    'pct_change': 1.19,
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
@@ -173,7 +173,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '81,500.25', 'change': 250.50},
-        {'date': '13 Oct', 'value': '72,537.17', 'change': 612.49},
+        {'date': '13 Oct', 'value': '72,780.17', 'change': 855.49},
     ]
 }
 
@@ -204,43 +204,34 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
-      pts_change = 0
-      pct_change = 0
+      prev_close = 0
 
-      # Direct Yahoo Finance chart API query to match live quote perfectly
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      req = urllib.request.Request(
-          url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-      )
+      # Use yfinance fast_info for precise real-time matching with Yahoo Finance
+      ticker = yf.Ticker("^BSESN")
       try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-          data = json.loads(resp.read().decode())
-          meta = data["chart"]["result"][0]["meta"]
-          current_val = float(meta.get("regularMarketPrice") or 0)
-          prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
-          
-          if current_val > 1000 and prev_close > 1000:
-            pts_change = round(current_val - prev_close, 2)
-            pct_change = round((pts_change / prev_close) * 100, 2)
-      except Exception as e:
-        print(f"Yahoo API fetch error: {e}")
+        fi = ticker.fast_info
+        current_val = float(getattr(fi, 'last_price', 0) or 0)
+        prev_close = float(getattr(fi, 'previous_close', 0) or 0)
+      except Exception:
+        pass
 
-      # Fallback to yfinance if needed
       if not current_val or current_val < 1000:
-        ticker = yf.Ticker("^BSESN")
         hist = ticker.history(period="1d", interval="1m")
         if hist is not None and not hist.empty:
           current_val = float(hist['Close'].iloc[-1])
           try:
             info = ticker.info or {}
             prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-            pts_change = round(current_val - prev_close, 2)
-            pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
           except Exception:
-            pts_change = 0.0
-            pct_change = 0.0
+            prev_close = current_val
 
       if current_val > 1000:
+        if not prev_close:
+          prev_close = current_val
+
+        pts_change = round(current_val - prev_close, 2)
+        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
         cache['base_change_pts'] = pts_change
@@ -694,20 +685,6 @@ def upload_archive():
 
   if request.method == 'POST':
     try:
-      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
-      month_input = request.form.get('archive_month', 'Oct').strip().lower()
-
-      month_map = {
-          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
-          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
-          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
-          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
-      }
-      
-      month_num, month_name = month_map.get(month_input[:3], ('10', 'October'))
-      target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{month_num}_{month_name}')
-      os.makedirs(target_dir, exist_ok=True)
-
       saved_count = 0
       files = request.files.getlist('archive_files')
       for file in files:
@@ -715,11 +692,40 @@ def upload_archive():
           filename = secure_filename(file.filename)
           if not filename:
             filename = f'archive_{int(datetime.now().timestamp())}.jpg'
+
+          # Automatically parse date from filename to route to correct month folder (e.g. October)
+          file_date = None
+          base_name = os.path.splitext(filename)[0]
+          for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
+            try:
+              file_date = datetime.strptime(base_name[:10], fmt)
+              break
+            except ValueError:
+              pass
+
+          if file_date:
+            year_str = str(file_date.year)
+            month_num = file_date.strftime('%m')
+            month_name = file_date.strftime('%B')
+          else:
+            year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+            month_input = request.form.get('archive_month', 'Oct').strip().lower()
+            month_map = {
+                'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
+                'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
+                'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
+                'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
+            }
+            month_num, month_name = month_map.get(month_input[:3], ('10', 'October'))
+            year_str = year
+
+          target_dir = os.path.join(ARCHIVE_FOLDER, year_str, f'{month_num}_{month_name}')
+          os.makedirs(target_dir, exist_ok=True)
           file.save(os.path.join(target_dir, filename))
           saved_count += 1
 
       if saved_count > 0:
-        flash(f'Successfully uploaded {saved_count} file(s) to archive ({year}/{month_name})!', 'success')
+        flash(f'Successfully uploaded {saved_count} file(s) to archive successfully!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
