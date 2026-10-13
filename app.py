@@ -31,7 +31,7 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
+# Initialize Supabase Database Connection via Render Environment Variable
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -42,11 +42,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status[cite: 15]
+# Track last admin activity timestamp for online/offline status
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
-
-# Admin Auto-Approval Global Configuration Toggle
-ADMIN_SETTINGS = {'auto_approval_enabled': True}
 
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 
@@ -94,8 +91,6 @@ USER_FEEDBACKS = [
 
 
 def check_user_validity(user):
-  if not ADMIN_SETTINGS.get('auto_approval_enabled', True):
-    return
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
@@ -161,6 +156,7 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 
+# Shared File-Based Cache for Gunicorn Multi-Worker Synchronization on Render
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
@@ -204,69 +200,52 @@ if not os.path.exists(CACHE_FILE):
 def sync_sensex_from_yahoo():
   while True:
     try:
-      current_val = 0
-      prev_close = 0
-
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      req = urllib.request.Request(
-          url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-      )
-      try:
-        with urllib.request.urlopen(req, timeout=5) as resp:
-          data = json.loads(resp.read().decode())
-          meta = data["chart"]["result"][0]["meta"]
-          current_val = float(meta.get("regularMarketPrice") or 0)
-          prev_close = float(meta.get("chartPreviousClose") or current_val)
-      except Exception:
-        pass
-
-      if not current_val:
-        ticker = yf.Ticker("^BSESN")
-        hist = ticker.history(period="1d", interval="1m")
-        if hist is not None and not hist.empty:
-          current_val = float(hist['Close'].iloc[-1])
-          try:
-            info = ticker.info or {}
-            prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-          except Exception:
-            prev_close = current_val
-
-      if current_val > 0:
-        if not prev_close:
+      ticker = yf.Ticker("^BSESN")
+      hist = ticker.history(period="1d", interval="1m")
+      if hist is not None and not hist.empty:
+        current_val = float(hist['Close'].iloc[-1])
+        try:
+          info = ticker.info or {}
+          prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
+        except Exception:
           prev_close = current_val
 
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+        if current_val > 0:
+          if not prev_close:
+            prev_close = current_val
 
-        cache = load_sensex_cache()
-        cache['value'] = round(current_val, 2)
-        cache['base_change_pts'] = pts_change
-        cache['pct_change'] = pct_change
-        cache['is_positive'] = pts_change >= 0
+          pts_change = round(current_val - prev_close, 2)
+          pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
-        now_utc = datetime.now(timezone.utc)
-        ist_now = now_utc + timedelta(hours=5, minutes=30)
-        today_date_str = ist_now.strftime('%d %b')
-        
-        found_today = False
-        for item in cache['trend_data']:
-          if item['date'] == today_date_str:
-            item['value'] = f"{cache['value']:,.2f}"
-            item['change'] = cache['base_change_pts']
-            found_today = True
-            break
-        if not found_today:
-          cache['trend_data'].append({
-              'date': today_date_str,
-              'value': f"{cache['value']:,.2f}",
-              'change': cache['base_change_pts']
-          })
-          if len(cache['trend_data']) > 5:
-            cache['trend_data'].pop(0)
+          cache = load_sensex_cache()
+          cache['value'] = round(current_val, 2)
+          cache['base_change_pts'] = pts_change
+          cache['pct_change'] = pct_change
+          cache['is_positive'] = pts_change >= 0
 
-        save_sensex_cache(cache)
+          now_utc = datetime.now(timezone.utc)
+          ist_now = now_utc + timedelta(hours=5, minutes=30)
+          today_date_str = ist_now.strftime('%d %b')
+          
+          found_today = False
+          for item in cache['trend_data']:
+            if item['date'] == today_date_str:
+              item['value'] = f"{cache['value']:,.2f}"
+              item['change'] = cache['base_change_pts']
+              found_today = True
+              break
+          if not found_today:
+            cache['trend_data'].append({
+                'date': today_date_str,
+                'value': f"{cache['value']:,.2f}",
+                'change': cache['base_change_pts']
+            })
+            if len(cache['trend_data']) > 5:
+              cache['trend_data'].pop(0)
+
+          save_sensex_cache(cache)
     except Exception as e:
-      print(f"Sensex sync error: {e}")
+      print(f'Sensex Yahoo sync error: {e}')
 
     time.sleep(10)
 
@@ -290,7 +269,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:32:26 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -364,7 +343,7 @@ def get_latest_nav_filename():
     for f in image_files:
       base_name = os.path.splitext(f)[0]
       try:
-        file_date = datetime.strptime(base_name[:10], fmt)
+        file_date = datetime.strptime(base_name, '%d-%m-%Y')
         valid_date_files.append((file_date, f))
       except ValueError:
         pass
@@ -541,19 +520,8 @@ def admin_dashboard():
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
-      auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
   )
-
-
-@app.route('/toggle-auto-approval', methods=['POST'])
-def toggle_auto_approval():
-  if not session.get('is_admin'):
-    return redirect(url_for('admin_login'))
-  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
-  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
-  flash(f'Auto-approval has been {status_text} successfully!', 'success')
-  return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
