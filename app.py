@@ -215,27 +215,36 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Attempt 1: Direct Yahoo Finance Endpoint
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      headers = {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      }
-      resp = requests.get(url, headers=headers, timeout=5)
-      if resp.status_code == 200:
-        meta = resp.json()["chart"]["result"][0]["meta"]
-        current_val = float(meta.get("regularMarketPrice") or 0)
-        prev_close = float(meta.get("chartPreviousClose") or current_val)
-
-      # Attempt 2: yfinance library fallback
-      if not current_val:
+      # Attempt 1: yfinance fast_info for precise real-time quotation
+      try:
         ticker = yf.Ticker("^BSESN")
-        hist = ticker.history(period="1d", interval="1m")
+        fi = ticker.fast_info
+        current_val = float(getattr(fi, 'last_price', 0) or 0)
+        prev_close = float(getattr(fi, 'previous_close', 0) or 0)
+      except Exception:
+        pass
+
+      # Attempt 2: Direct Yahoo Finance Endpoint
+      if not current_val or current_val < 1000:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+          meta = resp.json()["chart"]["result"][0]["meta"]
+          current_val = float(meta.get("regularMarketPrice") or 0)
+          prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or current_val)
+
+      # Attempt 3: yfinance history fallback
+      if not current_val or current_val < 1000:
+        ticker = yf.Ticker("^BSESN")
+        hist = ticker.history(period="2d", interval="1d")
         if hist is not None and not hist.empty:
           current_val = float(hist['Close'].iloc[-1])
-          try:
-            info = ticker.info or {}
-            prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
-          except Exception:
+          if len(hist) >= 2:
+            prev_close = float(hist['Close'].iloc[-2])
+          else:
             prev_close = current_val
 
       if current_val > 0:
@@ -695,7 +704,7 @@ def upload_nav():
           }, mf)
 
         target_year, target_month = extract_date_from_filename(raw_fn)
-        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, f'10_{target_month}' if target_month.lower() == 'october' else target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
         archive_file_path = os.path.join(archive_target_dir, filename)
         with open(archive_file_path, 'wb') as f:
@@ -722,13 +731,14 @@ def upload_archive():
       month_input = request.form.get('archive_month', 'Jan').strip().lower()
 
       month_map = {
-          'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
-          'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
-          'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
+          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
+          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
+          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
       }
-      full_month_name = month_map.get(month_input, month_input.capitalize())
+      m_num, full_month_name = month_map.get(month_input[:3], ('10', 'October'))
 
-      target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month_name)
+      target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
       os.makedirs(target_dir, exist_ok=True)
 
       saved_count = 0
@@ -777,45 +787,30 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
-  month_map = {
-      'jan': 'January', 'january': 'January', '01': 'January', '1': 'January',
-      'feb': 'February', 'february': 'February', '02': 'February', '2': 'February',
-      'mar': 'March', 'march': 'March', '03': 'March', '3': 'March',
-      'apr': 'April', 'april': 'April', '04': 'April', '4': 'April',
-      'may': 'May', '05': 'May', '5': 'May',
-      'jun': 'June', 'june': 'June', '06': 'June', '6': 'June',
-      'jul': 'July', 'july': 'July', '07': 'July', '7': 'July',
-      'aug': 'August', 'august': 'August', '08': 'August', '8': 'August',
-      'sep': 'September', 'september': 'September', '09': 'September', '9': 'September',
-      'oct': 'October', 'october': 'October', '10': 'October',
-      'nov': 'November', 'november': 'November', '11': 'November',
-      'dec': 'December', 'december': 'December', '12': 'December'
+  month_keywords = {
+      'jan': ['01', 'jan'], 'feb': ['02', 'feb'], 'mar': ['03', 'mar'],
+      'apr': ['04', 'apr'], 'may': ['05', 'may'], 'jun': ['06', 'jun'],
+      'jul': ['07', 'jul'], 'aug': ['08', 'aug'], 'sep': ['09', 'sep'],
+      'oct': ['10', 'oct'], 'nov': ['11', 'nov'], 'dec': ['12', 'dec']
   }
-
-  target_month_full = month_map.get(month_input, month_input.capitalize())
+  keywords = month_keywords.get(month_input[:3], [month_input])
 
   try:
     archive_base = 'archive_nav'
     
-    if year and month_input:
-      for y_dir in os.listdir(archive_base) if os.path.exists(archive_base) else []:
-        if y_dir == year:
-          year_path = os.path.join(archive_base, y_dir)
-          for m_dir in os.listdir(year_path):
-            if m_dir.lower() in [target_month_full.lower(), month_input]:
-              full_dir = os.path.join(year_path, m_dir)
-              for f in os.listdir(full_dir):
-                if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                  matched_files.add(f)
-
-    if not matched_files and os.path.exists(archive_base):
+    # Recursively walk through archive directory and match folder names or file names flexibly
+    if os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
-        for f in files:
-          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            r_low = root.lower()
-            if (not year or year in root) and (not month_input or month_input in r_low or target_month_full.lower() in r_low):
+        root_lower = root.lower()
+        year_match = (not year) or (year in root)
+        month_match = (not month_input) or any(kw in root_lower for kw in keywords)
+
+        if year_match and month_match:
+          for f in files:
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               matched_files.add(f)
 
+    # Also check uploads folder fallback
     if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
