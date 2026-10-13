@@ -206,7 +206,6 @@ def sync_sensex_from_yahoo():
       current_val = 0
       prev_close = 0
 
-      # Use yfinance fast_info for precise real-time matching with Yahoo Finance
       ticker = yf.Ticker("^BSESN")
       try:
         fi = ticker.fast_info
@@ -262,7 +261,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync error: {e}")
 
-    time.sleep(10)
+    time.sleep(5)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -693,7 +692,6 @@ def upload_archive():
           if not filename:
             filename = f'archive_{int(datetime.now().timestamp())}.jpg'
 
-          # Automatically parse date from filename to route to correct month folder (e.g. October)
           file_date = None
           base_name = os.path.splitext(filename)[0]
           for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d_%m_%Y', '%Y_%m_%d', '%d%m%Y'):
@@ -765,16 +763,22 @@ def get_archive_files():
   target_num = month_map_lookup.get(month_input[:3], '10')
 
   try:
+    # Recursively collect files from archive folder matching year and month
     year_dir = os.path.join(ARCHIVE_FOLDER, year)
     if os.path.exists(year_dir):
-      for d in os.listdir(year_dir):
-        if (month_input and month_input in d.lower()) or (target_num and target_num in d) or ('oct' in d.lower()) or ('10' in d):
-          target_month_dir = os.path.join(year_dir, d)
-          if os.path.exists(target_month_dir):
-            for f in os.listdir(target_month_dir):
-              if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-                matched_files.add(f)
+      for root, dirs, files in os.walk(year_dir):
+        # check if current folder path contains the target month (e.g., '10_October' or 'oct')
+        if (target_num in root) or (month_input and month_input in root.lower()) or ('10' in root) or ('oct' in root.lower()):
+          for f in files:
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+              matched_files.add(f)
+        # fallback: if root didn't match directly, check if the file name itself contains the month/year
+        for f in files:
+          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+            if year in f and (target_num in f or month_input in f.lower() or '10' in f or 'oct' in f.lower()):
+              matched_files.add(f)
 
+    # Also check uploads folder for fallback compatibility
     if os.path.exists(app.config['UPLOAD_FOLDER']):
       for f in os.listdir(app.config['UPLOAD_FOLDER']):
         if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
