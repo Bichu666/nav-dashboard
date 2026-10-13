@@ -690,7 +690,9 @@ def upload_nav():
           }, mf)
 
         target_year, target_month = extract_date_from_filename(raw_fn)
-        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        month_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
+        m_num = month_num_map.get(target_month, '10')
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, f'{m_num}_{target_month}')
         os.makedirs(archive_target_dir, exist_ok=True)
         archive_file_path = os.path.join(archive_target_dir, filename)
         with open(archive_file_path, 'wb') as f:
@@ -717,13 +719,14 @@ def upload_archive():
       month_input = request.form.get('archive_month', 'Jan').strip().lower()
 
       month_map = {
-          'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
-          'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
-          'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
+          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
+          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
+          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
       }
-      full_month_name = month_map.get(month_input[:3], month_input.capitalize())
+      m_num, full_month_name = month_map.get(month_input[:3], ('10', 'October'))
 
-      target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month_name)
+      target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
       os.makedirs(target_dir, exist_ok=True)
 
       saved_count = 0
@@ -773,48 +776,30 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': 'January', '01': 'January', '1': 'January',
-      'feb': 'February', '02': 'February', '2': 'February',
-      'mar': 'March', '03': 'March', '3': 'March',
-      'apr': 'April', '04': 'April', '4': 'April',
-      'may': 'May', '05': 'May', '5': 'May',
-      'jun': 'June', '06': 'June', '6': 'June',
-      'jul': 'July', '07': 'July', '7': 'July',
-      'aug': 'August', '08': 'August', '8': 'August',
-      'sep': 'September', '09': 'September', '9': 'September',
-      'oct': 'October', '10': 'October',
-      'nov': 'November', '11': 'November',
-      'dec': 'December', '12': 'December'
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
   }
-
-  target_month_full = month_map.get(month_input[:3], 'October')
+  target_month_num = month_map.get(month_input[:3], '10')
 
   try:
     archive_base = 'archive_nav'
-    
-    # 1. Broad recursive search in archive_nav for matching year and month keywords
     if os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         root_low = root.lower()
-        year_ok = (not year) or (year in root)
-        month_ok = (not month_input) or (target_month_full.lower() in root_low) or (month_input in root_low) or ('10' in root_low and ('oct' in month_input or '10' in month_input))
-
-        if year_ok and month_ok:
+        # Strictly verify folder matches both the requested year and the exact month number/name
+        if (not year or year in root) and (target_month_num in root or month_input in root_low):
           for f in files:
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               matched_files.add(f)
 
-    # 2. Universal fallback: if dropdown still empty, gather ALL image files from entire archive & uploads
+    # Fallback to strict filename check if folders weren't matched
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            matched_files.add(f)
-
-    if not matched_files and os.path.exists(app.config['UPLOAD_FOLDER']):
-      for f in os.listdir(app.config['UPLOAD_FOLDER']):
-        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) and f != 'latest_nav.jpg':
-          matched_files.add(f)
+            if (not year or year in f) and (target_month_num in f or month_input in f.lower()):
+              matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
