@@ -35,7 +35,6 @@ app.secret_key = 'nav_updates_secret_key'
 app.permanent_session_lifetime = timedelta(days=30)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Initialize Flask-Limiter for Brute-Force Protection
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
@@ -43,7 +42,6 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-# Initialize Supabase Database Connection via Render Environment Variable[cite: 15]
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
@@ -54,12 +52,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-# Track last admin activity timestamp for online/offline status[cite: 15]
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
-
-# Admin Auto-Approval Global Configuration Toggle
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
-
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 
 REGISTERED_USERS = [
@@ -178,11 +172,11 @@ DEFAULT_SENSEX_CACHE = {
     'is_positive': True,
     'last_close_time': '03:32:26 PM GMT+5:30',
     'trend_data': [
-        {'date': '06 Oct', 'value': '73,067.81', 'change': 685.34},
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
+        {'date': '14 Oct', 'value': '73,033.78', 'change': 561.48},
     ]
 }
 
@@ -786,20 +780,20 @@ def get_archive_files():
     archive_base = 'archive_nav'
     if os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
-        root_low = root.lower()
-        # Strictly verify folder matches both the requested year and the exact month number/name
-        if (not year or year in root) and (target_month_num in root or month_input in root_low):
+        if year in root and (f"{target_month_num}_" in root or target_month_num == root.split(os.sep)[-1][:2] or month_input in root.lower()):
           for f in files:
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               matched_files.add(f)
 
-    # Fallback to strict filename check if folders weren't matched
     if not matched_files and os.path.exists(archive_base):
       for root, dirs, files in os.walk(archive_base):
         for f in files:
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            if (not year or year in f) and (target_month_num in f or month_input in f.lower()):
-              matched_files.add(f)
+            if year in f:
+              clean_name = os.path.splitext(f)[0]
+              parts = clean_name.replace('_', '-').replace('.', '-').split('-')
+              if year in parts and target_month_num in parts:
+                matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
