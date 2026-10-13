@@ -204,9 +204,10 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
-      prev_close = 0
+      pts_change = 0
+      pct_change = 0
 
-      # Fetch exact live JSON feed directly from Yahoo Finance chart endpoint
+      # Direct Yahoo Finance chart API query to match live quote perfectly
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
       req = urllib.request.Request(
           url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -217,6 +218,10 @@ def sync_sensex_from_yahoo():
           meta = data["chart"]["result"][0]["meta"]
           current_val = float(meta.get("regularMarketPrice") or 0)
           prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
+          
+          if current_val > 1000 and prev_close > 1000:
+            pts_change = round(current_val - prev_close, 2)
+            pct_change = round((pts_change / prev_close) * 100, 2)
       except Exception as e:
         print(f"Yahoo API fetch error: {e}")
 
@@ -229,16 +234,13 @@ def sync_sensex_from_yahoo():
           try:
             info = ticker.info or {}
             prev_close = float(info.get('regularMarketPreviousClose') or info.get('previousClose') or current_val)
+            pts_change = round(current_val - prev_close, 2)
+            pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
           except Exception:
-            prev_close = current_val
+            pts_change = 0.0
+            pct_change = 0.0
 
       if current_val > 1000:
-        if not prev_close:
-          prev_close = current_val
-
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
-
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
         cache['base_change_pts'] = pts_change
