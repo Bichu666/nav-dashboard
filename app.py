@@ -718,7 +718,6 @@ def upload_archive():
           if not filename:
             filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
-          # Save into structured archive directory AND mirror to uploads folder for instant dropdown visibility
           f_year, f_month = extract_date_from_filename(raw_fn)
           if f_year and f_month:
             f_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
@@ -730,7 +729,6 @@ def upload_archive():
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
           
-          # Mirror file to uploads folder so user portal dropdown queries instantly find it
           upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
           shutil.copy(file_path, upload_mirror_path)
           
@@ -766,9 +764,29 @@ def delete_archive_file(filename):
 
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
+
+  month_map = {
+      'jan': ('01', 'january'), 'feb': ('02', 'february'), 'mar': ('03', 'march'),
+      'apr': ('04', 'april'), 'may': ('05', 'may'), 'jun': ('06', 'june'),
+      'jul': ('07', 'july'), 'aug': ('08', 'august'), 'sep': ('09', 'september'),
+      'oct': ('10', 'october'), 'nov': ('11', 'november'), 'dec': ('12', 'december')
+  }
+  
+  target_m_num, target_m_name = month_map.get(month_input[:3], ('10', 'october'))
+
   try:
-    # Universal file collector from both archive and upload directories so all uploaded files show up instantly
+    # 1. Check structured archive folder specifically for the selected year and month
+    if year:
+      target_archive_dir = os.path.join(ARCHIVE_FOLDER, year, f'{target_m_num}_{target_m_name.capitalize()}')
+      if os.path.exists(target_archive_dir):
+        for f in os.listdir(target_archive_dir):
+          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+            matched_files.add(f)
+
+    # 2. Strict pattern matching across archive and upload folders based on filename dates/extensions
     search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
     for s_dir in search_dirs:
       if os.path.exists(s_dir):
@@ -777,7 +795,15 @@ def get_archive_files():
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               if f == 'latest_nav.jpg':
                 continue
-              matched_files.add(f)
+              
+              f_low = f.lower()
+              root_low = root.lower()
+              
+              year_match = (not year) or (year in f_low) or (year in root_low)
+              month_match = (not month_input) or (target_m_num in f_low or target_m_name in f_low or target_m_num in root_low or target_m_name in root_low)
+              
+              if year_match and month_match:
+                matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
@@ -799,17 +825,4 @@ def view_archive_file(filename):
 def download_latest_nav():
   latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
   if os.path.exists(latest_path):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
-  
-  try:
-    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-    if files:
-      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
-      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
-  except Exception:
-    pass
-  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
-
-
-if __name__ == '__main__':
-  app.run(debug=True)
+    return send_from_directory(app.config['UPLOAD_FOLDER'],
