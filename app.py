@@ -166,17 +166,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 73033.78,
-    'base_change_pts': 1109.10,
-    'pct_change': 1.54,
+    'value': 73112.39,
+    'base_change_pts': 78.61,
+    'pct_change': 0.11,
     'is_positive': True,
-    'last_close_time': '03:32:27 PM GMT+5:30',
+    'last_close_time': '11:00:08 AM GMT+5:30',
     'trend_data': [
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 1109.10},
-        {'date': '14 Oct', 'value': '73,033.78', 'change': 1109.10},
+        {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
+        {'date': '14 Oct', 'value': '73,112.39', 'change': 78.61},
     ]
 }
 
@@ -207,12 +207,12 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
-      prev_close = 0
       pts_change = 0
       pct_change = 0
 
+      # Fetch direct live chart quotation from Yahoo Finance API
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
       resp = requests.get(url, headers=headers, timeout=5)
       if resp.status_code == 200:
         result = resp.json()["chart"]["result"][0]
@@ -220,7 +220,10 @@ def sync_sensex_from_yahoo():
         current_val = float(meta.get("regularMarketPrice") or 0)
         prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
         
-        if prev_close > 0 and current_val > 0:
+        if "regularMarketChange" in meta and meta["regularMarketChange"] is not None:
+          pts_change = float(meta["regularMarketChange"])
+          pct_change = float(meta.get("regularMarketChangePercent") or ((pts_change / prev_close) * 100 if prev_close else 0))
+        elif prev_close > 0 and current_val > 0:
           pts_change = round(current_val - prev_close, 2)
           pct_change = round((pts_change / prev_close) * 100, 2)
 
@@ -286,7 +289,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:32:27 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '11:00:08 AM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -710,7 +713,7 @@ def upload_archive():
   if request.method == 'POST':
     try:
       year = request.form.get('archive_year', datetime.now().strftime('%Y'))
-      month_input = request.form.get('archive_month', 'Jan').strip().lower()
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
 
       month_map = {
           'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
@@ -727,16 +730,22 @@ def upload_archive():
       files = request.files.getlist('archive_files')
       for file in files:
         if file and file.filename != '':
-          filename = secure_filename(file.filename)
+          raw_fn = file.filename
+          filename = secure_filename(raw_fn)
           if not filename:
             filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
+          
+          # Also mirror into uploads folder so old archive files are instantly accessible
+          upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          shutil.copy(file_path, upload_mirror_path)
+          
           saved_count += 1
 
       if saved_count > 0:
-        flash(f'Successfully uploaded {saved_count} file(s) to {year}/{full_month_name}!', 'success')
+        flash(f'Successfully uploaded {saved_count} file(s) to {year}/{full_month_name} and mirrored to uploads!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -787,7 +796,7 @@ def get_archive_files():
   keywords = month_map.get(month_input[:3], [month_input])
 
   try:
-    search_dirs = ['archive_nav', 'uploads']
+    search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
     for s_dir in search_dirs:
       if os.path.exists(s_dir):
         for root, dirs, files in os.walk(s_dir):
@@ -795,13 +804,18 @@ def get_archive_files():
             if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
               if f == 'latest_nav.jpg':
                 continue
-              year_match = (not year) or (year in f) or (year in root)
+              
               f_low = f.lower()
               root_low = root.lower()
-              month_match = (not month_input) or any(kw in f_low or kw in root_low for kw in keywords)
               
-              if year_match and month_match:
-                # Exclude July ('07') when looking for October ('10')
+              # Check year
+              year_ok = (not year) or (year in f_low) or (year in root_low)
+              
+              # Check month keywords or numeric match (e.g. '10' for October)
+              month_ok = (not month_input) or any(kw in f_low or kw in root_low for kw in keywords)
+              
+              if year_ok and month_ok:
+                # Ensure July files aren't accidentally pulled when searching October
                 if '10' in keywords and ('07-' in f_low or '_07_' in f_low or '/07/' in root_low or '10-07' in f_low):
                   continue
                 matched_files.add(f)
@@ -815,7 +829,7 @@ def get_archive_files():
 
 @app.route('/view-archive-file/<path:filename>')
 def view_archive_file(filename):
-  archive_base = 'archive_nav'
+  archive_base = ARCHIVE_FOLDER
   for root, dirs, files in os.walk(archive_base):
     if filename in files:
       return send_from_directory(root, filename)
