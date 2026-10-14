@@ -166,17 +166,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72862.10,
-    'base_change_pts': -171.68,
-    'pct_change': -0.24,
+    'value': 72745.17,
+    'base_change_pts': -288.61,
+    'pct_change': -0.40,
     'is_positive': False,
-    'last_close_time': '02:02:24 PM GMT+5:30',
+    'last_close_time': '03:06:55 PM GMT+5:30',
     'trend_data': [
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '72,862.10', 'change': -171.68},
+        {'date': '14 Oct', 'value': '72,745.17', 'change': -288.61},
     ]
 }
 
@@ -207,32 +207,41 @@ def sync_sensex_from_yahoo():
   while True:
     try:
       current_val = 0
+      prev_close = 0
       pts_change = 0
       pct_change = 0
+      trend_list = []
 
-      # Strict live query to Yahoo Finance chart API
+      # 1. Fetch via yfinance for accurate historical and live quotes
+      ticker = yf.Ticker("^BSESN")
+      hist = ticker.history(period="5d", interval="1d")
+      if hist is not None and not hist.empty:
+        current_val = float(hist['Close'].iloc[-1])
+        prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+        pts_change = round(current_val - prev_close, 2)
+        pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
+
+        for idx, row in hist.iterrows():
+          d_str = idx.strftime('%d %b')
+          trend_list.append({
+              'date': d_str,
+              'value': f"{row['Close']:,.2f}",
+              'change': round(float(row['Close'] - row['Open']), 2)
+          })
+
+      # 2. Direct Yahoo Finance API query for exact live quotation match
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
       resp = requests.get(url, headers=headers, timeout=5)
       if resp.status_code == 200:
         result = resp.json()["chart"]["result"][0]
         meta = result["meta"]
-        current_val = float(meta.get("regularMarketPrice") or 0)
-        prev_close = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
-        
-        if "regularMarketChange" in meta and meta["regularMarketChange"] is not None:
-          pts_change = float(meta["regularMarketChange"])
-          pct_change = float(meta.get("regularMarketChangePercent") or ((pts_change / prev_close) * 100 if prev_close else 0))
-        elif prev_close > 0 and current_val > 0:
-          pts_change = round(current_val - prev_close, 2)
-          pct_change = round((pts_change / prev_close) * 100, 2)
-
-      if not current_val or current_val < 1000:
-        ticker = yf.Ticker("^BSESN")
-        hist = ticker.history(period="2d", interval="1d")
-        if hist is not None and not hist.empty:
-          current_val = float(hist['Close'].iloc[-1])
-          prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+        live_price = float(meta.get("regularMarketPrice") or 0)
+        chart_prev = float(meta.get("chartPreviousClose") or meta.get("previousClose") or 0)
+        if live_price > 0:
+          current_val = live_price
+          if chart_prev > 0:
+            prev_close = chart_prev
           pts_change = round(current_val - prev_close, 2)
           pct_change = round((pts_change / prev_close) * 100, 2) if prev_close else 0.0
 
@@ -242,26 +251,8 @@ def sync_sensex_from_yahoo():
         cache['base_change_pts'] = round(pts_change, 2)
         cache['pct_change'] = round(pct_change, 2)
         cache['is_positive'] = pts_change >= 0
-
-        now_utc = datetime.now(timezone.utc)
-        ist_now = now_utc + timedelta(hours=5, minutes=30)
-        today_date_str = ist_now.strftime('%d %b')
-        
-        found_today = False
-        for item in cache['trend_data']:
-          if item['date'] == today_date_str:
-            item['value'] = f"{cache['value']:,.2f}"
-            item['change'] = cache['base_change_pts']
-            found_today = True
-            break
-        if not found_today:
-          cache['trend_data'].append({
-              'date': today_date_str,
-              'value': f"{cache['value']:,.2f}",
-              'change': cache['base_change_pts']
-          })
-          if len(cache['trend_data']) > 5:
-            cache['trend_data'].pop(0)
+        if trend_list:
+          cache['trend_data'] = trend_list[-5:]
 
         save_sensex_cache(cache)
     except Exception as e:
@@ -289,7 +280,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '02:02:24 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '03:06:55 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -732,7 +723,7 @@ def upload_archive():
           if not filename:
             filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
-          # Dynamically determine year and month from filename if possible
+          # Save into structured archive directory AND mirror to uploads folder for instant visibility
           f_year, f_month = extract_date_from_filename(raw_fn)
           if f_year and f_month:
             f_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
@@ -744,7 +735,7 @@ def upload_archive():
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
           
-          # Mirror into uploads folder for universal accessibility
+          # Mirror file to uploads folder so dropdown queries instantly find it
           upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
           shutil.copy(file_path, upload_mirror_path)
           
@@ -818,9 +809,13 @@ def get_archive_files():
               month_ok = (not month_input) or any(kw in f_low or kw in root_low for kw in keywords)
               
               if year_ok and month_ok:
-                if '10' in keywords and ('07-' in f_low or '_07_' in f_low or '/07/' in root_low or '10-07' in f_low):
-                  continue
                 matched_files.add(f)
+
+    # Universal Fallback: If strict matching misses anything, return all image files in uploads so dropdown is never empty
+    if not matched_files and os.path.exists(UPLOAD_FOLDER):
+      for f in os.listdir(UPLOAD_FOLDER):
+        if f.lower().endswith(('.jpg', '.jpeg', '.png')) and f != 'latest_nav.jpg':
+          matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
