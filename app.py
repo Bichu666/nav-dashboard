@@ -764,39 +764,39 @@ def get_archive_files():
   matched_files = set()
 
   month_map = {
-      'jan': ('01', 'january'), 'feb': ('02', 'february'), 'mar': ('03', 'march'),
-      'apr': ('04', 'april'), 'may': ('05', 'may'), 'jun': ('06', 'june'),
-      'jul': ('07', 'july'), 'aug': ('08', 'august'), 'sep': ('09', 'september'),
-      'oct': ('10', 'october'), 'nov': ('11', 'november'), 'dec': ('12', 'december')
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
   }
-  
-  target_m_num, target_m_name = month_map.get(month_input[:3], ('10', 'october'))
+  target_m_num = month_map.get(month_input[:3], '10')
 
   try:
-    if year:
-      target_archive_dir = os.path.join(ARCHIVE_FOLDER, year, f'{target_m_num}_{target_m_name.capitalize()}')
-      if os.path.exists(target_archive_dir):
-        for f in os.listdir(target_archive_dir):
-          if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-            matched_files.add(f)
-
     search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
     for s_dir in search_dirs:
       if os.path.exists(s_dir):
         for root, dirs, files in os.walk(s_dir):
           for f in files:
-            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
-              if f == 'latest_nav.jpg':
+            if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
+              continue
+            
+            clean_name = os.path.splitext(f)[0]
+            parts = re.split(r'[-_.]', clean_name)
+            
+            # Match DD-MM-YYYY pattern strictly
+            if len(parts) >= 3 and len(parts[0]) <= 2 and len(parts[1]) <= 2 and len(parts[2]) == 4:
+              f_day, f_month, f_year = parts[0].zfill(2), parts[1].zfill(2), parts[2]
+              
+              if year and f_year != year:
+                continue
+              if month_input and f_month != target_m_num:
                 continue
               
-              f_low = f.lower()
-              root_low = root.lower()
-              
-              year_match = (not year) or (year in f_low) or (year in root_low)
-              month_match = (not month_input) or (target_m_num in f_low or target_m_name in f_low or target_m_num in root_low or target_m_name in root_low)
-              
-              if year_match and month_match:
-                matched_files.add(f)
+              matched_files.add(f)
+            else:
+              # Secondary check for folder structured names
+              if year and (year in f or year in root):
+                if month_input and (f'/{target_m_num}_' in root.lower() or f'_{target_m_num}_' in f.lower()):
+                  matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
