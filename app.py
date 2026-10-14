@@ -166,17 +166,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 73112.39,
-    'base_change_pts': 78.61,
-    'pct_change': 0.11,
-    'is_positive': True,
-    'last_close_time': '11:00:08 AM GMT+5:30',
+    'value': 72862.10,
+    'base_change_pts': -171.68,
+    'pct_change': -0.24,
+    'is_positive': False,
+    'last_close_time': '02:02:24 PM GMT+5:30',
     'trend_data': [
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '73,112.39', 'change': 78.61},
+        {'date': '14 Oct', 'value': '72,862.10', 'change': -171.68},
     ]
 }
 
@@ -210,9 +210,9 @@ def sync_sensex_from_yahoo():
       pts_change = 0
       pct_change = 0
 
-      # Fetch direct live chart quotation from Yahoo Finance API
+      # Strict live query to Yahoo Finance chart API
       url = "https://query1.finance.yahoo.com/v8/finance/chart/%5EBSESN?interval=1m&range=1d"
-      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+      headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
       resp = requests.get(url, headers=headers, timeout=5)
       if resp.status_code == 200:
         result = resp.json()["chart"]["result"][0]
@@ -289,7 +289,7 @@ def get_sensex_data():
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '11:00:08 AM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '02:02:24 PM GMT+5:30')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -723,9 +723,6 @@ def upload_archive():
       }
       m_num, full_month_name = month_map.get(month_input[:3], ('10', 'October'))
 
-      target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
-      os.makedirs(target_dir, exist_ok=True)
-
       saved_count = 0
       files = request.files.getlist('archive_files')
       for file in files:
@@ -735,17 +732,26 @@ def upload_archive():
           if not filename:
             filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
+          # Dynamically determine year and month from filename if possible
+          f_year, f_month = extract_date_from_filename(raw_fn)
+          if f_year and f_month:
+            f_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
+            target_dir = os.path.join(ARCHIVE_FOLDER, f_year, f'{f_num_map.get(f_month, m_num)}_{f_month}')
+          else:
+            target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
+
+          os.makedirs(target_dir, exist_ok=True)
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
           
-          # Also mirror into uploads folder so old archive files are instantly accessible
+          # Mirror into uploads folder for universal accessibility
           upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
           shutil.copy(file_path, upload_mirror_path)
           
           saved_count += 1
 
       if saved_count > 0:
-        flash(f'Successfully uploaded {saved_count} file(s) to {year}/{full_month_name} and mirrored to uploads!', 'success')
+        flash(f'Successfully uploaded {saved_count} archive file(s) and synced to folders!', 'success')
       else:
         flash('No files selected for archive upload.', 'warning')
     except Exception as e:
@@ -808,14 +814,10 @@ def get_archive_files():
               f_low = f.lower()
               root_low = root.lower()
               
-              # Check year
               year_ok = (not year) or (year in f_low) or (year in root_low)
-              
-              # Check month keywords or numeric match (e.g. '10' for October)
               month_ok = (not month_input) or any(kw in f_low or kw in root_low for kw in keywords)
               
               if year_ok and month_ok:
-                # Ensure July files aren't accidentally pulled when searching October
                 if '10' in keywords and ('07-' in f_low or '_07_' in f_low or '/07/' in root_low or '10-07' in f_low):
                   continue
                 matched_files.add(f)
