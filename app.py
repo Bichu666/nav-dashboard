@@ -139,23 +139,26 @@ def daily_scheduler():
   last_8am_sent = None
   last_10pm_sent = None
   while True:
-    now_utc = datetime.now(timezone.utc)
-    ist_now = now_utc + timedelta(hours=5, minutes=30)
-    current_date = ist_now.date()
-    current_hour = ist_now.hour
-    current_minute = ist_now.minute
+    try:
+      now_utc = datetime.now(timezone.utc)
+      ist_now = now_utc + timedelta(hours=5, minutes=30)
+      current_date = ist_now.date()
+      current_hour = ist_now.hour
+      current_minute = ist_now.minute
 
-    if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
-      body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
-      send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
-      last_8am_sent = current_date
+      if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
+        body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
+        send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
+        last_8am_sent = current_date
 
-    if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
-      user_summary = "Here is the daily summary of registered users and their details:\n\n"
-      for u in REGISTERED_USERS:
-        user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
-      send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
-      last_10pm_sent = current_date
+      if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
+        user_summary = "Here is the daily summary of registered users and their details:\n\n"
+        for u in REGISTERED_USERS:
+          user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
+        send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
+        last_10pm_sent = current_date
+    except Exception as e:
+      print(f"Scheduler error: {e}")
 
     time.sleep(30)
 
@@ -213,28 +216,20 @@ def sync_sensex_from_yahoo():
 
       ticker = yf.Ticker("^BSESN")
       try:
-        fi = ticker.fast_info
-        if hasattr(fi, 'last_price') and fi.last_price:
-          current_val = float(fi.last_price)
-        if hasattr(fi, 'previous_close') and fi.previous_close:
-          prev_close = float(fi.previous_close)
-      except Exception:
-        pass
-
-      hist = ticker.history(period="5d", interval="1d")
-      if hist is not None and not hist.empty:
-        if not current_val:
+        hist = ticker.history(period="5d", interval="1d")
+        if hist is not None and not hist.empty:
           current_val = float(hist['Close'].iloc[-1])
-        if not prev_close:
           prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
 
-        for idx, row in hist.iterrows():
-          d_str = idx.strftime('%d %b')
-          trend_list.append({
-              'date': d_str,
-              'value': f"{row['Close']:,.2f}",
-              'change': round(float(row['Close'] - row['Open']), 2)
-          })
+          for idx, row in hist.iterrows():
+            d_str = idx.strftime('%d %b')
+            trend_list.append({
+                'date': d_str,
+                'value': f"{row['Close']:,.2f}",
+                'change': round(float(row['Close'] - row['Open']), 2)
+            })
+      except Exception as ex:
+        print(f"yfinance fetch warning: {ex}")
 
       if current_val > 0:
         if prev_close > 0:
@@ -251,9 +246,9 @@ def sync_sensex_from_yahoo():
 
         save_sensex_cache(cache)
     except Exception as e:
-      print(f"Sensex sync error: {e}")
+      print(f"Sensex sync background error: {e}")
 
-    time.sleep(15)
+    time.sleep(60)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -778,7 +773,6 @@ def get_archive_files():
   target_m_num, target_m_name = month_map.get(month_input[:3], ('10', 'october'))
 
   try:
-    # 1. Check structured archive folder specifically for the selected year and month
     if year:
       target_archive_dir = os.path.join(ARCHIVE_FOLDER, year, f'{target_m_num}_{target_m_name.capitalize()}')
       if os.path.exists(target_archive_dir):
@@ -786,7 +780,6 @@ def get_archive_files():
           if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
             matched_files.add(f)
 
-    # 2. Strict pattern matching across archive and upload folders based on filename dates/extensions
     search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
     for s_dir in search_dirs:
       if os.path.exists(s_dir):
@@ -825,4 +818,17 @@ def view_archive_file(filename):
 def download_latest_nav():
   latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
   if os.path.exists(latest_path):
-    return send_from_directory(app.config['UPLOAD_FOLDER'],
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
