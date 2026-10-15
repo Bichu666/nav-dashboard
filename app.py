@@ -211,7 +211,7 @@ DEFAULT_SENSEX_CACHE = {
         {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
         {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
-        {'date': '15 Oct', 'value': '74,315.61', 'change': 1349.81},
+        {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
     ]
 }
 
@@ -234,19 +234,13 @@ def save_sensex_cache(cache_data):
     pass
 
 
-if not os.path.exists(CACHE_FILE):
-  save_sensex_cache(DEFAULT_SENSEX_CACHE)
+# Force overwrite old cache on startup to clear bad points
+save_sensex_cache(DEFAULT_SENSEX_CACHE)
 
 
 def sync_sensex_from_yahoo():
   while True:
     try:
-      current_val = 0
-      prev_close = 0
-      pts_change = 0
-      pct_change = 0
-      trend_list = []
-
       url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
       headers = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -258,6 +252,9 @@ def sync_sensex_from_yahoo():
         meta = result['meta']
         current_val = float(meta['regularMarketPrice'])
         prev_close = float(meta['chartPreviousClose'])
+
+        pts_change = round(current_val - prev_close, 2)
+        pct_change = round((pts_change / prev_close) * 100, 2)
 
         timestamps = result['timestamp']
         quotes = result['indicators']['quote'][0]['close']
@@ -271,6 +268,7 @@ def sync_sensex_from_yahoo():
                 'close': float(quotes[i])
             })
 
+        trend_list = []
         for idx in range(len(valid_entries)):
           curr = valid_entries[idx]
           if idx > 0:
@@ -284,10 +282,6 @@ def sync_sensex_from_yahoo():
               'value': f"{curr['close']:,.2f}",
               'change': chg
           })
-
-      if current_val > 0 and prev_close > 0:
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2)
 
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
