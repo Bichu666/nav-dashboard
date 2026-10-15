@@ -7,7 +7,6 @@ import shutil
 import threading
 import time
 import pandas as pd
-import yfinance as yf
 import requests
 from flask import (
     Flask,
@@ -202,17 +201,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72779.17,
-    'base_change_pts': -254.61,
-    'pct_change': -0.35,
-    'is_positive': False,
+    'value': 73661.69,
+    'base_change_pts': 879.80,
+    'pct_change': 1.21,
+    'is_positive': True,
     'last_close_time': '03:28:40 PM GMT+5:30',
     'trend_data': [
         {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
         {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
         {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '72,779.17', 'change': -254.61},
+        {'date': '14 Oct', 'value': '73,661.69', 'change': 879.80},
     ]
 }
 
@@ -248,26 +247,32 @@ def sync_sensex_from_yahoo():
       pct_change = 0
       trend_list = []
 
-      ticker = yf.Ticker("^BSESN")
-      session_req = requests.Session()
-      session_req.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      ticker.session = session_req
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=5d&interval=1d"
+      headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+      response = requests.get(url, headers=headers, timeout=10)
+      if response.status_code == 200:
+        data = response.json()
+        result = data['chart']['result'][0]
+        meta = result['meta']
+        current_val = float(meta['regularMarketPrice'])
+        prev_close = float(meta['chartPreviousClose'])
 
-      try:
-        hist = ticker.history(period="5d", interval="1d")
-        if hist is not None and not hist.empty:
-          current_val = float(hist['Close'].iloc[-1])
-          prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+        timestamps = result['timestamp']
+        quotes = result['indicators']['quote'][0]['close']
+        opens = result['indicators']['quote'][0]['open']
 
-          for idx, row in hist.iterrows():
-            d_str = idx.strftime('%d %b')
+        for i in range(len(timestamps)):
+          if quotes[i] is not None:
+            dt = datetime.fromtimestamp(timestamps[i])
+            d_str = dt.strftime('%d %b')
+            open_val = opens[i] if opens[i] is not None else quotes[i]
             trend_list.append({
                 'date': d_str,
-                'value': f"{row['Close']:,.2f}",
-                'change': round(float(row['Close'] - row['Open']), 2)
+                'value': f"{quotes[i]:,.2f}",
+                'change': round(float(quotes[i] - open_val), 2)
             })
-      except Exception as ex:
-        print(f"yfinance fetch warning: {ex}")
 
       if current_val > 0:
         if prev_close > 0:
