@@ -201,17 +201,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 73661.69,
-    'base_change_pts': 879.80,
-    'pct_change': 1.21,
+    'value': 74315.61,
+    'base_change_pts': 1533.72,
+    'pct_change': 2.11,
     'is_positive': True,
     'last_close_time': '03:28:40 PM GMT+5:30',
     'trend_data': [
-        {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
-        {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '73,661.69', 'change': 879.80},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': 695.66},
+        {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
+        {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
+        {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
+        {'date': '15 Oct', 'value': '74,315.61', 'change': 1349.81},
     ]
 }
 
@@ -247,7 +247,7 @@ def sync_sensex_from_yahoo():
       pct_change = 0
       trend_list = []
 
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=5d&interval=1d"
+      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
       headers = {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
@@ -261,23 +261,33 @@ def sync_sensex_from_yahoo():
 
         timestamps = result['timestamp']
         quotes = result['indicators']['quote'][0]['close']
-        opens = result['indicators']['quote'][0]['open']
 
+        valid_entries = []
         for i in range(len(timestamps)):
           if quotes[i] is not None:
             dt = datetime.fromtimestamp(timestamps[i])
-            d_str = dt.strftime('%d %b')
-            open_val = opens[i] if opens[i] is not None else quotes[i]
-            trend_list.append({
-                'date': d_str,
-                'value': f"{quotes[i]:,.2f}",
-                'change': round(float(quotes[i] - open_val), 2)
+            valid_entries.append({
+                'date': dt.strftime('%d %b'),
+                'close': float(quotes[i])
             })
 
-      if current_val > 0:
-        if prev_close > 0:
-          pts_change = round(current_val - prev_close, 2)
-          pct_change = round((pts_change / prev_close) * 100, 2)
+        for idx in range(len(valid_entries)):
+          curr = valid_entries[idx]
+          if idx > 0:
+            prev_c = valid_entries[idx - 1]['close']
+            chg = round(curr['close'] - prev_c, 2)
+          else:
+            chg = 0.0
+
+          trend_list.append({
+              'date': curr['date'],
+              'value': f"{curr['close']:,.2f}",
+              'change': chg
+          })
+
+      if current_val > 0 and prev_close > 0:
+        pts_change = round(current_val - prev_close, 2)
+        pct_change = round((pts_change / prev_close) * 100, 2)
 
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
