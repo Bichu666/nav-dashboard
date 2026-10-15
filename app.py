@@ -249,6 +249,10 @@ def sync_sensex_from_yahoo():
       trend_list = []
 
       ticker = yf.Ticker("^BSESN")
+      session_req = requests.Session()
+      session_req.headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      ticker.session = session_req
+
       try:
         hist = ticker.history(period="5d", interval="1d")
         if hist is not None and not hist.empty:
