@@ -591,4 +591,29 @@
 
         document.getElementById('btn-view-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
-            if (!filename) { alert('Please
+            if (!filename) {
+                alert('Please select a specific date/file first.');
+                return;
+            }
+            window.open('/view-archive-file/' + filename, '_blank');
+        });
+
+        document.getElementById('btn-download-archive').addEventListener('click', function() {
+            const filename = document.getElementById('archive-file-select').value;
+            if (!filename) {
+                alert('Please select a specific date/file first.');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = '/view-archive-file/' + filename;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Automatically load archive files on page load
+        loadArchiveFiles();
+    </script>
+</body>
+</html>
