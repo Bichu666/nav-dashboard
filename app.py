@@ -248,22 +248,67 @@ def sync_sensex_from_yahoo():
       pct_change = 0
       trend_list = []
 
-      ticker = yf.Ticker("^BSESN")
+      # Try direct requests to Yahoo Finance V8 Chart API first
       try:
-        hist = ticker.history(period="5d", interval="1d")
-        if hist is not None and not hist.empty:
-          current_val = float(hist['Close'].iloc[-1])
-          prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+          data = response.json()
+          result = data['chart']['result'][0]
+          meta = result['meta']
 
-          for idx, row in hist.iterrows():
-            d_str = idx.strftime('%d %b')
+          current_val = float(meta['regularMarketPrice'])
+          prev_close = float(meta['chartPreviousClose'])
+
+          timestamps = result['timestamp']
+          quotes = result['indicators']['quote'][0]['close']
+
+          valid_entries = []
+          for i in range(len(timestamps)):
+            if quotes[i] is not None:
+              dt = datetime.fromtimestamp(timestamps[i])
+              valid_entries.append({
+                  'date': dt.strftime('%d %b'),
+                  'close': float(quotes[i])
+              })
+
+          for idx in range(len(valid_entries)):
+            curr = valid_entries[idx]
+            if idx > 0:
+              prev_c = valid_entries[idx - 1]['close']
+              chg = round(curr['close'] - prev_c, 2)
+            else:
+              chg = 0.0
+
             trend_list.append({
-                'date': d_str,
-                'value': f"{row['Close']:,.2f}",
-                'change': round(float(row['Close'] - row['Open']), 2)
+                'date': curr['date'],
+                'value': f"{curr['close']:,.2f}",
+                'change': chg
             })
       except Exception as ex:
-        print(f"yfinance fetch warning: {ex}")
+        print(f"Direct Yahoo API fetch warning: {ex}")
+
+      # Fallback to yfinance if direct request didn't return values
+      if current_val == 0:
+        try:
+          ticker = yf.Ticker("^BSESN")
+          hist = ticker.history(period="5d", interval="1d")
+          if hist is not None and not hist.empty:
+            current_val = float(hist['Close'].iloc[-1])
+            prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
+
+            for idx, row in hist.iterrows():
+              d_str = idx.strftime('%d %b')
+              trend_list.append({
+                  'date': d_str,
+                  'value': f"{row['Close']:,.2f}",
+                  'change': round(float(row['Close'] - row['Open']), 2)
+              })
+        except Exception as ex2:
+          print(f"yfinance fetch warning: {ex2}")
 
       if current_val > 0:
         if prev_close > 0:
@@ -804,13 +849,14 @@ def get_archive_files():
       'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
   }
   month_full_map = {
-      'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april',
+      'jan': 'september' if month_input.startswith('sep') else 'january',
+      'feb': 'february', 'mar': 'march', 'apr': 'april',
       'may': 'may', 'jun': 'june', 'jul': 'july', 'aug': 'august',
       'sep': 'september', 'oct': 'october', 'nov': 'november', 'dec': 'december'
   }
   
   target_m_num = month_num_map.get(month_input[:3], '')
-  target_m_name = month_full_map.get(month_input[:3], '')
+  target_m_name = month_full_map.get(month_input[:3], month_input)
 
   try:
     search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
@@ -822,24 +868,20 @@ def get_archive_files():
               continue
             
             f_lower = f.lower()
-            root_lower = root.lower()
+            root_lower = root.lower().replace('\\', '/')
 
-            # Year Check
             if year and (year not in f_lower and year not in root_lower):
               continue
 
-            # Month Check
             if month_input:
-              matches_month = (
-                  target_m_name in root_lower or
+              is_in_path = target_m_name in root_lower or f'/{target_m_name}' in root_lower
+              is_in_filename = (
                   target_m_name in f_lower or
-                  f'{target_m_num}_' in root_lower or
-                  f'_{target_m_num}_' in root_lower or
                   f'-{target_m_num}-' in f_lower or
                   f'_{target_m_num}_' in f_lower or
                   f'.{target_m_num}.' in f_lower
               )
-              if not matches_month:
+              if not (is_in_path or is_in_filename):
                 continue
 
             matched_files.add(f)
