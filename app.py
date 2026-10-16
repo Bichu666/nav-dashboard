@@ -124,19 +124,59 @@ def get_festival_greeting():
   y = ist_now.year
 
   festivals_by_date = {
+      # 2026 Festivals
       (2026, 1, 1): "Happy New Year",
+      (2026, 1, 14): "Happy Makar Sankranti / Pongal",
       (2026, 1, 26): "Happy Republic Day",
+      (2026, 2, 15): "Happy Maha Shivaratri",
+      (2026, 3, 4): "Happy Holi",
+      (2026, 3, 19): "Happy Ugadi / Gudi Padwa",
+      (2026, 3, 26): "Happy Rama Navami",
+      (2026, 3, 31): "Happy Mahavir Jayanti",
+      (2026, 4, 3): "Happy Good Friday",
+      (2026, 4, 14): "Happy Vishu",
+      (2026, 5, 1): "Happy Buddha Purnima",
       (2026, 8, 15): "Happy Independence Day",
-      (2026, 9, 4): "Happy Onam",
+      (2026, 8, 28): "Happy Raksha Bandhan",
+      (2026, 9, 4): "Happy Krishna Janmashtami",
+      (2026, 9, 14): "Happy Ganesh Chaturthi",
+      (2026, 10, 2): "Happy Mahatma Gandhi Jayanti",
+      (2026, 10, 20): "Happy Dussehra",
       (2026, 11, 8): "Happy Diwali",
+      (2026, 11, 24): "Happy Guru Nanak Jayanti",
       (2026, 12, 25): "Merry Christmas",
 
+      # 2027 Festivals
       (2027, 1, 1): "Happy New Year",
+      (2027, 1, 15): "Happy Makar Sankranti / Pongal",
       (2027, 1, 26): "Happy Republic Day",
+      (2027, 2, 11): "Happy Vasant Panchami",
+      (2027, 2, 19): "Happy Shivaji Maharaj Jayanti",
+      (2027, 3, 6): "Happy Maha Shivaratri",
+      (2027, 3, 10): "Happy Eid al-Fitr",
       (2027, 3, 22): "Happy Holi",
+      (2027, 3, 26): "Happy Good Friday",
+      (2027, 4, 7): "Happy Ugadi / Gudi Padwa",
+      (2027, 4, 14): "Happy Baisakhi / Ambedkar Jayanti",
+      (2027, 4, 15): "Happy Rama Navami",
+      (2027, 4, 19): "Happy Mahavir Jayanti",
+      (2027, 5, 1): "Happy Labour Day",
+      (2027, 5, 17): "Happy Eid al-Adha",
+      (2027, 5, 20): "Happy Buddha Purnima",
+      (2027, 6, 16): "Happy Muharram",
+      (2027, 7, 5): "Happy Rathyatra",
       (2027, 8, 15): "Happy Independence Day",
+      (2027, 8, 17): "Happy Raksha Bandhan",
+      (2027, 8, 25): "Happy Janmashtami",
+      (2027, 9, 4): "Happy Ganesh Chaturthi",
       (2027, 9, 12): "Happy Onam",
+      (2027, 10, 2): "Happy Mahatma Gandhi Jayanti",
+      (2027, 10, 9): "Happy Dussehra",
+      (2027, 10, 18): "Happy Karwa Chauth",
       (2027, 10, 29): "Happy Diwali",
+      (2027, 10, 31): "Happy Bhaiya Dooj",
+      (2027, 11, 4): "Happy Chhath Puja",
+      (2027, 11, 14): "Happy Guru Nanak Jayanti",
       (2027, 12, 25): "Merry Christmas",
   }
 
@@ -202,17 +242,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 72779.17,
-    'base_change_pts': -254.61,
-    'pct_change': -0.35,
-    'is_positive': False,
-    'last_close_time': '03:28:40 PM GMT+5:30',
+    'value': 74315.61,
+    'base_change_pts': 1533.72,
+    'pct_change': 2.11,
+    'is_positive': True,
+    'last_close_time': '01:11:27 AM IST',
     'trend_data': [
-        {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
-        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
-        {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
-        {'date': '14 Oct', 'value': '72,779.17', 'change': -254.61},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': 695.66},
+        {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
+        {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
+        {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
+        {'date': '15 Oct', 'value': '74,315.61', 'change': 1349.81},
     ]
 }
 
@@ -221,7 +261,23 @@ def load_sensex_cache():
   try:
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r') as f:
-        return json.load(f)
+        data = json.load(f)
+        if 'live_price' in data and 'value' not in data:
+          data['value'] = data['live_price']
+          data['base_change_pts'] = data.get('change_pts', 0)
+          data['pct_change'] = data.get('change_pct', 0)
+          data['is_positive'] = data['base_change_pts'] >= 0
+          data['last_close_time'] = data.get('timestamp', 'At close')
+          if 'historical_5days' in data:
+            trend = []
+            for item in data['historical_5days']:
+              trend.append({
+                  'date': item.get('date', ''),
+                  'value': f"{item.get('close', 0):,.2f}",
+                  'change': item.get('change', 0)
+              })
+            data['trend_data'] = trend
+        return data
   except Exception:
     pass
   return DEFAULT_SENSEX_CACHE.copy()
@@ -340,14 +396,14 @@ def get_sensex_data():
 
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
-  current_val = cache['value']
-  pts_change = cache['base_change_pts']
-  pct_change = cache['pct_change']
+  current_val = cache.get('value', 74315.61)
+  pts_change = cache.get('base_change_pts', 0)
+  pct_change = cache.get('pct_change', 0)
 
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '03:28:40 PM GMT+5:30')}"
+    time_label = f"At close: {cache.get('last_close_time', '01:11:27 AM IST')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -356,7 +412,7 @@ def get_sensex_data():
       'time_label': time_label,
       'is_market_open': is_market_open,
   }
-  return live_info, cache['trend_data']
+  return live_info, cache.get('trend_data', [])
 
 
 @app.route('/api/sensex-live')
