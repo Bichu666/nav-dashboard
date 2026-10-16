@@ -116,6 +116,40 @@ def check_user_validity(user):
       user['registered_at'] = now
 
 
+def get_festival_greeting():
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  m = ist_now.month
+  d = ist_now.day
+  y = ist_now.year
+
+  festivals_by_date = {
+      (2026, 1, 1): "Happy New Year",
+      (2026, 1, 26): "Happy Republic Day",
+      (2026, 8, 15): "Happy Independence Day",
+      (2026, 9, 4): "Happy Onam",
+      (2026, 11, 8): "Happy Diwali",
+      (2026, 12, 25): "Merry Christmas",
+
+      (2027, 1, 1): "Happy New Year",
+      (2027, 1, 26): "Happy Republic Day",
+      (2027, 3, 22): "Happy Holi",
+      (2027, 8, 15): "Happy Independence Day",
+      (2027, 9, 12): "Happy Onam",
+      (2027, 10, 29): "Happy Diwali",
+      (2027, 12, 25): "Merry Christmas",
+  }
+
+  recurring_festivals = {
+      (1, 1): "Happy New Year",
+      (1, 26): "Happy Republic Day",
+      (8, 15): "Happy Independence Day",
+      (12, 25): "Merry Christmas",
+  }
+
+  return festivals_by_date.get((y, m, d), recurring_festivals.get((m, d), None))
+
+
 def send_email_notification(subject, body):
   sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
   sender_password = os.getenv("MAIL_PASSWORD", "")
@@ -459,6 +493,7 @@ def user_dashboard():
 
   sensex_info, sensex_trend_data = get_sensex_data()
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+  festival_greeting = get_festival_greeting()
 
   latest_data_updated = False
   try:
@@ -484,6 +519,7 @@ def user_dashboard():
       debt_data=parse_fund_excel_from_db('debt_funds'),
       latest_data_updated=latest_data_updated,
       admin_online=admin_online,
+      festival_greeting=festival_greeting,
   )
 
 
@@ -537,6 +573,8 @@ def admin_dashboard():
     check_user_validity(user)
 
   sensex_info, sensex_trend_data = get_sensex_data()
+  festival_greeting = get_festival_greeting()
+
   return render_template(
       'admin_dashboard.html',
       sensex=sensex_info,
@@ -548,6 +586,7 @@ def admin_dashboard():
       debt_data=parse_fund_excel_from_db('debt_funds'),
       auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
+      festival_greeting=festival_greeting,
   )
 
 
@@ -782,7 +821,6 @@ def get_archive_files():
             clean_name = os.path.splitext(f)[0]
             parts = re.split(r'[-_.]', clean_name)
             
-            # Match DD-MM-YYYY pattern strictly
             if len(parts) >= 3 and len(parts[0]) <= 2 and len(parts[1]) <= 2 and len(parts[2]) == 4:
               f_day, f_month, f_year = parts[0].zfill(2), parts[1].zfill(2), parts[2]
               
@@ -793,7 +831,6 @@ def get_archive_files():
               
               matched_files.add(f)
             else:
-              # Secondary check for folder structured names
               if year and (year in f or year in root):
                 if month_input and (f'/{target_m_num}_' in root.lower() or f'_{target_m_num}_' in f.lower()):
                   matched_files.add(f)
