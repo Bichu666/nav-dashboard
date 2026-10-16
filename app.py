@@ -242,17 +242,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 74315.61,
-    'base_change_pts': 1533.72,
-    'pct_change': 2.11,
+    'value': 74729.27,
+    'base_change_pts': 413.66,
+    'pct_change': 0.56,
     'is_positive': True,
-    'last_close_time': '01:11:27 AM IST',
+    'last_close_time': '04:00:00 PM IST',
     'trend_data': [
-        {'date': '09 Oct', 'value': '72,472.33', 'change': 695.66},
         {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
         {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
         {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
-        {'date': '15 Oct', 'value': '74,315.61', 'change': 1349.81},
+        {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
+        {'date': '16 Oct', 'value': '74,729.27', 'change': 413.66},
     ]
 }
 
@@ -396,14 +396,14 @@ def get_sensex_data():
 
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
-  current_val = cache.get('value', 74315.61)
+  current_val = cache.get('value', 74729.27)
   pts_change = cache.get('base_change_pts', 0)
   pct_change = cache.get('pct_change', 0)
 
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '01:11:27 AM IST')}"
+    time_label = f"At close: {cache.get('last_close_time', '04:00:00 PM IST')}"
 
   live_info = {
       'value': f'{current_val:,.2f}',
