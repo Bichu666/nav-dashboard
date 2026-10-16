@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import json
 import os
-import random
 import re
 import shutil
 import threading
@@ -118,9 +117,7 @@ def check_user_validity(user):
 def get_festival_greeting():
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  m = ist_now.month
-  d = ist_now.day
-  y = ist_now.year
+  m, d, y = ist_now.month, ist_now.day, ist_now.year
 
   festivals_by_date = {
       (2026, 1, 1): "Happy New Year",
@@ -129,24 +126,8 @@ def get_festival_greeting():
       (2026, 9, 4): "Happy Onam",
       (2026, 11, 8): "Happy Diwali",
       (2026, 12, 25): "Merry Christmas",
-
-      (2027, 1, 1): "Happy New Year",
-      (2027, 1, 26): "Happy Republic Day",
-      (2027, 3, 22): "Happy Holi",
-      (2027, 8, 15): "Happy Independence Day",
-      (2027, 9, 12): "Happy Onam",
-      (2027, 10, 29): "Happy Diwali",
-      (2027, 12, 25): "Merry Christmas",
   }
-
-  recurring_festivals = {
-      (1, 1): "Happy New Year",
-      (1, 26): "Happy Republic Day",
-      (8, 15): "Happy Independence Day",
-      (12, 25): "Merry Christmas",
-  }
-
-  return festivals_by_date.get((y, m, d), recurring_festivals.get((m, d), None))
+  return festivals_by_date.get((y, m, d), None)
 
 
 CACHE_FILE = 'sensex_cache.json'
@@ -197,6 +178,7 @@ def sync_sensex_from_yahoo():
         data = response.json()
         result = data['chart']['result'][0]
         meta = result['meta']
+
         current_val = float(meta['regularMarketPrice'])
         prev_close = float(meta['chartPreviousClose'])
 
@@ -242,7 +224,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync background error: {e}")
 
-    time.sleep(30)
+    time.sleep(15)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -338,6 +320,15 @@ def is_today_filename(filename, upload_timestamp=None):
   for pattern in today_patterns:
     if pattern in fn:
       return True
+
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
   return False
 
 
@@ -419,12 +410,6 @@ def pending_approval():
 @app.route('/user-dashboard')
 def user_dashboard():
   mobile = session.get('mobile', '')
-  user_record = next(
-      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
-  )
-  if not user_record:
-    return redirect(url_for('login'))
-
   sensex_info, sensex_trend_data = get_sensex_data()
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
   festival_greeting = get_festival_greeting()
@@ -475,7 +460,7 @@ def admin_login():
 def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   for user in REGISTERED_USERS:
@@ -524,7 +509,7 @@ def upload_nav():
     if file and file.filename != '':
       filename = secure_filename(file.filename)
       file_bytes = file.read()
-      
+
       with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'wb') as f:
         f.write(file_bytes)
       with open(os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg'), 'wb') as f:
