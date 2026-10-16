@@ -707,9 +707,7 @@ def upload_nav():
           }, mf)
 
         target_year, target_month = extract_date_from_filename(raw_fn)
-        month_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
-        m_num = month_num_map.get(target_month, '10')
-        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, f'{m_num}_{target_month}')
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
         archive_file_path = os.path.join(archive_target_dir, filename)
         with open(archive_file_path, 'wb') as f:
@@ -736,12 +734,12 @@ def upload_archive():
       month_input = request.form.get('archive_month', 'Oct').strip().lower()
 
       month_map = {
-          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
-          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
-          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
-          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
+          'jan': 'January', 'feb': 'February', 'mar': 'March',
+          'apr': 'April', 'may': 'May', 'jun': 'June',
+          'jul': 'July', 'aug': 'August', 'sep': 'September',
+          'oct': 'October', 'nov': 'November', 'dec': 'December'
       }
-      m_num, full_month_name = month_map.get(month_input[:3], ('10', 'October'))
+      full_month_name = month_map.get(month_input[:3], 'October')
 
       saved_count = 0
       files = request.files.getlist('archive_files')
@@ -753,12 +751,10 @@ def upload_archive():
             filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
           f_year, f_month = extract_date_from_filename(raw_fn)
-          if f_year and f_month:
-            f_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
-            target_dir = os.path.join(ARCHIVE_FOLDER, f_year, f'{f_num_map.get(f_month, m_num)}_{f_month}')
-          else:
-            target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
+          target_year = f_year if f_year else year
+          target_month = f_month if f_month else full_month_name
 
+          target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
           os.makedirs(target_dir, exist_ok=True)
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
@@ -802,12 +798,19 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
-  month_map = {
+  month_num_map = {
       'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
       'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
       'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
   }
-  target_m_num = month_map.get(month_input[:3], '10')
+  month_full_map = {
+      'jan': 'january', 'feb': 'february', 'mar': 'march', 'apr': 'april',
+      'may': 'may', 'jun': 'june', 'jul': 'july', 'aug': 'august',
+      'sep': 'september', 'oct': 'october', 'nov': 'november', 'dec': 'december'
+  }
+  
+  target_m_num = month_num_map.get(month_input[:3], '')
+  target_m_name = month_full_map.get(month_input[:3], '')
 
   try:
     search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
@@ -818,22 +821,28 @@ def get_archive_files():
             if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
               continue
             
-            clean_name = os.path.splitext(f)[0]
-            parts = re.split(r'[-_.]', clean_name)
-            
-            if len(parts) >= 3 and len(parts[0]) <= 2 and len(parts[1]) <= 2 and len(parts[2]) == 4:
-              f_day, f_month, f_year = parts[0].zfill(2), parts[1].zfill(2), parts[2]
-              
-              if year and f_year != year:
+            f_lower = f.lower()
+            root_lower = root.lower()
+
+            # Year Check
+            if year and (year not in f_lower and year not in root_lower):
+              continue
+
+            # Month Check
+            if month_input:
+              matches_month = (
+                  target_m_name in root_lower or
+                  target_m_name in f_lower or
+                  f'{target_m_num}_' in root_lower or
+                  f'_{target_m_num}_' in root_lower or
+                  f'-{target_m_num}-' in f_lower or
+                  f'_{target_m_num}_' in f_lower or
+                  f'.{target_m_num}.' in f_lower
+              )
+              if not matches_month:
                 continue
-              if month_input and f_month != target_m_num:
-                continue
-              
-              matched_files.add(f)
-            else:
-              if year and (year in f or year in root):
-                if month_input and (f'/{target_m_num}_' in root.lower() or f'_{target_m_num}_' in f.lower()):
-                  matched_files.add(f)
+
+            matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
