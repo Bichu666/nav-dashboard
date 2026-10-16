@@ -7,7 +7,6 @@ import shutil
 import threading
 import time
 import pandas as pd
-import yfinance as yf
 import requests
 from flask import (
     Flask,
@@ -261,23 +260,7 @@ def load_sensex_cache():
   try:
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r') as f:
-        data = json.load(f)
-        if 'live_price' in data and 'value' not in data:
-          data['value'] = data['live_price']
-          data['base_change_pts'] = data.get('change_pts', 0)
-          data['pct_change'] = data.get('change_pct', 0)
-          data['is_positive'] = data['base_change_pts'] >= 0
-          data['last_close_time'] = data.get('timestamp', 'At close')
-          if 'historical_5days' in data:
-            trend = []
-            for item in data['historical_5days']:
-              trend.append({
-                  'date': item.get('date', ''),
-                  'value': f"{item.get('close', 0):,.2f}",
-                  'change': item.get('change', 0)
-              })
-            data['trend_data'] = trend
-        return data
+        return json.load(f)
   except Exception:
     pass
   return DEFAULT_SENSEX_CACHE.copy()
@@ -295,98 +278,6 @@ if not os.path.exists(CACHE_FILE):
   save_sensex_cache(DEFAULT_SENSEX_CACHE)
 
 
-def sync_sensex_from_yahoo():
-  while True:
-    try:
-      current_val = 0
-      prev_close = 0
-      pts_change = 0
-      pct_change = 0
-      trend_list = []
-
-      try:
-        url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-          data = response.json()
-          result = data['chart']['result'][0]
-          meta = result['meta']
-
-          current_val = float(meta['regularMarketPrice'])
-          prev_close = float(meta['chartPreviousClose'])
-
-          timestamps = result['timestamp']
-          quotes = result['indicators']['quote'][0]['close']
-
-          valid_entries = []
-          for i in range(len(timestamps)):
-            if quotes[i] is not None:
-              dt = datetime.fromtimestamp(timestamps[i])
-              valid_entries.append({
-                  'date': dt.strftime('%d %b'),
-                  'close': float(quotes[i])
-              })
-
-          for idx in range(len(valid_entries)):
-            curr = valid_entries[idx]
-            if idx > 0:
-              prev_c = valid_entries[idx - 1]['close']
-              chg = round(curr['close'] - prev_c, 2)
-            else:
-              chg = 0.0
-
-            trend_list.append({
-                'date': curr['date'],
-                'value': f"{curr['close']:,.2f}",
-                'change': chg
-            })
-      except Exception as ex:
-        print(f"Direct Yahoo API fetch warning: {ex}")
-
-      if current_val == 0:
-        try:
-          ticker = yf.Ticker("^BSESN")
-          hist = ticker.history(period="5d", interval="1d")
-          if hist is not None and not hist.empty:
-            current_val = float(hist['Close'].iloc[-1])
-            prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
-
-            for idx, row in hist.iterrows():
-              d_str = idx.strftime('%d %b')
-              trend_list.append({
-                  'date': d_str,
-                  'value': f"{row['Close']:,.2f}",
-                  'change': round(float(row['Close'] - row['Open']), 2)
-              })
-        except Exception as ex2:
-          print(f"yfinance fetch warning: {ex2}")
-
-      if current_val > 0:
-        if prev_close > 0:
-          pts_change = round(current_val - prev_close, 2)
-          pct_change = round((pts_change / prev_close) * 100, 2)
-
-        cache = load_sensex_cache()
-        cache['value'] = round(current_val, 2)
-        cache['base_change_pts'] = round(pts_change, 2)
-        cache['pct_change'] = round(pct_change, 2)
-        cache['is_positive'] = pts_change >= 0
-        if trend_list:
-          cache['trend_data'] = trend_list[-5:]
-
-        save_sensex_cache(cache)
-    except Exception as e:
-      print(f"Sensex sync background error: {e}")
-
-    time.sleep(60)
-
-
-threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
-
-
 def get_sensex_data():
   cache = load_sensex_cache()
   now_utc = datetime.now(timezone.utc)
@@ -397,13 +288,13 @@ def get_sensex_data():
   is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
 
   current_val = cache.get('value', 74729.27)
-  pts_change = cache.get('base_change_pts', 0)
-  pct_change = cache.get('pct_change', 0)
+  pts_change = cache.get('base_change_pts', 413.66)
+  pct_change = cache.get('pct_change', 0.56)
 
   if is_market_open:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
   else:
-    time_label = f"At close: {cache.get('last_close_time', '04:00:00 PM IST')}"
+    time_label = f"At close: 04:00:00 PM IST"
 
   live_info = {
       'value': f'{current_val:,.2f}',
@@ -911,63 +802,3 @@ def get_archive_files():
       'nov': ['11', 'nov', 'november'],
       'dec': ['12', 'dec', 'december'],
   }
-
-  target_terms = month_aliases.get(month_input[:3], [month_input])
-
-  try:
-    for root, dirs, files in os.walk('.'):
-      root_lower = root.lower().replace('\\', '/')
-      
-      if '.git' in root_lower or '__pycache__' in root_lower or '.venv' in root_lower:
-        continue
-
-      for f in files:
-        if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
-          continue
-
-        f_lower = f.lower()
-
-        if year and (year not in f_lower and year not in root_lower):
-          continue
-
-        if month_input:
-          matches_month = any(term in root_lower or term in f_lower for term in target_terms)
-          if not matches_month:
-            continue
-
-        matched_files.add(f)
-
-    sorted_files = sorted(list(matched_files), reverse=True)
-    return jsonify({'success': True, 'files': sorted_files})
-  except Exception as e:
-    print(f'Error in get_archive_files: {e}')
-    return jsonify({'success': False, 'files': []})
-
-
-@app.route('/view-archive-file/<path:filename>')
-def view_archive_file(filename):
-  archive_base = ARCHIVE_FOLDER
-  for root, dirs, files in os.walk(archive_base):
-    if filename in files:
-      return send_from_directory(root, filename)
-  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-@app.route('/download-latest-nav')
-def download_latest_nav():
-  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-  if os.path.exists(latest_path):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
-  
-  try:
-    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-    if files:
-      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
-      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
-  except Exception:
-    pass
-  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
-
-
-if __name__ == '__main__':
-  app.run(debug=True)
