@@ -1,11 +1,13 @@
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import random
 import re
 import shutil
 import threading
 import time
 import pandas as pd
+import yfinance as yf
 import requests
 from flask import (
     Flask,
@@ -114,36 +116,69 @@ def check_user_validity(user):
       user['registered_at'] = now
 
 
-def get_festival_greeting():
-  now_utc = datetime.now(timezone.utc)
-  ist_now = now_utc + timedelta(hours=5, minutes=30)
-  m, d, y = ist_now.month, ist_now.day, ist_now.year
+def send_email_notification(subject, body):
+  sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
+  sender_password = os.getenv("MAIL_PASSWORD", "")
+  if not sender_password:
+    return
+  try:
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = ADMIN_EMAIL
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'plain'))
 
-  festivals_by_date = {
-      (2026, 1, 1): "Happy New Year",
-      (2026, 1, 26): "Happy Republic Day",
-      (2026, 8, 15): "Happy Independence Day",
-      (2026, 9, 4): "Happy Onam",
-      (2026, 11, 8): "Happy Diwali",
-      (2026, 12, 25): "Merry Christmas",
-  }
-  return festivals_by_date.get((y, m, d), None)
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+      server.login(sender_email, sender_password)
+      server.send_message(msg)
+  except Exception as e:
+    print(f"Failed to send email: {e}")
 
+
+def daily_scheduler():
+  last_8am_sent = None
+  last_10pm_sent = None
+  while True:
+    try:
+      now_utc = datetime.now(timezone.utc)
+      ist_now = now_utc + timedelta(hours=5, minutes=30)
+      current_date = ist_now.date()
+      current_hour = ist_now.hour
+      current_minute = ist_now.minute
+
+      if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
+        body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
+        send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
+        last_8am_sent = current_date
+
+      if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
+        user_summary = "Here is the daily summary of registered users and their details:\n\n"
+        for u in REGISTERED_USERS:
+          user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
+        send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
+        last_10pm_sent = current_date
+    except Exception as e:
+      print(f"Scheduler error: {e}")
+
+    time.sleep(30)
+
+
+threading.Thread(target=daily_scheduler, daemon=True).start()
 
 CACHE_FILE = 'sensex_cache.json'
 
 DEFAULT_SENSEX_CACHE = {
-    'value': 74595.96,
-    'base_change_pts': 280.35,
-    'pct_change': 0.38,
-    'is_positive': True,
-    'last_close_time': '10:52:10 AM GMT+5:30',
+    'value': 72779.17,
+    'base_change_pts': -254.61,
+    'pct_change': -0.35,
+    'is_positive': False,
+    'last_close_time': '03:28:40 PM GMT+5:30',
     'trend_data': [
-        {'date': '12 Oct', 'value': '71,924.68', 'change': -547.65},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 1109.10},
-        {'date': '14 Oct', 'value': '72,781.89', 'change': -251.89},
-        {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
-        {'date': '16 Oct', 'value': '74,595.96', 'change': 280.35},
+        {'date': '07 Oct', 'value': '72,638.70', 'change': -429.11},
+        {'date': '09 Oct', 'value': '72,472.33', 'change': 879.09},
+        {'date': '12 Oct', 'value': '72,976.53', 'change': 1051.85},
+        {'date': '13 Oct', 'value': '73,033.78', 'change': 561.48},
+        {'date': '14 Oct', 'value': '72,779.17', 'change': -254.61},
     ]
 }
 
@@ -166,51 +201,40 @@ def save_sensex_cache(cache_data):
     pass
 
 
+if not os.path.exists(CACHE_FILE):
+  save_sensex_cache(DEFAULT_SENSEX_CACHE)
+
+
 def sync_sensex_from_yahoo():
   while True:
     try:
-      url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
-      headers = {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-      response = requests.get(url, headers=headers, timeout=10)
-      if response.status_code == 200:
-        data = response.json()
-        result = data['chart']['result'][0]
-        meta = result['meta']
+      current_val = 0
+      prev_close = 0
+      pts_change = 0
+      pct_change = 0
+      trend_list = []
 
-        current_val = float(meta['regularMarketPrice'])
-        prev_close = float(meta['chartPreviousClose'])
+      ticker = yf.Ticker("^BSESN")
+      try:
+        hist = ticker.history(period="5d", interval="1d")
+        if hist is not None and not hist.empty:
+          current_val = float(hist['Close'].iloc[-1])
+          prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else current_val
 
-        pts_change = round(current_val - prev_close, 2)
-        pct_change = round((pts_change / prev_close) * 100, 2)
-
-        timestamps = result['timestamp']
-        quotes = result['indicators']['quote'][0]['close']
-
-        valid_entries = []
-        for i in range(len(timestamps)):
-          if quotes[i] is not None:
-            dt = datetime.fromtimestamp(timestamps[i])
-            valid_entries.append({
-                'date': dt.strftime('%d %b'),
-                'close': float(quotes[i])
+          for idx, row in hist.iterrows():
+            d_str = idx.strftime('%d %b')
+            trend_list.append({
+                'date': d_str,
+                'value': f"{row['Close']:,.2f}",
+                'change': round(float(row['Close'] - row['Open']), 2)
             })
+      except Exception as ex:
+        print(f"yfinance fetch warning: {ex}")
 
-        trend_list = []
-        for idx in range(len(valid_entries)):
-          curr = valid_entries[idx]
-          if idx > 0:
-            prev_c = valid_entries[idx - 1]['close']
-            chg = round(curr['close'] - prev_c, 2)
-          else:
-            chg = 0.0
-
-          trend_list.append({
-              'date': curr['date'],
-              'value': f"{curr['close']:,.2f}",
-              'change': chg
-          })
+      if current_val > 0:
+        if prev_close > 0:
+          pts_change = round(current_val - prev_close, 2)
+          pct_change = round((pts_change / prev_close) * 100, 2)
 
         cache = load_sensex_cache()
         cache['value'] = round(current_val, 2)
@@ -224,7 +248,7 @@ def sync_sensex_from_yahoo():
     except Exception as e:
       print(f"Sensex sync background error: {e}")
 
-    time.sleep(15)
+    time.sleep(60)
 
 
 threading.Thread(target=sync_sensex_from_yahoo, daemon=True).start()
@@ -352,7 +376,10 @@ def extract_date_from_filename(filename):
   month_map = {
       'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
       'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
-      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
   }
   for k, v in month_map.items():
     if k in fn:
@@ -404,15 +431,34 @@ def login():
 
 @app.route('/pending-approval')
 def pending_approval():
-  return render_template('pending_approval.html', username=session.get('username', 'User'))
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
 
 
 @app.route('/user-dashboard')
 def user_dashboard():
   mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Pending':
+      return redirect(url_for('pending_approval'))
+  if not user_record:
+    return redirect(url_for('login'))
+
   sensex_info, sensex_trend_data = get_sensex_data()
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
-  festival_greeting = get_festival_greeting()
 
   latest_data_updated = False
   try:
@@ -420,10 +466,12 @@ def user_dashboard():
     if os.path.exists(meta_path):
       with open(meta_path, 'r') as mf:
         meta = json.load(mf)
-        if is_today_filename(meta.get('filename', ''), meta.get('upload_time', '')):
+        last_fn = meta.get('filename', '')
+        last_time = meta.get('upload_time', '')
+        if is_today_filename(last_fn, last_time):
           latest_data_updated = True
-  except Exception:
-    pass
+  except Exception as e:
+    print(f"Error checking upload status: {e}")
 
   return render_template(
       'user_dashboard.html',
@@ -436,8 +484,23 @@ def user_dashboard():
       debt_data=parse_fund_excel_from_db('debt_funds'),
       latest_data_updated=latest_data_updated,
       admin_online=admin_online,
-      festival_greeting=festival_greeting,
   )
+
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  if 'username' not in session:
+    return redirect(url_for('login'))
+  feedback_text = request.form.get('feedback')
+  if feedback_text:
+    USER_FEEDBACKS.append({
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': session.get('username', 'Client'),
+        'feedback': feedback_text,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    })
+    flash('Feedback submitted successfully!', 'success')
+  return redirect(url_for('user_dashboard'))
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
@@ -456,11 +519,18 @@ def admin_login():
   return render_template('admin_login.html')
 
 
+@app.route('/admin')
+def admin_redirect():
+  if session.get('is_admin'):
+    return redirect(url_for('admin_dashboard'))
+  return redirect(url_for('admin_login'))
+
+
 @app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-
+  
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   for user in REGISTERED_USERS:
@@ -481,48 +551,283 @@ def admin_dashboard():
   )
 
 
-@app.route('/upload-master-category', methods=['POST'])
+@app.route('/toggle-auto-approval', methods=['POST'])
+def toggle_auto_approval():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
+  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  flash(f'Auto-approval has been {status_text} successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
+def update_user_status(user_id, status):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    if user['id'] == user_id:
+      user['status'] = status.capitalize()
+      if status.capitalize() == 'Approved':
+        user['approved_at'] = datetime.now().isoformat()
+      else:
+        user['approved_at'] = None
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/approve-all-users', methods=['POST'])
+def approve_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  now_iso = datetime.now().isoformat()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Approved'
+      user['approved_at'] = now_iso
+  flash('All pending users approved successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/decline-all-users', methods=['POST'])
+def decline_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+  flash('All pending users declined successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  try:
-    category = request.form.get('category')
-    file_key = f'{category}_file'
-    if file_key in request.files:
-      file = request.files[file_key]
-      if file and file.filename != '':
-        df = pd.read_excel(file)
-        if engine:
-          df.to_sql(f'{category}_funds', engine, if_exists='replace', index=False)
-          flash(f'{category.capitalize()} funds updated successfully!', 'success')
-  except Exception as e:
-    flash(f'Error: {e}', 'danger')
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      category = request.form.get('category')
+      file_key = f'{category}_file'
+      if file_key in request.files:
+        file = request.files[file_key]
+        if file and file.filename != '':
+          df = pd.read_excel(file)
+          table_name = f'{category}_funds'
+          if engine:
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+            flash(f'{category.capitalize()} funds updated permanently in Supabase database!', 'success')
+          else:
+            flash('Database connection error.', 'danger')
+    except Exception as e:
+      flash(f'Error updating category: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
 
-@app.route('/upload-nav', methods=['POST'])
+@app.route('/upload-nav', methods=['GET', 'POST'])
 def upload_nav():
   if not session.get('is_admin'):
     return redirect(url_for('admin_login'))
-  try:
-    file = request.files.get('nav_image')
-    if file and file.filename != '':
-      filename = secure_filename(file.filename)
-      file_bytes = file.read()
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
 
-      with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'wb') as f:
-        f.write(file_bytes)
-      with open(os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg'), 'wb') as f:
-        f.write(file_bytes)
+  if request.method == 'POST':
+    try:
+      file = request.files.get('nav_image')
+      if file and file.filename != '':
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
+        if not filename:
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
-      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
-      with open(meta_path, 'w') as mf:
-        json.dump({'filename': filename, 'upload_time': datetime.now().isoformat()}, mf)
+        file_bytes = file.read()
+        
+        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        with open(file_path_upload, 'wb') as f:
+          f.write(file_bytes)
+        
+        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+        with open(latest_ref_path, 'wb') as f:
+          f.write(file_bytes)
 
-      flash('NAV published successfully!', 'success')
-  except Exception as e:
-    flash(f'Error: {e}', 'danger')
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        with open(meta_path, 'w') as mf:
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
+
+        target_year, target_month = extract_date_from_filename(raw_fn)
+        month_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
+        m_num = month_num_map.get(target_month, '10')
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, f'{m_num}_{target_month}')
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        with open(archive_file_path, 'wb') as f:
+          f.write(file_bytes)
+
+        flash(f'Successfully published NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
+      else:
+        flash('No file selected for NAV upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading NAV image: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-archive', methods=['GET', 'POST'])
+def upload_archive():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
+
+      month_map = {
+          'jan': ('01', 'January'), 'feb': ('02', 'February'), 'mar': ('03', 'March'),
+          'apr': ('04', 'April'), 'may': ('05', 'May'), 'jun': ('06', 'June'),
+          'jul': ('07', 'July'), 'aug': ('08', 'August'), 'sep': ('09', 'September'),
+          'oct': ('10', 'October'), 'nov': ('11', 'November'), 'dec': ('12', 'December')
+      }
+      m_num, full_month_name = month_map.get(month_input[:3], ('10', 'October'))
+
+      saved_count = 0
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          raw_fn = file.filename
+          filename = secure_filename(raw_fn)
+          if not filename:
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+          f_year, f_month = extract_date_from_filename(raw_fn)
+          if f_year and f_month:
+            f_num_map = {'January':'01', 'February':'02', 'March':'03', 'April':'04', 'May':'05', 'June':'06', 'July':'07', 'August':'08', 'September':'09', 'October':'10', 'November':'11', 'December':'12'}
+            target_dir = os.path.join(ARCHIVE_FOLDER, f_year, f'{f_num_map.get(f_month, m_num)}_{f_month}')
+          else:
+            target_dir = os.path.join(ARCHIVE_FOLDER, year, f'{m_num}_{full_month_name}')
+
+          os.makedirs(target_dir, exist_ok=True)
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
+          
+          upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          shutil.copy(file_path, upload_mirror_path)
+          
+          saved_count += 1
+
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} archive file(s) and synced to folders!', 'success')
+      else:
+        flash('No files selected for archive upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading archive files: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/delete-archive-file/<filename>', methods=['POST'])
+def delete_archive_file(filename):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  try:
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      flash(f'Successfully deleted: {filename}', 'success')
+    else:
+      flash('File not found.', 'danger')
+  except Exception as e:
+    flash(f'Error deleting file: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
+  matched_files = set()
+
+  month_map = {
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
+      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+  }
+  target_m_num = month_map.get(month_input[:3], '10')
+
+  try:
+    search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
+    for s_dir in search_dirs:
+      if os.path.exists(s_dir):
+        for root, dirs, files in os.walk(s_dir):
+          for f in files:
+            if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
+              continue
+            
+            clean_name = os.path.splitext(f)[0]
+            parts = re.split(r'[-_.]', clean_name)
+            
+            # Match DD-MM-YYYY pattern strictly
+            if len(parts) >= 3 and len(parts[0]) <= 2 and len(parts[1]) <= 2 and len(parts[2]) == 4:
+              f_day, f_month, f_year = parts[0].zfill(2), parts[1].zfill(2), parts[2]
+              
+              if year and f_year != year:
+                continue
+              if month_input and f_month != target_m_num:
+                continue
+              
+              matched_files.add(f)
+            else:
+              # Secondary check for folder structured names
+              if year and (year in f or year in root):
+                if month_input and (f'/{target_m_num}_' in root.lower() or f'_{target_m_num}_' in f.lower()):
+                  matched_files.add(f)
+
+    sorted_files = sorted(list(matched_files), reverse=True)
+    return jsonify({'success': True, 'files': sorted_files})
+  except Exception as e:
+    print(f'Error in get_archive_files: {e}')
+    return jsonify({'success': False, 'files': []})
+
+
+@app.route('/view-archive-file/<path:filename>')
+def view_archive_file(filename):
+  archive_base = ARCHIVE_FOLDER
+  for root, dirs, files in os.walk(archive_base):
+    if filename in files:
+      return send_from_directory(root, filename)
+  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
 
 
 if __name__ == '__main__':
