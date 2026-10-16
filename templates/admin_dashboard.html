@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Admin Portal - NAV Updates</title>
+    <!-- Include Google Cursive Font for Festive Greetings -->
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         :root {
@@ -301,8 +303,14 @@
                 <span class="control-center-text">Admin Control Center (Auto-refreshes every 2 mins)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
-            <div class="header-center-banner">
-                <h1>NAV UPDATES</h1>
+            <div class="header-center-banner text-center">
+                {% if festival_greeting %}
+                    <div style="font-family: 'Great Vibes', cursive; font-size: 3.2rem; background: linear-gradient(45deg, #ffd700, #ff8c00, #ff4500, #ff1493, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 69, 0, 0.4); letter-spacing: 3px; font-weight: bold; line-height: 1.1;">
+                        ✨ {{ festival_greeting }} ✨
+                    </div>
+                {% else %}
+                    <h1>NAV UPDATES</h1>
+                {% endif %}
             </div>
             <div class="header-right" style="text-align: right;">
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
