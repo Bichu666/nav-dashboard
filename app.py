@@ -248,7 +248,6 @@ def sync_sensex_from_yahoo():
       pct_change = 0
       trend_list = []
 
-      # Try direct requests to Yahoo Finance V8 Chart API first
       try:
         url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?range=10d&interval=1d"
         headers = {
@@ -291,7 +290,6 @@ def sync_sensex_from_yahoo():
       except Exception as ex:
         print(f"Direct Yahoo API fetch warning: {ex}")
 
-      # Fallback to yfinance if direct request didn't return values
       if current_val == 0:
         try:
           ticker = yf.Ticker("^BSESN")
@@ -843,48 +841,45 @@ def get_archive_files():
   month_input = request.args.get('month', '').strip().lower()
   matched_files = set()
 
-  month_num_map = {
-      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-      'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-      'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+  month_aliases = {
+      'jan': ['01', 'jan', 'january'],
+      'feb': ['02', 'feb', 'february'],
+      'mar': ['03', 'mar', 'march'],
+      'apr': ['04', 'apr', 'april'],
+      'may': ['05', 'may'],
+      'jun': ['06', 'jun', 'june'],
+      'jul': ['07', 'jul', 'july'],
+      'aug': ['08', 'aug', 'august'],
+      'sep': ['09', 'sep', 'sept', 'september'],
+      'oct': ['10', 'oct', 'october'],
+      'nov': ['11', 'nov', 'november'],
+      'dec': ['12', 'dec', 'december'],
   }
-  month_full_map = {
-      'jan': 'september' if month_input.startswith('sep') else 'january',
-      'feb': 'february', 'mar': 'march', 'apr': 'april',
-      'may': 'may', 'jun': 'june', 'jul': 'july', 'aug': 'august',
-      'sep': 'september', 'oct': 'october', 'nov': 'november', 'dec': 'december'
-  }
-  
-  target_m_num = month_num_map.get(month_input[:3], '')
-  target_m_name = month_full_map.get(month_input[:3], month_input)
+
+  target_terms = month_aliases.get(month_input[:3], [month_input])
 
   try:
-    search_dirs = [ARCHIVE_FOLDER, UPLOAD_FOLDER]
-    for s_dir in search_dirs:
-      if os.path.exists(s_dir):
-        for root, dirs, files in os.walk(s_dir):
-          for f in files:
-            if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
-              continue
-            
-            f_lower = f.lower()
-            root_lower = root.lower().replace('\\', '/')
+    for root, dirs, files in os.walk('.'):
+      root_lower = root.lower().replace('\\', '/')
+      
+      if '.git' in root_lower or '__pycache__' in root_lower or '.venv' in root_lower:
+        continue
 
-            if year and (year not in f_lower and year not in root_lower):
-              continue
+      for f in files:
+        if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
+          continue
 
-            if month_input:
-              is_in_path = target_m_name in root_lower or f'/{target_m_name}' in root_lower
-              is_in_filename = (
-                  target_m_name in f_lower or
-                  f'-{target_m_num}-' in f_lower or
-                  f'_{target_m_num}_' in f_lower or
-                  f'.{target_m_num}.' in f_lower
-              )
-              if not (is_in_path or is_in_filename):
-                continue
+        f_lower = f.lower()
 
-            matched_files.add(f)
+        if year and (year not in f_lower and year not in root_lower):
+          continue
+
+        if month_input:
+          matches_month = any(term in root_lower or term in f_lower for term in target_terms)
+          if not matches_month:
+            continue
+
+        matched_files.add(f)
 
     sorted_files = sorted(list(matched_files), reverse=True)
     return jsonify({'success': True, 'files': sorted_files})
