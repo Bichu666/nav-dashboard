@@ -36,7 +36,7 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=["10000 per day", "1000 per hour"],
     storage_uri="memory://"
 )
 
@@ -123,7 +123,6 @@ def get_festival_greeting():
   y = ist_now.year
 
   festivals_by_date = {
-      # 2026 Festivals
       (2026, 1, 1): "Happy New Year",
       (2026, 1, 14): "Happy Makar Sankranti / Pongal",
       (2026, 1, 26): "Happy Republic Day",
@@ -145,7 +144,6 @@ def get_festival_greeting():
       (2026, 11, 24): "Happy Guru Nanak Jayanti",
       (2026, 12, 25): "Merry Christmas",
 
-      # 2027 Festivals
       (2027, 1, 1): "Happy New Year",
       (2027, 1, 15): "Happy Makar Sankranti / Pongal",
       (2027, 1, 26): "Happy Republic Day",
@@ -307,6 +305,7 @@ def get_sensex_data():
 
 
 @app.route('/api/sensex-live')
+@limiter.exempt
 def sensex_live():
   sensex_info, _ = get_sensex_data()
   return jsonify(sensex_info)
@@ -423,7 +422,7 @@ def health_check():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def login():
   if request.method == 'POST':
     username = request.form.get('username')
@@ -470,47 +469,51 @@ def pending_approval():
 
 @app.route('/user-dashboard')
 def user_dashboard():
-  mobile = session.get('mobile', '')
-  user_record = next(
-      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
-  )
-  if user_record:
-    check_user_validity(user_record)
-    if user_record['status'] == 'Pending':
-      return redirect(url_for('pending_approval'))
-  if not user_record:
-    return redirect(url_for('login'))
-
-  sensex_info, sensex_trend_data = get_sensex_data()
-  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
-  festival_greeting = get_festival_greeting()
-
-  latest_data_updated = False
   try:
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
-    if os.path.exists(meta_path):
-      with open(meta_path, 'r') as mf:
-        meta = json.load(mf)
-        last_fn = meta.get('filename', '')
-        last_time = meta.get('upload_time', '')
-        if is_today_filename(last_fn, last_time):
-          latest_data_updated = True
-  except Exception as e:
-    print(f"Error checking upload status: {e}")
+    mobile = session.get('mobile', '')
+    user_record = next(
+        (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+    )
+    if user_record:
+      check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+    if not user_record:
+      return redirect(url_for('login'))
 
-  return render_template(
-      'user_dashboard.html',
-      username=session.get('username', 'Client'),
-      mobile=mobile,
-      sensex=sensex_info,
-      sensex_trend=sensex_trend_data,
-      equity_data=parse_fund_excel_from_db('equity_funds'),
-      balancer_data=parse_fund_excel_from_db('balancer_funds'),
-      debt_data=parse_fund_excel_from_db('debt_funds'),
-      latest_data_updated=latest_data_updated,
-      admin_online=admin_online,
-      festival_greeting=festival_greeting,
-  )
+    sensex_info, sensex_trend_data = get_sensex_data()
+    admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    festival_greeting = get_festival_greeting()
+
+    latest_data_updated = False
+    try:
+      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      if os.path.exists(meta_path):
+        with open(meta_path, 'r') as mf:
+          meta = json.load(mf)
+          last_fn = meta.get('filename', '')
+          last_time = meta.get('upload_time', '')
+          if is_today_filename(last_fn, last_time):
+            latest_data_updated = True
+    except Exception as e:
+      print(f"Error checking upload status: {e}")
+
+    return render_template(
+        'user_dashboard.html',
+        username=session.get('username', 'Client'),
+        mobile=mobile,
+        sensex=sensex_info,
+        sensex_trend=sensex_trend_data,
+        equity_data=parse_fund_excel_from_db('equity_funds'),
+        balancer_data=parse_fund_excel_from_db('balancer_funds'),
+        debt_data=parse_fund_excel_from_db('debt_funds'),
+        latest_data_updated=latest_data_updated,
+        admin_online=admin_online,
+        festival_greeting=festival_greeting,
+    )
+  except Exception as e:
+    print(f"Error in user dashboard: {e}")
+    return render_template('login.html')
 
 
 @app.route('/submit-feedback', methods=['POST'])
@@ -530,7 +533,7 @@ def submit_feedback():
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def admin_login():
   if request.method == 'POST':
     mobile_input = request.form.get('mobile')
@@ -802,3 +805,63 @@ def get_archive_files():
       'nov': ['11', 'nov', 'november'],
       'dec': ['12', 'dec', 'december'],
   }
+
+  target_terms = month_aliases.get(month_input[:3], [month_input])
+
+  try:
+    for root, dirs, files in os.walk('.'):
+      root_lower = root.lower().replace('\\', '/')
+      
+      if '.git' in root_lower or '__pycache__' in root_lower or '.venv' in root_lower:
+        continue
+
+      for f in files:
+        if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
+          continue
+
+        f_lower = f.lower()
+
+        if year and (year not in f_lower and year not in root_lower):
+          continue
+
+        if month_input:
+          matches_month = any(term in root_lower or term in f_lower for term in target_terms)
+          if not matches_month:
+            continue
+
+        matched_files.add(f)
+
+    sorted_files = sorted(list(matched_files), reverse=True)
+    return jsonify({'success': True, 'files': sorted_files})
+  except Exception as e:
+    print(f'Error in get_archive_files: {e}')
+    return jsonify({'success': False, 'files': []})
+
+
+@app.route('/view-archive-file/<path:filename>')
+def view_archive_file(filename):
+  archive_base = ARCHIVE_FOLDER
+  for root, dirs, files in os.walk(archive_base):
+    if filename in files:
+      return send_from_directory(root, filename)
+  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
