@@ -789,53 +789,31 @@ def delete_archive_file(filename):
 def get_archive_files():
   year = request.args.get('year', '').strip()
   month_input = request.args.get('month', '').strip().lower()
-  matched_files = set()
+  matched_files = []
 
-  month_aliases = {
-      'jan': ['01', 'jan', 'january'],
-      'feb': ['02', 'feb', 'february'],
-      'mar': ['03', 'mar', 'march'],
-      'apr': ['04', 'apr', 'april'],
-      'may': ['05', 'may'],
-      'jun': ['06', 'jun', 'june'],
-      'jul': ['07', 'jul', 'july'],
-      'aug': ['08', 'aug', 'august'],
-      'sep': ['09', 'sep', 'sept', 'september'],
-      'oct': ['10', 'oct', 'october'],
-      'nov': ['11', 'nov', 'november'],
-      'dec': ['12', 'dec', 'december'],
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March',
+      'apr': 'April', 'may': 'May', 'jun': 'June',
+      'jul': 'July', 'aug': 'August', 'sep': 'September',
+      'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
   }
+  full_month = month_map.get(month_input[:3], month_input.capitalize())
 
-  target_terms = month_aliases.get(month_input[:3], [month_input])
+  target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month)
 
-  try:
-    for root, dirs, files in os.walk('.'):
-      root_lower = root.lower().replace('\\', '/')
-      
-      if '.git' in root_lower or '__pycache__' in root_lower or '.venv' in root_lower:
-        continue
+  if os.path.exists(target_dir):
+    try:
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          matched_files.append(f)
+    except Exception as e:
+      print(f'Error reading archive directory: {e}')
 
-      for f in files:
-        if not f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')) or f == 'latest_nav.jpg':
-          continue
-
-        f_lower = f.lower()
-
-        if year and (year not in f_lower and year not in root_lower):
-          continue
-
-        if month_input:
-          matches_month = any(term in root_lower or term in f_lower for term in target_terms)
-          if not matches_month:
-            continue
-
-        matched_files.add(f)
-
-    sorted_files = sorted(list(matched_files), reverse=True)
-    return jsonify({'success': True, 'files': sorted_files})
-  except Exception as e:
-    print(f'Error in get_archive_files: {e}')
-    return jsonify({'success': False, 'files': []})
+  sorted_files = sorted(list(set(matched_files)), reverse=True)
+  return jsonify({'success': True, 'files': sorted_files})
 
 
 @app.route('/view-archive-file/<path:filename>')
