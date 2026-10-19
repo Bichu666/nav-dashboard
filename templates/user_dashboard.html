@@ -239,6 +239,26 @@
         .fund-table-full td {
             border-bottom: 1px solid var(--border-color);
         }
+
+        /* Star Rating CSS */
+        .star-rating {
+            display: inline-flex;
+            direction: rtl;
+            font-size: 1.5rem;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            color: #444;
+            cursor: pointer;
+            transition: color 0.2s ease-in-out;
+        }
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #f1c40f;
+        }
     </style>
 </head>
 <body>
@@ -257,16 +277,52 @@
                         <span style="color: var(--text-muted);">● Admin Offline</span>
                     {% endif %}
                 </div>
+                <!-- Admin Mobile Number displayed in red color matching negative funds -->
+                <div style="margin-top: 3px; font-size: 13px; font-weight: bold; color: var(--red);">
+                    +918078535666
+                </div>
             </div>
+            
             <div class="header-center-banner text-center">
                 {% if festival_greeting %}
-                    <div style="font-family: 'Great Vibes', cursive; font-size: 3.2rem; background: linear-gradient(45deg, #ffd700, #ff8c00, #ff4500, #ff1493, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 69, 0, 0.4); letter-spacing: 3px; font-weight: bold; line-height: 1.1;">
-                        ✨ {{ festival_greeting }} ✨
+                    <div class="festival-banner-container text-center py-2 px-3 my-2 rounded" style="background: linear-gradient(135deg, rgba(255, 140, 0, 0.15), rgba(255, 0, 128, 0.15)); border: 1px solid rgba(255, 215, 0, 0.4); box-shadow: 0 0 15px rgba(255, 165, 0, 0.2);">
+                        {% if 'Dussehra' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🏹</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #ff4e50, #f9d423); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 10px rgba(255, 78, 80, 0.5); font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🔥</span>
+                            </div>
+                            <small class="text-warning d-block" style="font-size: 11px; letter-spacing: 1px;">|| Victory Of Good Over Evil ||</small>
+                        {% elif 'Onam' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🌸🌼</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #00b09b, #96c93d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🌼🌸</span>
+                            </div>
+                            <small class="text-light d-block" style="font-size: 11px;">Wishing you prosperity and joyful Pookalam celebrations!</small>
+                        {% elif 'Independence' in festival_greeting or 'Republic' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🇮🇳</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #FF9933, #FFFFFF, #138808); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🇮🇳</span>
+                            </div>
+                        {% elif 'Christmas' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🎅🔔</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #e74c3c, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">❄️🎄</span>
+                            </div>
+                        {% else %}
+                            <div style="font-family: 'Great Vibes', cursive; font-size: 3.2rem; background: linear-gradient(45deg, #ffd700, #ff8c00, #ff4500, #ff1493, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 69, 0, 0.4); letter-spacing: 3px; font-weight: bold; line-height: 1.1;">
+                                ✨ {{ festival_greeting }} ✨
+                            </div>
+                        {% endif %}
                     </div>
                 {% else %}
                     <h1>NAV UPDATES</h1>
                 {% endif %}
             </div>
+
             <div class="header-right" style="text-align: right;">
                 <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
                 <p class="admin-identity">User Name: {{ username }}</p>
@@ -358,7 +414,18 @@
         <div class="panel" style="margin-bottom: 24px;">
             <h3>User Feedback and Suggestion / Rating</h3>
             <form action="{{ url_for('submit_feedback') }}" method="POST">
-                <div style="display: flex; gap: 15px; align-items: center; margin-top: 15px;">
+                <!-- Interactive Star Rating Widget -->
+                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Rate Application:</span>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5" title="5 stars">★</label>
+                        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+                        <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+                        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+                        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
                     <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
                     <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
                 </div>
