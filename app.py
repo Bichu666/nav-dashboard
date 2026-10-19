@@ -26,6 +26,7 @@ from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from breeze_connect import BreezeConnect
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -276,31 +277,56 @@ if not os.path.exists(CACHE_FILE):
   save_sensex_cache(DEFAULT_SENSEX_CACHE)
 
 
-def get_sensex_data():
+# ICICI Direct Breeze API Integration
+BREEZE_API_KEY = "40d6o1T87b806978867rY54E59#98179"
+BREEZE_SECRET_KEY = "786eM698GP2!x0592I7m4w3856452u1V"
+
+def get_live_sensex_from_breeze():
+  session_token = os.getenv("BREEZE_SESSION_TOKEN", "57378956")
+  try:
+    breeze = BreezeConnect(api_key=BREEZE_API_KEY)
+    breeze.generate_session(api_secret=BREEZE_SECRET_KEY, session_token=session_token)
+    
+    quote_data = breeze.get_quotes(stock_code="BSESEN", exchange_code="BSE", product_type="cash")
+    if quote_data and 'Success' in quote_data and len(quote_data['Success']) > 0:
+      data = quote_data['Success'][0]
+      ltp = float(data.get('ltp', 74729.27))
+      change = float(data.get('change', 413.66))
+      pct_change = float(data.get('change_percentage', 0.56))
+      
+      now_utc = datetime.now(timezone.utc)
+      ist_now = now_utc + timedelta(hours=5, minutes=30)
+      
+      return {
+          'value': f"{ltp:,.2f}",
+          'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+          'is_positive': change >= 0,
+          'time_label': f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}",
+          'is_market_open': True
+      }
+  except Exception as e:
+    print(f"Breeze Live Quote Fetch Error: {e}")
+
   cache = load_sensex_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  weekday = ist_now.weekday()
-  current_total_minutes = ist_now.hour * 60 + ist_now.minute
-
-  is_market_open = (0 <= weekday <= 4) and (555 <= current_total_minutes <= 930)
-
-  current_val = cache.get('value', 74729.27)
-  pts_change = cache.get('base_change_pts', 413.66)
-  pct_change = cache.get('pct_change', 0.56)
-
-  if is_market_open:
-    time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
-  else:
-    time_label = f"At close: 04:00:00 PM IST"
-
-  live_info = {
+  
+  current_val = float(str(cache.get('value', 74729.27)).replace(',', ''))
+  pts_change = float(cache.get('base_change_pts', 413.66))
+  pct_change = float(cache.get('pct_change', 0.56))
+  
+  return {
       'value': f'{current_val:,.2f}',
       'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
       'is_positive': pts_change >= 0,
-      'time_label': time_label,
-      'is_market_open': is_market_open,
+      'time_label': f"At close: 04:00:00 PM IST",
+      'is_market_open': False
   }
+
+
+def get_sensex_data():
+  cache = load_sensex_cache()
+  live_info = get_live_sensex_from_breeze()
   return live_info, cache.get('trend_data', [])
 
 
