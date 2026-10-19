@@ -173,6 +173,184 @@ def get_festival_greeting():
       (2027, 10, 18): "Happy Karwa Chauth",
       (2027, 10, 29): "Happy Diwali",
       (2027, 10, 31): "Happy Bhaiya Dooj",
+      (2027, 11, 4): "Happy ChhathHere is your fully updated `app.py` file. It includes the robust safety checks for the Breeze API quote response so that if an index field comes back blank or zero, it seamlessly falls back to your cached market value instead of displaying `0.00`.
+
+```python
+from datetime import datetime, timedelta, timezone
+import json
+import os
+import random
+import re
+import shutil
+import threading
+import time
+import pandas as pd
+import requests
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from sqlalchemy import create_engine
+from werkzeug.utils import secure_filename
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from breeze_connect import BreezeConnect
+
+app = Flask(__name__)
+app.secret_key = 'nav_updates_secret_key'
+
+app.permanent_session_lifetime = timedelta(days=30)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["10000 per day", "1000 per hour"],
+    storage_uri="memory://"
+)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL) if DATABASE_URL else None
+
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+ARCHIVE_FOLDER = 'archive_nav'
+os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
+
+ADMIN_ACTIVITY = {'last_active': datetime.now()}
+ADMIN_SETTINGS = {'auto_approval_enabled': True}
+ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
+
+REGISTERED_USERS = [
+    {
+        'id': 1,
+        'name': 'Rahul Sharma',
+        'mobile': '+91 9876543210',
+        'status': 'Pending',
+        'registered_at': datetime.now() - timedelta(minutes=3),
+        'approved_at': None,
+    },
+    {
+        'id': 2,
+        'name': 'Priya Nair',
+        'mobile': '+91 9876522888',
+        'status': 'Approved',
+        'registered_at': datetime.now() - timedelta(days=5),
+        'approved_at': datetime.now().isoformat(),
+    },
+    {
+        'id': 3,
+        'name': 'biju',
+        'mobile': '+917034788666',
+        'status': 'Approved',
+        'registered_at': datetime.now() - timedelta(days=10),
+        'approved_at': datetime.now().isoformat(),
+    },
+]
+
+USER_FEEDBACKS = [
+    {
+        'id': 1,
+        'username': 'Rahul Sharma',
+        'feedback': 'Great portal! Very intuitive and fast NAV updates.',
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    },
+    {
+        'id': 2,
+        'username': 'Priya Nair',
+        'feedback': 'The historical archive search feature is extremely useful.',
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    },
+]
+
+
+def check_user_validity(user):
+  if not ADMIN_SETTINGS.get('auto_approval_enabled', True):
+    return
+  now = datetime.now()
+  if user['status'] == 'Pending':
+    reg_time = user.get('registered_at', now)
+    if now - reg_time > timedelta(minutes=5):
+      user['status'] = 'Approved'
+      user['approved_at'] = now.isoformat()
+
+  if user['status'] == 'Approved' and user.get('approved_at'):
+    approved_date = datetime.fromisoformat(user['approved_at'])
+    if now - approved_date > timedelta(days=30):
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+      user['registered_at'] = now
+
+
+def get_festival_greeting():
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  m = ist_now.month
+  d = ist_now.day
+  y = ist_now.year
+
+  festivals_by_date = {
+      (2026, 1, 1): "Happy New Year",
+      (2026, 1, 14): "Happy Makar Sankranti / Pongal",
+      (2026, 1, 26): "Happy Republic Day",
+      (2026, 2, 15): "Happy Maha Shivaratri",
+      (2026, 3, 4): "Happy Holi",
+      (2026, 3, 19): "Happy Ugadi / Gudi Padwa",
+      (2026, 3, 26): "Happy Rama Navami",
+      (2026, 3, 31): "Happy Mahavir Jayanti",
+      (2026, 4, 3): "Happy Good Friday",
+      (2026, 4, 14): "Happy Vishu",
+      (2026, 5, 1): "Happy Buddha Purnima",
+      (2026, 8, 15): "Happy Independence Day",
+      (2026, 8, 28): "Happy Raksha Bandhan",
+      (2026, 9, 4): "Happy Krishna Janmashtami",
+      (2026, 9, 14): "Happy Ganesh Chaturthi",
+      (2026, 10, 2): "Happy Mahatma Gandhi Jayanti",
+      (2026, 10, 20): "Happy Dussehra",
+      (2026, 11, 8): "Happy Diwali",
+      (2026, 11, 24): "Happy Guru Nanak Jayanti",
+      (2026, 12, 25): "Merry Christmas",
+
+      (2027, 1, 1): "Happy New Year",
+      (2027, 1, 15): "Happy Makar Sankranti / Pongal",
+      (2027, 1, 26): "Happy Republic Day",
+      (2027, 2, 11): "Happy Vasant Panchami",
+      (2027, 2, 19): "Happy Shivaji Maharaj Jayanti",
+      (2027, 3, 6): "Happy Maha Shivaratri",
+      (2027, 3, 10): "Happy Eid al-Fitr",
+      (2027, 3, 22): "Happy Holi",
+      (2027, 3, 26): "Happy Good Friday",
+      (2027, 4, 7): "Happy Ugadi / Gudi Padwa",
+      (2027, 4, 14): "Happy Baisakhi / Ambedkar Jayanti",
+      (2027, 4, 15): "Happy Rama Navami",
+      (2027, 4, 19): "Happy Mahavir Jayanti",
+      (2027, 5, 1): "Happy Labour Day",
+      (2027, 5, 17): "Happy Eid al-Adha",
+      (2027, 5, 20): "Happy Buddha Purnima",
+      (2027, 6, 16): "Happy Muharram",
+      (2027, 7, 5): "Happy Rathyatra",
+      (2027, 8, 15): "Happy Independence Day",
+      (2027, 8, 17): "Happy Raksha Bandhan",
+      (2027, 8, 25): "Happy Janmashtami",
+      (2027, 9, 4): "Happy Ganesh Chaturthi",
+      (2027, 9, 12): "Happy Onam",
+      (2027, 10, 2): "Happy Mahatma Gandhi Jayanti",
+      (2027, 10, 9): "Happy Dussehra",
+      (2027, 10, 18): "Happy Karwa Chauth",
+      (2027, 10, 29): "Happy Diwali",
+      (2027, 10, 31): "Happy Bhaiya Dooj",
       (2027, 11, 4): "Happy Chhath Puja",
       (2027, 11, 14): "Happy Guru Nanak Jayanti",
       (2027, 12, 25): "Merry Christmas",
@@ -282,7 +460,10 @@ BREEZE_API_KEY = "40d6o1T87b806978867rY54E59#98179"
 BREEZE_SECRET_KEY = "786eM698GP2!x0592I7m4w3856452u1V"
 
 def get_live_sensex_from_breeze():
-  session_token = os.getenv("BREEZE_SESSION_TOKEN", "57378956")
+  session_token = os.getenv("BREEZE_SESSION_TOKEN", "57397128")
+  cache = load_sensex_cache()
+  default_val = float(str(cache.get('value', 74729.27)).replace(',', ''))
+  
   try:
     breeze = BreezeConnect(api_key=BREEZE_API_KEY)
     breeze.generate_session(api_secret=BREEZE_SECRET_KEY, session_token=session_token)
@@ -290,33 +471,32 @@ def get_live_sensex_from_breeze():
     quote_data = breeze.get_quotes(stock_code="BSESEN", exchange_code="BSE", product_type="cash")
     if quote_data and 'Success' in quote_data and len(quote_data['Success']) > 0:
       data = quote_data['Success'][0]
-      ltp = float(data.get('ltp', 74729.27))
-      change = float(data.get('change', 413.66))
-      pct_change = float(data.get('change_percentage', 0.56))
+      ltp = float(data.get('ltp', 0) or 0)
       
-      now_utc = datetime.now(timezone.utc)
-      ist_now = now_utc + timedelta(hours=5, minutes=30)
-      
-      return {
-          'value': f"{ltp:,.2f}",
-          'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-          'is_positive': change >= 0,
-          'time_label': f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}",
-          'is_market_open': True
-      }
+      if ltp > 0:
+        change = float(data.get('change', 0) or 0)
+        pct_change = float(data.get('change_percentage', 0) or 0)
+        
+        now_utc = datetime.now(timezone.utc)
+        ist_now = now_utc + timedelta(hours=5, minutes=30)
+        
+        return {
+            'value': f"{ltp:,.2f}",
+            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+            'is_positive': change >= 0,
+            'time_label': f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}",
+            'is_market_open': True
+        }
   except Exception as e:
     print(f"Breeze Live Quote Fetch Error: {e}")
 
-  cache = load_sensex_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  
-  current_val = float(str(cache.get('value', 74729.27)).replace(',', ''))
   pts_change = float(cache.get('base_change_pts', 413.66))
   pct_change = float(cache.get('pct_change', 0.56))
   
   return {
-      'value': f'{current_val:,.2f}',
+      'value': f'{default_val:,.2f}',
       'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
       'is_positive': pts_change >= 0,
       'time_label': f"At close: 04:00:00 PM IST",
