@@ -53,6 +53,7 @@ os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
+ADMIN_MOBILE = "+918078535666"
 
 REGISTERED_USERS = [
     {
@@ -86,12 +87,14 @@ USER_FEEDBACKS = [
         'id': 1,
         'username': 'Rahul Sharma',
         'feedback': 'Great portal! Very intuitive and fast NAV updates.',
+        'rating': 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     },
     {
         'id': 2,
         'username': 'Priya Nair',
         'feedback': 'The historical archive search feature is extremely useful.',
+        'rating': 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     },
 ]
@@ -276,7 +279,6 @@ if not os.path.exists(CACHE_FILE):
   save_sensex_cache(DEFAULT_SENSEX_CACHE)
 
 
-# Automated Public API Live Sensex Tracker (Zero Logins Needed)
 def get_live_sensex_from_public_api():
   cache = load_sensex_cache()
   default_val = float(str(cache.get('value', 74729.27)).replace(',', ''))
@@ -534,6 +536,7 @@ def user_dashboard():
         debt_data=parse_fund_excel_from_db('debt_funds'),
         latest_data_updated=latest_data_updated,
         admin_online=admin_online,
+        admin_mobile=ADMIN_MOBILE,
         festival_greeting=festival_greeting,
     )
   except Exception as e:
@@ -546,11 +549,13 @@ def submit_feedback():
   if 'username' not in session:
     return redirect(url_for('login'))
   feedback_text = request.form.get('feedback')
+  rating = request.form.get('rating', '5')
   if feedback_text:
     USER_FEEDBACKS.append({
         'id': len(USER_FEEDBACKS) + 1,
         'username': session.get('username', 'Client'),
         'feedback': feedback_text,
+        'rating': int(rating) if str(rating).isdigit() else 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     })
     flash('Feedback submitted successfully!', 'success')
@@ -820,7 +825,7 @@ def get_archive_files():
       'jan': 'January', 'feb': 'February', 'mar': 'March',
       'apr': 'April', 'may': 'May', 'jun': 'June',
       'jul': 'July', 'aug': 'August', 'sep': 'September',
-      'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'october': 'October', 'november': 'November', 'december': 'December',
       'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
       'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
       'october': 'October', 'november': 'November', 'december': 'December'
