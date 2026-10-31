@@ -179,4 +179,156 @@ def extract_date_from_filename(filename):
     except ValueError:
       continue
 
-  year = datetime.now().strftime('%Y
+  year = datetime.now().strftime('%Y')
+  match_year = re.search(r'(20\d{2})', fn)
+  if match_year:
+    year = match_year.group(1)
+
+  month = datetime.now().strftime('%B')
+  month_map = {
+      'jan': 'January',
+      'feb': 'February',
+      'mar': 'March',
+      'apr': 'April',
+      'may': 'May',
+      'jun': 'June',
+      'jul': 'July',
+      'aug': 'August',
+      'sep': 'September',
+      'oct': 'October',
+      'nov': 'November',
+      'dec': 'December',
+  }
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
+      break
+  return year, month
+
+
+@app.route('/')
+def home():
+  return redirect(url_for('login'))
+
+
+@app.route('/health')
+def health_check():
+  return 'OK', 200
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def login():
+  if request.method == 'POST':
+    username = request.form.get('username', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+
+    name_is_valid = bool(re.match(r'^[A-Za-z\s]+$', username))
+    clean_mobile = re.sub(r'\D', '', mobile)
+    mobile_is_valid = 10 <= len(clean_mobile) <= 12
+
+    if not name_is_valid:
+      flash(
+          'Please use a correct name containing only letters (no numbers or'
+          ' symbols).',
+          'danger',
+      )
+      return render_template('login.html')
+
+    if not mobile_is_valid:
+      flash('Please enter a valid 10-digit mobile number.', 'danger')
+      return render_template('login.html')
+
+    if username and mobile:
+      session.permanent = True
+      session['username'] = username
+      session['mobile'] = mobile
+      user_record = next(
+          (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+      )
+      if not user_record:
+        user_record = {
+            'id': len(REGISTERED_USERS) + 1,
+            'name': username,
+            'mobile': mobile,
+            'status': 'Pending',
+            'registered_at': datetime.now(),
+            'approved_at': None,
+        }
+        REGISTERED_USERS.append(user_record)
+      else:
+        check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+      return redirect(url_for('user_dashboard'))
+  return render_template('login.html')
+
+
+@app.route('/pending-approval')
+def pending_approval():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
+
+
+@app.route('/user-dashboard')
+def user_dashboard():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Pending':
+      return redirect(url_for('pending_approval'))
+  if not user_record:
+    return redirect(url_for('login'))
+
+  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(
+      minutes=5
+  )
+  festival_greeting = get_festival_greeting()
+
+  sensex_info = {
+      'value': '74,729.27',
+      'change': '+413.66 pts (+0.56%)',
+      'is_positive': True,
+      'time_label': 'Live Market Feed',
+  }
+  sensex_trend_data = [
+      {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
+      {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
+      {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
+      {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
+      {'date': '16 Oct', 'value': '74,729.27', 'change': 413.66},
+  ]
+
+  return render_template(
+      'user_dashboard.html',
+      username=session.get('username', 'Client'),
+      mobile=mobile,
+      sensex=sensex_info,
+      sensex_trend=sensex_trend_data,
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
+      admin_online=admin_online,
+      admin_mobile=ADMIN_MOBILE,
+      festival_greeting=festival_greeting,
+  )
+
+
+@app.route('/request-download', methods=['POST'])
+def request_download():
+  if 'username' not in session:
+    return jsonify({'success': False, 'message': 'Not logged in'})
+  data = request.get_json() or {}
+  
