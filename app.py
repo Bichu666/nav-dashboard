@@ -368,4 +368,374 @@ def parse_fund_excel_from_db(table_name):
               'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
               'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
               'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
-              'y4':
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0'
+          })
+  except Exception as e:
+    print(f'Error reading table {table_name} from Supabase: {e}')
+  return fund_list
+
+
+def is_today_filename(filename, upload_timestamp=None):
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  
+  today_patterns = [
+      ist_now.strftime('%d-%m-%Y'),
+      ist_now.strftime('%d_%m_%Y'),
+      ist_now.strftime('%d.%m.%Y'),
+      ist_now.strftime('%Y-%m-%d'),
+      ist_now.strftime('%Y_%m_%d'),
+  ]
+  
+  fn = filename.lower()
+  for pattern in today_patterns:
+    if pattern in fn:
+      return True
+
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
+  return False
+
+
+def extract_date_from_filename(filename):
+  fn = filename.lower()
+  clean_name = os.path.splitext(filename)[0]
+  
+  for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
+    try:
+      dt = datetime.strptime(clean_name, fmt)
+      return dt.strftime('%Y'), dt.strftime('%B')
+    except ValueError:
+      continue
+
+  year = datetime.now().strftime('%Y')
+  match_year = re.search(r'(20\d{2})', fn)
+  if match_year:
+    year = match_year.group(1)
+
+  month = datetime.now().strftime('%B')
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+      'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
+      break
+  return year, month
+
+
+@app.route('/')
+def home():
+  return redirect(url_for('login'))
+
+
+@app.route('/health')
+def health_check():
+  return 'OK', 200
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def login():
+  if request.method == 'POST':
+    username = request.form.get('username')
+    mobile = request.form.get('mobile')
+    if username and mobile:
+      session.permanent = True
+      session['username'] = username
+      session['mobile'] = mobile
+      user_record = next(
+          (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+      )
+      if not user_record:
+        user_record = {
+            'id': len(REGISTERED_USERS) + 1,
+            'name': username,
+            'mobile': mobile,
+            'status': 'Pending',
+            'registered_at': datetime.now(),
+            'approved_at': None,
+        }
+        REGISTERED_USERS.append(user_record)
+      else:
+        check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+      return redirect(url_for('user_dashboard'))
+  return render_template('login.html')
+
+
+@app.route('/pending-approval')
+def pending_approval():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
+
+
+@app.route('/user-dashboard')
+def user_dashboard():
+  try:
+    mobile = session.get('mobile', '')
+    user_record = next(
+        (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+    )
+    if user_record:
+      check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+    if not user_record:
+      return redirect(url_for('login'))
+
+    sensex_info, sensex_trend_data = get_sensex_data()
+    admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    festival_greeting = get_festival_greeting()
+
+    latest_data_updated = False
+    try:
+      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      if os.path.exists(meta_path):
+        with open(meta_path, 'r') as mf:
+          meta = json.load(mf)
+          last_fn = meta.get('filename', '')
+          last_time = meta.get('upload_time', '')
+          if is_today_filename(last_fn, last_time):
+            latest_data_updated = True
+    except Exception as e:
+      print(f"Error checking upload status: {e}")
+
+    return render_template(
+        'user_dashboard.html',
+        username=session.get('username', 'Client'),
+        mobile=mobile,
+        sensex=sensex_info,
+        sensex_trend=sensex_trend_data,
+        equity_data=parse_fund_excel_from_db('equity_funds'),
+        balancer_data=parse_fund_excel_from_db('balancer_funds'),
+        debt_data=parse_fund_excel_from_db('debt_funds'),
+        latest_data_updated=latest_data_updated,
+        admin_online=admin_online,
+        admin_mobile=ADMIN_MOBILE,
+        festival_greeting=festival_greeting,
+    )
+  except Exception as e:
+    print(f"Error in user dashboard: {e}")
+    return render_template('login.html')
+
+
+@app.route('/request-download', methods=['POST'])
+def request_download():
+  if 'username' not in session:
+    return jsonify({'success': False, 'message': 'Not logged in'})
+  data = request.get_json() or {}
+  file_name = data.get('filename', 'Latest NAV Image')
+  download_type = data.get('type', 'latest')
+  
+  req_id = len(DOWNLOAD_REQUESTS) + 1
+  DOWNLOAD_REQUESTS.append({
+      'id': req_id,
+      'username': session.get('username', 'Client'),
+      'filename': file_name,
+      'type': download_type,
+      'status': 'Pending',
+      'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p')
+  })
+  return jsonify({'success': True, 'message': 'Download request submitted successfully. Awaiting Admin Approval.'})
+
+
+@app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
+def approve_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Approved'
+      flash(f"Download request for {req['filename']} approved!", 'success')
+      break
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
+def reject_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Rejected'
+      flash(f"Download request for {req['filename']} rejected.", 'danger')
+      break
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  if 'username' not in session:
+    return redirect(url_for('login'))
+  feedback_text = request.form.get('feedback')
+  rating = request.form.get('rating', '5')
+  if feedback_text:
+    USER_FEEDBACKS.append({
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': session.get('username', 'Client'),
+        'feedback': feedback_text,
+        'rating': int(rating) if str(rating).isdigit() else 5,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    })
+    flash('Feedback submitted successfully!', 'success')
+  return redirect(url_for('user_dashboard'))
+
+
+@app.route('/admin-login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def admin_login():
+  if request.method == 'POST':
+    mobile_input = request.form.get('mobile')
+    password_input = request.form.get('password')
+    if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
+      session.permanent = True
+      session['is_admin'] = True
+      ADMIN_ACTIVITY['last_active'] = datetime.now()
+      return redirect(url_for('admin_dashboard'))
+    else:
+      flash('Invalid Admin Credentials', 'danger')
+  return render_template('admin_login.html')
+
+
+@app.route('/admin')
+def admin_redirect():
+  if session.get('is_admin'):
+    return redirect(url_for('admin_dashboard'))
+  return redirect(url_for('admin_login'))
+
+
+@app.route('/admin-dashboard', methods=['GET', 'POST'])
+def admin_dashboard():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    check_user_validity(user)
+
+  sensex_info, sensex_trend_data = get_sensex_data()
+  festival_greeting = get_festival_greeting()
+
+  return render_template(
+      'admin_dashboard.html',
+      sensex=sensex_info,
+      sensex_trend=sensex_trend_data,
+      users=REGISTERED_USERS,
+      feedbacks=USER_FEEDBACKS,
+      download_requests=DOWNLOAD_REQUESTS,
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
+      auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
+      current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
+      festival_greeting=festival_greeting,
+  )
+
+
+@app.route('/toggle-auto-approval', methods=['POST'])
+def toggle_auto_approval():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
+  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  flash(f'Auto-approval has been {status_text} successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
+def update_user_status(user_id, status):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    if user['id'] == user_id:
+      user['status'] = status.capitalize()
+      if status.capitalize() == 'Approved':
+        user['approved_at'] = datetime.now().isoformat()
+      else:
+        user['approved_at'] = None
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/approve-all-users', methods=['POST'])
+def approve_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  now_iso = datetime.now().isoformat()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Approved'
+      user['approved_at'] = now_iso
+  flash('All pending users approved successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/decline-all-users', methods=['POST'])
+def decline_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+  flash('All pending users declined successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-master-category', methods=['GET', 'POST'])
+def upload_master_category():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      category = request.form.get('category')
+      file_key = f'{category}_file'
+      if file_key in request.files:
+        file = request.files[file_key]
+        if file and file.filename != '':
+          df = pd.read_excel(file)
+          table_name = f'{category}_funds'
+          if engine:
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+            flash(f'{category.capitalize()} funds updated permanently in Supabase database!', 'success')
+          else:
+            flash('Database connection error.', 'danger')
+    except Exception as e:
+      flash(f'Error updating category: {e}', 'danger')
