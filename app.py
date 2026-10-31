@@ -454,8 +454,24 @@ def health_check():
 @limiter.limit("10 per minute")
 def login():
   if request.method == 'POST':
-    username = request.form.get('username')
-    mobile = request.form.get('mobile')
+    username = request.form.get('username', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+    
+    # Strict validation: Name must contain only letters and spaces (no numbers like 12345)
+    name_is_valid = bool(re.match(r'^[A-Za-z\s]+$', username))
+    
+    # Mobile must be a valid 10 to 12 digit number
+    clean_mobile = re.sub(r'\D', '', mobile)
+    mobile_is_valid = 10 <= len(clean_mobile) <= 12
+
+    if not name_is_valid:
+      flash('Please use a correct name containing only letters (no numbers or symbols).', 'danger')
+      return render_template('login.html')
+      
+    if not mobile_is_valid:
+      flash('Please enter a valid mobile number.', 'danger')
+      return render_template('login.html')
+
     if username and mobile:
       session.permanent = True
       session['username'] = username
@@ -739,3 +755,200 @@ def upload_master_category():
             flash('Database connection error.', 'danger')
     except Exception as e:
       flash(f'Error updating category: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-nav', methods=['GET', 'POST'])
+def upload_nav():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      file = request.files.get('nav_image')
+      if file and file.filename != '':
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
+        if not filename:
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+        file_bytes = file.read()
+        
+        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        with open(file_path_upload, 'wb') as f:
+          f.write(file_bytes)
+        
+        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+        with open(latest_ref_path, 'wb') as f:
+          f.write(file_bytes)
+
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        with open(meta_path, 'w') as mf:
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
+
+        target_year, target_month = extract_date_from_filename(raw_fn)
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        with open(archive_file_path, 'wb') as f:
+          f.write(file_bytes)
+
+        flash(f'Successfully published NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
+      else:
+        flash('No file selected for NAV upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading NAV image: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-archive', methods=['GET', 'POST'])
+def upload_archive():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
+
+      month_map = {
+          'jan': 'January', 'feb': 'February', 'mar': 'March',
+          'apr': 'April', 'may': 'May', 'jun': 'June',
+          'jul': 'July', 'aug': 'August', 'sep': 'September',
+          'oct': 'October', 'nov': 'November', 'dec': 'December'
+      }
+      full_month_name = month_map.get(month_input[:3], 'October')
+
+      saved_count = 0
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          raw_fn = file.filename
+          filename = secure_filename(raw_fn)
+          if not filename:
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+          f_year, f_month = extract_date_from_filename(raw_fn)
+          target_year = f_year if f_year else year
+          target_month = f_month if f_month else full_month_name
+
+          target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+          os.makedirs(target_dir, exist_ok=True)
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
+          
+          upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          shutil.copy(file_path, upload_mirror_path)
+          
+          saved_count += 1
+
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} archive file(s) and synced to folders!', 'success')
+      else:
+        flash('No files selected for archive upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading archive files: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/delete-archive-file/<filename>', methods=['POST'])
+def delete_archive_file(filename):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  try:
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      flash(f'Successfully deleted: {filename}', 'success')
+    else:
+      flash('File not found.', 'danger')
+  except Exception as e:
+    flash(f'Error deleting file: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
+  matched_files = []
+
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March',
+      'apr': 'April', 'may': 'May', 'jun': 'June',
+      'jul': 'July', 'aug': 'August', 'sep': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  full_month = month_map.get(month_input[:3], month_input.capitalize())
+
+  target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month)
+
+  if os.path.exists(target_dir):
+    try:
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          matched_files.append(f)
+    except Exception as e:
+      print(f'Error reading archive directory: {e}')
+
+  sorted_files = sorted(list(set(matched_files)), reverse=True)
+  return jsonify({'success': True, 'files': sorted_files})
+
+
+@app.route('/view-archive-file/<path:filename>')
+def view_archive_file(filename):
+  archive_base = ARCHIVE_FOLDER
+  for root, dirs, files in os.walk(archive_base):
+    if filename in files:
+      return send_from_directory(root, filename)
+  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/view-latest-nav')
+def view_latest_nav():
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0])
+  except Exception:
+    pass
+  return "No NAV image found.", 404
+
+
+@app.route('/download-latest-nav')
+def download_latest_nav():
+  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+  if os.path.exists(latest_path):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
+  
+  try:
+    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+    if files:
+      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
+      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
+  except Exception:
+    pass
+  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
