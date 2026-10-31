@@ -372,9 +372,12 @@
             </div>
 
             <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Download Today's NAV Image</h3>
-                <span style="font-size: 13px; color: var(--text-muted);">JPEG Format</span>
-                <a href="{{ url_for('download_latest_nav') }}" class="btn-batch" style="display: block; text-decoration: none; text-align: center; margin-top: 10px;">Download Image</a>
+                <h3>View Today's NAV Image</h3>
+                <span style="font-size: 13px; color: var(--text-muted);">JPEG Format (Download Locked)</span>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button type="button" id="btn-view-latest" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View</button>
+                    <button type="button" id="btn-request-latest" class="btn-batch" style="background: #d97706; color: #000; flex: 1;">Download</button>
+                </div>
             </div>
         </div>
 
@@ -407,7 +410,7 @@
             </div>
             <div style="display: flex; gap: 15px;">
                 <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View</button>
-                <button type="button" id="btn-download-archive" class="btn-batch">Download</button>
+                <button type="button" id="btn-request-archive" class="btn-batch">Download</button>
             </div>
         </div>
 
@@ -656,6 +659,23 @@
         document.getElementById('archive-year-select').addEventListener('change', loadArchiveFiles);
         document.getElementById('archive-month-select').addEventListener('change', loadArchiveFiles);
 
+        document.getElementById('btn-view-latest').addEventListener('click', function() {
+            window.open('/view-latest-nav', '_blank');
+        });
+
+        document.getElementById('btn-request-latest').addEventListener('click', function() {
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: 'Latest NAV Image', type: 'latest'})
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(err => alert('Error submitting request.'));
+        });
+
         document.getElementById('btn-view-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
             if (!filename) {
@@ -665,18 +685,22 @@
             window.open('/view-archive-file/' + filename, '_blank');
         });
 
-        document.getElementById('btn-download-archive').addEventListener('click', function() {
+        document.getElementById('btn-request-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
             if (!filename) {
                 alert('Please select a specific date/file first.');
                 return;
             }
-            const a = document.createElement('a');
-            a.href = '/view-archive-file/' + filename;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: filename, type: 'archive'})
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+            })
+            .catch(err => alert('Error submitting request.'));
         });
 
         // Automatically load archive files on page load
