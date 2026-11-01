@@ -339,7 +339,7 @@
             </div>
 
             <div class="panel trend-panel">
-                <h3>Previous 5 days Market Trend</h3>
+                <h3>BSE SENSEX PREVIOUS 5 DAYS VALUE</h3>
                 <div class="trend-boxes">
                     {% for item in market_trend %}
                     <div class="t-box">
@@ -414,7 +414,6 @@
             </div>
         </div>
 
-        <!-- Moved User Feedback & Download Approvals Just Below Upload Excels -->
         <div class="panel" style="margin-bottom: 24px;">
             <h3>Show User Feedback, Suggestion and Rating</h3>
             <table class="approval-table">
@@ -674,7 +673,6 @@
         setInterval(updateClock, 1000);
         updateClock();
 
-        // 10-Second Market Indices Auto-Refresh Script
         setInterval(() => {
             fetch('/api/market-live')
                 .then(response => response.json())
