@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>User Portal - NAV Updates</title>
+    <!-- Include Google Cursive Font for Festive Greetings -->
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
@@ -15,8 +16,8 @@
             --text-muted: #9ca3af;
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
-            --green: #00FF00;
-            --red: #FF0800;
+            --green: #00FF00; /* Electric Green matched from Admin Dashboard */
+            --red: #FF0800;   /* Candy Apple Red matched from Admin Dashboard */
         }
 
         body { 
@@ -24,16 +25,147 @@
             background-color: var(--bg-main) !important;
             color: var(--text-main) !important;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            margin: 0; padding: 0;
+            margin: 0;
+            padding: 0;
         }
 
-        .dashboard-container { max-width: 1440px; margin: 0 auto; padding: 24px; }
+        .dashboard-container { 
+            max-width: 1440px; 
+            margin: 0 auto; 
+            padding: 24px; 
+        }
+        
         .main-header {
             background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-card) 100%);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 20px 30px;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .main-header h2 { 
+            font-size: 22px !important; 
+            margin: 0 0 4px 0;
+            background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-header h1 { 
+            font-size: 34px !important; 
+            margin: 0;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #ff8c00 0%, #f59e0b 50%, #fcd34d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 12px rgba(245, 158, 11, 0.2);
+        }
+
+        .control-center-text { font-size: 14px !important; }
+        .panel h3 { 
+            font-size: 17px !important; 
+            margin-top: 0;
+            margin-bottom: 15px; 
+            color: var(--accent-gold); 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 8px; 
+        }
+        
+        .sensex-main-val { font-size: 30px !important; font-weight: 700; color: #fff; margin-top: 8px; }
+        .sensex-change-val { font-size: 16px !important; font-weight: 600; margin-top: 4px; }
+        
+        .fund-table-full th, .fund-table-full td { font-size: 14px !important; padding: 14px 12px !important; }
+        .section-title-bar { 
+            font-size: 16px !important; 
+            padding: 14px 18px !important; 
+            background: linear-gradient(90deg, #1f2937 0%, #111827 100%);
+            border-left: 4px solid var(--accent-orange);
+            font-weight: 600;
+            color: #fff;
+            border-radius: 6px 6px 0 0;
+            margin-top: 24px;
+        }
+
+        .live-datetime {
+            font-size: 15px !important;
+            font-weight: 600 !important;
+            color: #fcd34d !important;
+            margin-bottom: 4px;
+        }
+        
+        .admin-identity { font-size: 14px !important; color: var(--accent-gold) !important; }
+        
+        .session-badge {
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            color: var(--green) !important;
+            background: rgba(0, 255, 0, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .nav-red-alert, .sensex-neg { color: var(--red) !important; font-weight: 600; }
+        .nav-green, .sensex-pos { color: var(--green) !important; font-weight: 600; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 12px;
+            width: 650px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+
+        .modal-returns-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .modal-returns-table th, .modal-returns-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            font-size: 14px;
+        }
+        .modal-returns-table th { background: var(--bg-card); color: var(--accent-gold); }
+
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.6fr 1.4fr 1.2fr;
+            gap: 20px;
             margin-bottom: 24px;
         }
 
@@ -42,72 +174,189 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 22px;
-            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        .panel h3 { 
-            font-size: 17px !important; 
-            margin-top: 0; margin-bottom: 15px; 
-            color: var(--accent-gold); 
-            border-bottom: 1px solid var(--border-color); 
-            padding-bottom: 8px; 
+        .archive-controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
         }
 
-        .top-grid { display: grid; grid-template-columns: 1fr 1.6fr 1.4fr 1.2fr; gap: 20px; margin-bottom: 24px; }
-        .archive-controls-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        .archive-controls-row select { width: 100%; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: var(--text-main); border-radius: 6px; }
+        .archive-controls-row label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .archive-controls-row select {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            color: var(--text-main);
+            border-radius: 6px;
+            font-size: 14px;
+        }
 
         .btn-batch {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: #000; font-weight: 700; border: none; padding: 10px 20px;
-            border-radius: 6px; cursor: pointer; text-align: center;
+            color: #000;
+            font-weight: 700;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
+        }
+        .btn-batch:hover { 
+            filter: brightness(1.1);
+            transform: translateY(-1px); 
         }
 
-        .fund-table-full { width: 100%; border-collapse: collapse; background: var(--bg-panel); border: 1px solid var(--border-color); }
-        .fund-table-full th { background: var(--bg-card); color: var(--accent-gold); text-align: left; padding: 12px; }
-        .fund-table-full td { border-bottom: 1px solid var(--border-color); padding: 12px; }
+        .fund-table-full {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-panel);
+            border-radius: 0 0 8px 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-top: none;
+        }
+        .fund-table-full th {
+            background: var(--bg-card);
+            color: var(--accent-gold);
+            text-align: left;
+        }
+        .fund-table-full tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+        .fund-table-full td {
+            border-bottom: 1px solid var(--border-color);
+        }
 
-        .nav-red-alert { color: var(--red) !important; font-weight: 600; }
-        .nav-green { color: var(--green) !important; font-weight: 600; }
+        /* Star Rating CSS */
+        .star-rating {
+            display: inline-flex;
+            direction: rtl;
+            font-size: 1.5rem;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            color: #444;
+            cursor: pointer;
+            transition: color 0.2s ease-in-out;
+        }
+        .star-rating input:checked ~ label,
+        .star-rating label:hover,
+        .star-rating label:hover ~ label {
+            color: #f1c40f;
+        }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
+        
         <header class="main-header">
-            <div>
+            <div class="header-left">
                 <h2>User Portal</h2>
-                <span style="color: var(--text-muted); font-size: 14px;">Client Control Center</span>
-                <div style="color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</div>
-                <div style="color: var(--red); font-size: 13px; font-weight: bold;">+918078535666</div>
+                <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
+                <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
+                
+                <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
+                    {% if admin_online %}
+                        <span style="color: var(--green);">● Admin Online</span>
+                    {% else %}
+                        <span style="color: var(--text-muted);">● Admin Offline</span>
+                    {% endif %}
+                </div>
+                <!-- Admin Mobile Number displayed in red color matching negative funds -->
+                <div style="margin-top: 3px; font-size: 13px; font-weight: bold; color: var(--red);">
+                    +918078535666
+                </div>
             </div>
-            <div style="text-align: center;">
+            
+            <div class="header-center-banner text-center">
                 {% if festival_greeting %}
-                    <div style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; color: var(--accent-gold);">✨ {{ festival_greeting }} ✨</div>
+                    <div class="festival-banner-container text-center py-2 px-3 my-2 rounded" style="background: linear-gradient(135deg, rgba(255, 140, 0, 0.15), rgba(255, 0, 128, 0.15)); border: 1px solid rgba(255, 215, 0, 0.4); box-shadow: 0 0 15px rgba(255, 165, 0, 0.2);">
+                        {% if 'Dussehra' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🏹</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #ff4e50, #f9d423); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 10px rgba(255, 78, 80, 0.5); font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🔥</span>
+                            </div>
+                            <small class="text-warning d-block" style="font-size: 11px; letter-spacing: 1px;">|| Victory Of Good Over Evil ||</small>
+                        {% elif 'Onam' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🌸🌼</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #00b09b, #96c93d); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🌼🌸</span>
+                            </div>
+                            <small class="text-light d-block" style="font-size: 11px;">Wishing you prosperity and joyful Pookalam celebrations!</small>
+                        {% elif 'Independence' in festival_greeting or 'Republic' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🇮🇳</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #FF9933, #FFFFFF, #138808); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">🇮🇳</span>
+                            </div>
+                        {% elif 'Christmas' in festival_greeting %}
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 1.6rem;">🎅🔔</span>
+                                <span style="font-family: 'Great Vibes', cursive; font-size: 2.8rem; background: linear-gradient(45deg, #e74c3c, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; line-height: 1.1;">✨ {{ festival_greeting }} ✨</span>
+                                <span style="font-size: 1.6rem;">❄️🎄</span>
+                            </div>
+                        {% else %}
+                            <div style="font-family: 'Great Vibes', cursive; font-size: 3.2rem; background: linear-gradient(45deg, #ffd700, #ff8c00, #ff4500, #ff1493, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 69, 0, 0.4); letter-spacing: 3px; font-weight: bold; line-height: 1.1;">
+                                ✨ {{ festival_greeting }} ✨
+                            </div>
+                        {% endif %}
+                    </div>
                 {% else %}
-                    <h1 style="color: var(--accent-orange); margin: 0;">NAV UPDATES</h1>
+                    <h1>NAV UPDATES</h1>
                 {% endif %}
             </div>
-            <div style="text-align: right;">
-                <p id="live-clock" style="color: var(--accent-gold); font-weight: 600; margin: 0;"></p>
-                <p style="color: var(--accent-gold); margin: 4px 0 0 0;">User: {{ username }}</p>
+
+            <div class="header-right" style="text-align: right;">
+                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
+                <p class="admin-identity">User Name: {{ username }}</p>
+                <p class="session-badge">30 Days Active Session</p>
+                <div style="margin-top: 4px; font-size: 12px;">
+                    {% if latest_data_updated %}
+                        <span style="color: var(--green); font-weight: 600;">● Admin Updated: Latest Data Live</span>
+                    {% else %}
+                        <span style="color: var(--accent-orange); font-weight: 600;">● Status: Showing Previous Data</span>
+                    {% endif %}
+                </div>
             </div>
         </header>
 
         <div class="top-grid">
-            <div class="panel">
+            <div class="panel sensex-panel">
                 <h3>BSE Sensex Live Tracker</h3>
-                <div style="font-size: 28px; font-weight: bold; color: #fff;">{{ sensex.value }}</div>
-                <div style="color: var(--green); font-weight: 600;">{{ sensex.change }}</div>
+                <span class="sub-label" id="sensex-time-label" style="font-size: 13px; color: var(--text-muted);">{{ sensex.time_label }}</span>
+                <div class="sensex-main-val" id="sensex-live-value">{{ sensex.value }}</div>
+                <div class="sensex-change-val {% if sensex.is_positive %}sensex-pos{% else %}sensex-neg{% endif %}" id="sensex-live-change">
+                    {{ sensex.change }}
+                </div>
             </div>
 
-            <div class="panel">
+            <div class="panel trend-panel">
                 <h3>Previous 5 days Market Trend</h3>
-                <div style="display: flex; gap: 8px;">
+                <div class="trend-boxes" style="display: flex; gap: 8px;">
                     {% for item in sensex_trend %}
-                    <div style="background: var(--bg-card); padding: 8px; border-radius: 6px; flex: 1; text-align: center; border: 1px solid var(--border-color);">
-                        <div style="font-size: 11px; color: var(--text-muted);">{{ item.date }}</div>
-                        <div style="font-size: 12px; font-weight: 600;">{{ item.value }}</div>
-                        <div style="font-size: 11px;" class="{% if item.change >= 0 %}nav-green{% else %}nav-red-alert{% endif %}">{{ item.change }}</div>
+                    <div class="t-box" style="background: var(--bg-card); padding: 8px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
+                        <div class="t-date" style="font-size: 11px; color: var(--text-muted);">{{ item.date }}</div>
+                        <div class="t-val" style="font-size: 12px; font-weight: 600; color: #fff; margin: 4px 0;">{{ item.value }}</div>
+                        <div class="t-chg {% if item.change >= 0 %}sensex-pos{% else %}sensex-neg{% endif %}" style="font-size: 11px;">
+                            {% if item.change >= 0 %}+{{ item.change }}{% else %}{{ item.change }}{% endif %} pts
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -115,26 +364,25 @@
 
             <div class="panel">
                 <h3>NAV Sharing Options</h3>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <a href="https://whatsapp.com" target="_blank" class="btn-batch" style="background: #25d366; color: #fff; text-decoration: none; flex: 1;">WhatsApp</a>
-                    <a href="mailto:?subject=Latest NAV Data" class="btn-batch" style="background: #0288d1; color: #fff; text-decoration: none; flex: 1;">Email</a>
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Share latest NAV data with peers or clients instantly.</p>
+                <div style="display: flex; gap: 10px;">
+                    <a href="https://whatsapp.com" target="_blank" class="btn-batch" style="background: #25d366; color: #fff; text-decoration: none; flex: 1; text-align: center;">WhatsApp</a>
+                    <a href="mailto:?subject=Latest NAV Data" class="btn-batch" style="background: #0288d1; color: #fff; text-decoration: none; flex: 1; text-align: center;">Email</a>
                 </div>
             </div>
 
-            <div class="panel">
-                <h3>Today's NAV Image</h3>
-                <div style="display: flex; gap: 8px; margin-top: 15px;">
-                    <button type="button" id="btn-view-latest" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View</button>
-                    <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Download</button>
-                </div>
+            <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <h3>Download Today's NAV Image</h3>
+                <span style="font-size: 13px; color: var(--text-muted);">JPEG Format</span>
+                <a href="{{ url_for('download_latest_nav') }}" class="btn-batch" style="display: block; text-decoration: none; text-align: center; margin-top: 10px;">Download Image</a>
             </div>
         </div>
 
-        <div class="panel">
+        <div class="panel" style="margin-bottom: 24px;">
             <h3>Old NAV Image Viewer (Month & Date Wise)</h3>
             <div class="archive-controls-row">
                 <div>
-                    <label style="font-size: 13px; color: var(--text-muted);">Select Year</label>
+                    <label>Select Year</label>
                     <select id="archive-year-select">
                         {% for y in range(2024, 2032) %}
                             <option value="{{ y }}" {% if y == 2026 %}selected{% endif %}>{{ y }}</option>
@@ -142,7 +390,7 @@
                     </select>
                 </div>
                 <div>
-                    <label style="font-size: 13px; color: var(--text-muted);">Select Month</label>
+                    <label>Select Month</label>
                     <select id="archive-month-select">
                         <option value="Jan">Jan</option><option value="Feb">Feb</option><option value="Mar">Mar</option>
                         <option value="Apr">Apr</option><option value="May">May</option><option value="Jun">Jun</option>
@@ -151,7 +399,7 @@
                     </select>
                 </div>
                 <div>
-                    <label style="font-size: 13px; color: var(--text-muted);">Select Specific File / Date</label>
+                    <label>Select Specific File / Date</label>
                     <select id="archive-file-select">
                         <option value="">-- Select specific date/file --</option>
                     </select>
@@ -159,32 +407,157 @@
             </div>
             <div style="display: flex; gap: 15px;">
                 <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View</button>
-                <button type="button" id="btn-request-archive" class="btn-batch">Download</button>
+                <button type="button" id="btn-download-archive" class="btn-batch">Download</button>
             </div>
         </div>
 
-        <div class="panel">
-            <h3>Equity Funds</h3>
-            <table class="fund-table-full">
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>User Feedback and Suggestion / Rating</h3>
+            <form action="{{ url_for('submit_feedback') }}" method="POST">
+                <!-- Interactive Star Rating Widget -->
+                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Rate Application:</span>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5" title="5 stars">★</label>
+                        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+                        <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+                        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+                        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
+                    <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="funds-stack-container">
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Equity (Click any fund for full performance details)</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in equity_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Balancer (Click any fund for full performance details)</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in balancer_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Debt (Click any fund for full performance details)</div>
+                <table class="fund-table-full">
+                    <thead>
+                        <tr>
+                            <th>FUNDS</th>
+                            <th>Inception Date</th>
+                            <th>Benchmark Name</th>
+                            <th>Since Inception</th>
+                            <th>Highest NAV</th>
+                            <th>Latest NAV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in debt_data %}
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                            <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
+                            <td>{{ row.inception }}</td>
+                            <td>{{ row.benchmark }}</td>
+                            {% set since_val = row.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
+                            <td>{{ row.high }}</td>
+                            {% set latest_val = row.latest | string | replace(',', '') | float(default=10) %}
+                            <td class="{% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.latest }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer class="portal-footer" style="font-size: 14px; padding: 30px 0; text-align: center; color: var(--text-muted);">
+            <p>User Portal - NAV Updates</p>
+        </footer>
+    </div>
+
+    <div id="fundModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-fund-name" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">Fund Name</h2>
+            <div class="modal-info-grid" style="font-size: 14px; margin-bottom: 15px; display: flex; gap: 20px; color: var(--text-muted);">
+                <div><strong>Inception Date:</strong> <span id="modal-inception" style="color:#fff;"></span></div>
+                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark" style="color:#fff;"></span></div>
+            </div>
+            
+            <table class="modal-returns-table">
                 <thead>
                     <tr>
-                        <th>FUNDS</th>
-                        <th>Inception Date</th>
-                        <th>Benchmark</th>
-                        <th>Since Inception</th>
-                        <th>Latest NAV</th>
+                        <th>Metric / Period</th>
+                        <th>Value / Return</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in equity_data %}
-                    <tr>
-                        <td><b style="color: var(--accent-gold);">{{ row.fund }}</b></td>
-                        <td>{{ row.inception }}</td>
-                        <td>{{ row.benchmark }}</td>
-                        <td class="{% if row.since | string | replace('%', '') | float <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ row.since }}%</td>
-                        <td>{{ row.latest }}</td>
-                    </tr>
-                    {% endfor %}
+                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
+                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
+                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
+                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
+                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
+                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
+                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
+                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
+                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
+                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
+                    <tr><td>Highest NAV</td><td id="m-high"></td></tr>
+                    <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
                 </tbody>
             </table>
         </div>
@@ -192,10 +565,72 @@
 
     <script>
         function updateClock() {
-            document.getElementById('live-clock').innerText = new Date().toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            const now = new Date();
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            const timeString = now.toLocaleString('en-US', options);
+            document.getElementById('live-clock').innerText = timeString;
         }
         setInterval(updateClock, 1000);
         updateClock();
+
+        // 1-Second Live Sensex Auto-Refresh Script
+        setInterval(() => {
+            fetch('/api/sensex-live')
+                .then(response => response.json())
+                .then(data => {
+                    const valElem = document.getElementById('sensex-live-value');
+                    const chgElem = document.getElementById('sensex-live-change');
+                    const timeLabelElem = document.getElementById('sensex-time-label');
+                    if (valElem) valElem.innerText = data.value;
+                    if (timeLabelElem) timeLabelElem.innerText = data.time_label;
+                    if (chgElem) {
+                        chgElem.innerText = data.change;
+                        chgElem.className = 'sensex-change-val ' + (data.is_positive ? 'sensex-pos' : 'sensex-neg');
+                    }
+                })
+                .catch(err => console.error('Sensex live refresh error:', err));
+        }, 1000);
+
+        function openModal(data) {
+            document.getElementById('modal-fund-name').innerText = data.fund;
+            document.getElementById('modal-inception').innerText = data.inception;
+            document.getElementById('modal-benchmark').innerText = data.benchmark;
+
+            const percentageFields = [
+                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
+            ];
+
+            percentageFields.forEach(f => {
+                let cell = document.getElementById(f.id);
+                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
+                let num = parseFloat(String(rawVal).replace('%', ''));
+                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
+                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
+            });
+
+            let highCell = document.getElementById('m-high');
+            highCell.innerText = data.high;
+            highCell.className = "nav-green";
+
+            let latestCell = document.getElementById('m-latest');
+            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
+            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
+            latestCell.innerText = latestRaw;
+            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
+
+            document.getElementById('fundModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('fundModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            let modal = document.getElementById('fundModal');
+            if (event.target == modal) { closeModal(); }
+        }
 
         function loadArchiveFiles() {
             const year = document.getElementById('archive-year-select').value;
@@ -203,38 +638,48 @@
             const fileSelect = document.getElementById('archive-file-select');
 
             fetch(`/get-archive-files?year=${year}&month=${month}`)
-                .then(res => res.json())
+                .then(response => response.json())
                 .then(data => {
                     fileSelect.innerHTML = '<option value="">-- Select specific date/file --</option>';
                     if (data.success && data.files.length > 0) {
-                        data.files.forEach(fn => {
+                        data.files.forEach(filename => {
                             let opt = document.createElement('option');
-                            opt.value = fn;
-                            opt.textContent = fn;
+                            opt.value = filename;
+                            opt.textContent = filename;
                             fileSelect.appendChild(opt);
                         });
                     }
-                });
+                })
+                .catch(err => console.error('Error fetching archive files:', err));
         }
 
         document.getElementById('archive-year-select').addEventListener('change', loadArchiveFiles);
         document.getElementById('archive-month-select').addEventListener('change', loadArchiveFiles);
-        document.getElementById('btn-view-latest').addEventListener('click', () => window.open('/view-latest-nav', '_blank'));
 
-        document.getElementById('btn-request-latest').addEventListener('click', () => {
-            fetch('/request-download', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename: 'Latest NAV Image', type: 'latest'})
-            }).then(r => r.json()).then(d => alert(d.message));
+        document.getElementById('btn-view-archive').addEventListener('click', function() {
+            const filename = document.getElementById('archive-file-select').value;
+            if (!filename) {
+                alert('Please select a specific date/file first.');
+                return;
+            }
+            window.open('/view-archive-file/' + filename, '_blank');
         });
 
-        document.getElementById('btn-view-archive').addEventListener('click', () => {
-            const fn = document.getElementById('archive-file-select').value;
-            if (fn) window.open('/view-archive-file/' + fn, '_blank');
-            else alert('Select a file first.');
+        document.getElementById('btn-download-archive').addEventListener('click', function() {
+            const filename = document.getElementById('archive-file-select').value;
+            if (!filename) {
+                alert('Please select a specific date/file first.');
+                return;
+            }
+            const a = document.createElement('a');
+            a.href = '/view-archive-file/' + filename;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         });
 
+        // Automatically load archive files on page load
         loadArchiveFiles();
     </script>
 </body>
