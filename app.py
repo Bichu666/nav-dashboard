@@ -99,6 +99,19 @@ USER_FEEDBACKS = [
     },
 ]
 
+DOWNLOAD_REQUESTS = [
+    {
+        'id': 1,
+        'username': 'Rahul Sharma',
+        'filename': 'latest_nav.jpg',
+        'type': 'latest',
+        'status': 'Pending',
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p')
+    }
+]
+
+PENDING_OTPS = {}
+
 
 def check_user_validity(user):
   if not ADMIN_SETTINGS.get('auto_approval_enabled', True):
@@ -452,31 +465,53 @@ def health_check():
 @limiter.limit("10 per minute")
 def login():
   if request.method == 'POST':
-    username = request.form.get('username')
-    mobile = request.form.get('mobile')
-    if username and mobile:
-      session.permanent = True
-      session['username'] = username
-      session['mobile'] = mobile
-      user_record = next(
-          (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
-      )
-      if not user_record:
-        user_record = {
-            'id': len(REGISTERED_USERS) + 1,
-            'name': username,
-            'mobile': mobile,
-            'status': 'Pending',
-            'registered_at': datetime.now(),
-            'approved_at': None,
-        }
-        REGISTERED_USERS.append(user_record)
+    step = request.form.get('step', 'request_otp')
+    username = request.form.get('username', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+
+    name_is_valid = bool(re.match(r'^[A-Za-z\s]+$', username))
+    clean_mobile = re.sub(r'\D', '', mobile)
+    mobile_is_valid = 10 <= len(clean_mobile) <= 12
+
+    if not name_is_valid or not mobile_is_valid:
+      flash('Use correct name (letters only) and valid mobile number.', 'danger')
+      return render_template('login.html', step='request_otp')
+
+    if step == 'request_otp':
+      otp_code = str(random.randint(1000, 9999))
+      PENDING_OTPS[mobile] = otp_code
+      print(f"DEBUG OTP for {mobile}: {otp_code}")
+      flash(f'OTP sent to {mobile}. (Demo OTP: {otp_code})', 'success')
+      return render_template('login.html', step='verify_otp', username=username, mobile=mobile)
+
+    elif step == 'verify_otp':
+      entered_otp = request.form.get('otp', '').strip()
+      if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_otp:
+        del PENDING_OTPS[mobile]
+        session.permanent = True
+        session['username'] = username
+        session['mobile'] = mobile
+        user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+        if not user_record:
+          user_record = {
+              'id': len(REGISTERED_USERS) + 1,
+              'name': username,
+              'mobile': mobile,
+              'status': 'Pending',
+              'registered_at': datetime.now(),
+              'approved_at': None,
+          }
+          REGISTERED_USERS.append(user_record)
+        else:
+          check_user_validity(user_record)
+        if user_record['status'] == 'Pending':
+          return redirect(url_for('pending_approval'))
+        return redirect(url_for('user_dashboard'))
       else:
-        check_user_validity(user_record)
-      if user_record['status'] == 'Pending':
-        return redirect(url_for('pending_approval'))
-      return redirect(url_for('user_dashboard'))
-  return render_template('login.html')
+        flash('Invalid OTP code. Please try again.', 'danger')
+        return render_template('login.html', step='verify_otp', username=username, mobile=mobile)
+
+  return render_template('login.html', step='request_otp')
 
 
 @app.route('/pending-approval')
@@ -525,6 +560,8 @@ def user_dashboard():
     except Exception as e:
       print(f"Error checking upload status: {e}")
 
+    user_requests = [r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username')]
+
     return render_template(
         'user_dashboard.html',
         username=session.get('username', 'Client'),
@@ -538,10 +575,53 @@ def user_dashboard():
         admin_online=admin_online,
         admin_mobile=ADMIN_MOBILE,
         festival_greeting=festival_greeting,
+        download_requests=user_requests,
+        feedbacks=USER_FEEDBACKS,
     )
   except Exception as e:
     print(f"Error in user dashboard: {e}")
     return render_template('login.html')
+
+
+@app.route('/request-download', methods=['POST'])
+def request_download():
+  if 'username' not in session:
+    return jsonify({'success': False, 'message': 'Not logged in'})
+  data = request.get_json() or {}
+  file_name = data.get('filename', 'latest_nav.jpg')
+  download_type = data.get('type', 'latest')
+
+  req_id = len(DOWNLOAD_REQUESTS) + 1
+  DOWNLOAD_REQUESTS.append({
+      'id': req_id,
+      'username': session.get('username', 'Client'),
+      'filename': file_name,
+      'type': download_type,
+      'status': 'Pending',
+      'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+  })
+  return jsonify({
+      'success': True,
+      'message': 'Download approval request sent to Admin successfully.',
+  })
+
+
+@app.route('/view-latest-nav')
+def view_latest_nav():
+  files = [
+      f
+      for f in os.listdir(app.config['UPLOAD_FOLDER'])
+      if f.lower().endswith(('.jpg', '.jpeg', '.png'))
+  ]
+  if files:
+    files.sort(
+        key=lambda x: os.path.getmtime(
+            os.path.join(app.config['UPLOAD_FOLDER'], x)
+        ),
+        reverse=True,
+    )
+    return send_from_directory(app.config['UPLOAD_FOLDER'], files[0])
+  return "No NAV image uploaded yet.", 404
 
 
 @app.route('/submit-feedback', methods=['POST'])
@@ -597,6 +677,7 @@ def admin_dashboard():
 
   sensex_info, sensex_trend_data = get_sensex_data()
   festival_greeting = get_festival_greeting()
+  user_filter = request.args.get('user_filter', 'all')
 
   return render_template(
       'admin_dashboard.html',
@@ -604,13 +685,39 @@ def admin_dashboard():
       sensex_trend=sensex_trend_data,
       users=REGISTERED_USERS,
       feedbacks=USER_FEEDBACKS,
+      download_requests=DOWNLOAD_REQUESTS,
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
       auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
       festival_greeting=festival_greeting,
+      user_filter=user_filter,
   )
+
+
+@app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
+def approve_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Approved'
+      flash(f"Download request for {req['filename']} approved!", 'success')
+      break
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
+def reject_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Rejected'
+      flash(f"Download request for {req['filename']} rejected.", 'danger')
+      break
+  return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/toggle-auto-approval', methods=['POST'])
@@ -853,22 +960,6 @@ def view_archive_file(filename):
     if filename in files:
       return send_from_directory(root, filename)
   return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-@app.route('/download-latest-nav')
-def download_latest_nav():
-  latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
-  if os.path.exists(latest_path):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg', as_attachment=True)
-  
-  try:
-    files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-    if files:
-      files.sort(key=lambda x: os.path.getmtime(os.path.join(app.config['UPLOAD_FOLDER'], x)), reverse=True)
-      return send_from_directory(app.config['UPLOAD_FOLDER'], files[0], as_attachment=True)
-  except Exception:
-    pass
-  return "No NAV image found. Please upload today's NAV from the Admin Portal.", 404
 
 
 if __name__ == '__main__':
