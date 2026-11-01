@@ -252,35 +252,33 @@ def daily_scheduler():
 
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
-CACHE_FILE = 'sensex_cache.json'
+CACHE_FILE = 'market_cache.json'
 
-DEFAULT_SENSEX_CACHE = {
-    'value': 74729.27,
-    'base_change_pts': 413.66,
-    'pct_change': 0.56,
-    'is_positive': True,
-    'last_close_time': '04:00:00 PM IST',
+DEFAULT_MARKET_CACHE = {
+    'nifty50': {'value': '23,053.10', 'change': '+116.35 pts (+0.51%)', 'is_positive': True},
+    'sensex': {'value': '74,459.53', 'change': '+308.49 pts (+0.42%)', 'is_positive': True},
+    'nifty500': {'value': '21,895.90', 'change': '-45.60 pts (-0.21%)', 'is_positive': False},
     'trend_data': [
-        {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
-        {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
-        {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
-        {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
-        {'date': '16 Oct', 'value': '74,729.27', 'change': 413.66},
+        {'date': '26 Oct', 'nifty50': '22,850.10', 'sensex': '73,924.68', 'nifty500': '21,650.00', 'change': -120.50},
+        {'date': '27 Oct', 'nifty50': '22,940.25', 'sensex': '74,103.78', 'nifty500': '21,740.10', 'change': 180.25},
+        {'date': '28 Oct', 'nifty50': '22,890.00', 'sensex': '73,981.89', 'nifty500': '21,700.50', 'change': -50.25},
+        {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 210.15},
+        {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
     ]
 }
 
 
-def load_sensex_cache():
+def load_market_cache():
   try:
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r') as f:
         return json.load(f)
   except Exception:
     pass
-  return DEFAULT_SENSEX_CACHE.copy()
+  return DEFAULT_MARKET_CACHE.copy()
 
 
-def save_sensex_cache(cache_data):
+def save_market_cache(cache_data):
   try:
     with open(CACHE_FILE, 'w') as f:
       json.dump(cache_data, f)
@@ -289,66 +287,73 @@ def save_sensex_cache(cache_data):
 
 
 if not os.path.exists(CACHE_FILE):
-  save_sensex_cache(DEFAULT_SENSEX_CACHE)
+  save_market_cache(DEFAULT_MARKET_CACHE)
 
 
-def get_live_sensex_from_public_api():
-  cache = load_sensex_cache()
-  default_val = float(str(cache.get('value', 74729.27)).replace(',', ''))
-  
-  try:
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/^BSESN?interval=1m"
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get(url, headers=headers, timeout=5)
-    
-    if response.status_code == 200:
-      res_json = response.json()
-      meta = res_json['chart']['result'][0]['meta']
-      ltp = float(meta.get('regularMarketPrice', 0))
-      prev_close = float(meta.get('chartPreviousClose', ltp))
-      
-      if ltp > 0:
-        change = ltp - prev_close
-        pct_change = (change / prev_close) * 100 if prev_close else 0
-        
-        now_utc = datetime.now(timezone.utc)
-        ist_now = now_utc + timedelta(hours=5, minutes=30)
-        
-        return {
-            'value': f"{ltp:,.2f}",
-            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-            'is_positive': change >= 0,
-            'time_label': f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}",
-            'is_market_open': True
-        }
-  except Exception as e:
-    print(f"Live Market Fetch Error: {e}")
-
+def get_live_market_data():
+  cache = load_market_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  pts_change = float(cache.get('base_change_pts', 413.66))
-  pct_change = float(cache.get('pct_change', 0.56))
   
-  return {
-      'value': f'{default_val:,.2f}',
-      'change': f'{pts_change:+,.2f} pts ({pct_change:+.2f}%)',
-      'is_positive': pts_change >= 0,
-      'time_label': f"At close: 04:00:00 PM IST",
-      'is_market_open': False
+  is_weekend = ist_now.weekday() >= 5
+  is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
+
+  indices = {
+      'nifty50': '^NSEI',
+      'sensex': '^BSESN',
+      'nifty500': '^CRSLDX'
   }
+  
+  result = {}
+  headers = {'User-Agent': 'Mozilla/5.0'}
+
+  for key, ticker in indices.items():
+    try:
+      url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m"
+      response = requests.get(url, headers=headers, timeout=4)
+      if response.status_code == 200:
+        res_json = response.json()
+        meta = res_json['chart']['result'][0]['meta']
+        ltp = float(meta.get('regularMarketPrice', 0))
+        prev_close = float(meta.get('chartPreviousClose', ltp))
+        if ltp > 0:
+          change = ltp - prev_close
+          pct_change = (change / prev_close) * 100 if prev_close else 0
+          result[key] = {
+              'value': f"{ltp:,.2f}",
+              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+              'is_positive': change >= 0
+          }
+    except Exception:
+      pass
+
+    if key not in result:
+      cached_item = cache.get(key, {})
+      result[key] = {
+          'value': cached_item.get('value', '0.00'),
+          'change': cached_item.get('change', '+0.00 pts (0.00%)'),
+          'is_positive': cached_item.get('is_positive', True)
+      }
+
+  if not is_market_hours:
+    time_label = f"CLOSED | As on 04:00 PM | 30 Oct 2026"
+  else:
+    time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
+
+  return {
+      'nifty50': result['nifty50'],
+      'sensex': result['sensex'],
+      'nifty500': result['nifty500'],
+      'time_label': time_label,
+      'is_market_open': is_market_hours
+  }, cache.get('trend_data', [])
 
 
-def get_sensex_data():
-  cache = load_sensex_cache()
-  live_info = get_live_sensex_from_public_api()
-  return live_info, cache.get('trend_data', [])
-
-
-@app.route('/api/sensex-live')
+@app.route('/api/market-live')
 @limiter.exempt
-def sensex_live():
-  sensex_info, _ = get_sensex_data()
-  return jsonify(sensex_info)
+def market_live():
+  market_info, _ = get_live_market_data()
+  return jsonify(market_info)
 
 
 def format_pct(val):
@@ -542,7 +547,7 @@ def user_dashboard():
     if not user_record:
       return redirect(url_for('login'))
 
-    sensex_info, sensex_trend_data = get_sensex_data()
+    market_info, market_trend_data = get_live_market_data()
     admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
     festival_greeting = get_festival_greeting()
 
@@ -566,8 +571,8 @@ def user_dashboard():
         'user_dashboard.html',
         username=session.get('username', 'Client'),
         mobile=mobile,
-        sensex=sensex_info,
-        sensex_trend=sensex_trend_data,
+        market=market_info,
+        market_trend=market_trend_data,
         equity_data=parse_fund_excel_from_db('equity_funds'),
         balancer_data=parse_fund_excel_from_db('balancer_funds'),
         debt_data=parse_fund_excel_from_db('debt_funds'),
@@ -704,14 +709,14 @@ def admin_dashboard():
   for user in REGISTERED_USERS:
     check_user_validity(user)
 
-  sensex_info, sensex_trend_data = get_sensex_data()
+  market_info, market_trend_data = get_live_market_data()
   festival_greeting = get_festival_greeting()
   user_filter = request.args.get('user_filter', 'all')
 
   return render_template(
       'admin_dashboard.html',
-      sensex=sensex_info,
-      sensex_trend=sensex_trend_data,
+      market=market_info,
+      market_trend=market_trend_data,
       users=REGISTERED_USERS,
       feedbacks=USER_FEEDBACKS,
       download_requests=DOWNLOAD_REQUESTS,
