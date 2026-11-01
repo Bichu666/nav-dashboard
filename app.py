@@ -291,6 +291,7 @@ def user_dashboard():
       return redirect(url_for('pending_approval'))
   if not user_record:
     return redirect(url_for('login'))
+<<<<<<< HEAD
 
   admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(
       minutes=5
@@ -318,15 +319,43 @@ def user_dashboard():
   except Exception:
     equity_data, balancer_data, debt_data = [], [], []
 
+=======
+
+  admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(
+      minutes=5
+  )
+  festival_greeting = get_festival_greeting()
+
+  sensex_info = {
+      'value': '74,729.27',
+      'change': '+413.66 pts (+0.56%)',
+      'is_positive': True,
+      'time_label': 'Live Market Feed',
+  }
+  sensex_trend_data = [
+      {'date': '12 Oct', 'value': '71,924.68', 'change': -846.64},
+      {'date': '13 Oct', 'value': '73,033.78', 'change': 1082.05},
+      {'date': '14 Oct', 'value': '72,781.89', 'change': -267.87},
+      {'date': '15 Oct', 'value': '74,315.61', 'change': 1533.72},
+      {'date': '16 Oct', 'value': '74,729.27', 'change': 413.66},
+  ]
+
+>>>>>>> 38191e013d09b263b10003fb576728cb458c8882
   return render_template(
       'user_dashboard.html',
       username=session.get('username', 'Client'),
       mobile=mobile,
       sensex=sensex_info,
       sensex_trend=sensex_trend_data,
+<<<<<<< HEAD
       equity_data=equity_data,
       balancer_data=balancer_data,
       debt_data=debt_data,
+=======
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
+>>>>>>> 38191e013d09b263b10003fb576728cb458c8882
       admin_online=admin_online,
       admin_mobile=ADMIN_MOBILE,
       festival_greeting=festival_greeting,
@@ -338,6 +367,7 @@ def request_download():
   if 'username' not in session:
     return jsonify({'success': False, 'message': 'Not logged in'})
   data = request.get_json() or {}
+<<<<<<< HEAD
   file_name = data.get('filename', 'Latest NAV Image')
   download_type = data.get('type', 'latest')
 
@@ -645,3 +675,6 @@ def view_latest_nav():
 
 if __name__ == '__main__':
   app.run(debug=True)
+=======
+  
+>>>>>>> 38191e013d09b263b10003fb576728cb458c8882
