@@ -372,9 +372,12 @@
             </div>
 
             <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Download Today's NAV Image</h3>
-                <span style="font-size: 13px; color: var(--text-muted);">JPEG Format</span>
-                <a href="{{ url_for('download_latest_nav') }}" class="btn-batch" style="display: block; text-decoration: none; text-align: center; margin-top: 10px;">Download Image</a>
+                <h3>Today's NAV Image View & Download Approval</h3>
+                <span style="font-size: 13px; color: var(--text-muted);">Locked Direct Download (Admin Approval Required)</span>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <a href="{{ url_for('view_latest_nav') }}" target="_blank" class="btn-batch" style="background: #0d9488; color: #fff; text-decoration: none; flex: 1; text-align: center;">View Full Page</a>
+                    <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
+                </div>
             </div>
         </div>
 
@@ -407,7 +410,7 @@
             </div>
             <div style="display: flex; gap: 15px;">
                 <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View</button>
-                <button type="button" id="btn-download-archive" class="btn-batch">Download</button>
+                <button type="button" id="btn-request-archive" class="btn-batch">Request Download Approval</button>
             </div>
         </div>
 
@@ -430,6 +433,47 @@
                     <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
                 </div>
             </form>
+        </div>
+
+        <!-- Additional Box for Download Approvals Status -->
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>Your Download Approval Requests Status</h3>
+            <table class="approval-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Requested File</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in download_requests %}
+                    <tr>
+                        <td>{{ req.filename }}</td>
+                        <td>{{ req.type }}</td>
+                        <td>
+                            <span style="font-weight: bold; {% if req.status == 'Approved' %}color: var(--green);{% elif req.status == 'Rejected' %}color: var(--red);{% else %}color: var(--accent-orange);{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </td>
+                        <td>{{ req.timestamp }}</td>
+                        <td>
+                            {% if req.status == 'Approved' %}
+                            <a href="/view-archive-file/{{ req.filename }}" target="_blank" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;">Download File</a>
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No download requests made yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="funds-stack-container">
@@ -632,6 +676,14 @@
             if (event.target == modal) { closeModal(); }
         }
 
+        document.getElementById('btn-request-latest').addEventListener('click', () => {
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: 'latest_nav.jpg', type: 'latest'})
+            }).then(r => r.json()).then(d => alert(d.message));
+        });
+
         function loadArchiveFiles() {
             const year = document.getElementById('archive-year-select').value;
             const month = document.getElementById('archive-month-select').value;
@@ -665,18 +717,17 @@
             window.open('/view-archive-file/' + filename, '_blank');
         });
 
-        document.getElementById('btn-download-archive').addEventListener('click', function() {
+        document.getElementById('btn-request-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
             if (!filename) {
-                alert('Please select a specific date/file first.');
+                alert('Please select a specific date/file first for approval request.');
                 return;
             }
-            const a = document.createElement('a');
-            a.href = '/view-archive-file/' + filename;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: filename, type: 'archive'})
+            }).then(r => r.json()).then(d => alert(d.message));
         });
 
         // Automatically load archive files on page load
