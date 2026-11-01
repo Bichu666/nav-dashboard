@@ -104,7 +104,7 @@ DOWNLOAD_REQUESTS = [
         'id': 1,
         'username': 'Rahul Sharma',
         'filename': 'latest_nav.jpg',
-        'type': 'latest',
+        'type': 'download',
         'status': 'Pending',
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p')
     }
@@ -465,7 +465,7 @@ def health_check():
 @limiter.limit("10 per minute")
 def login():
   if request.method == 'POST':
-    step = request.form.get('step', 'request_otp')
+    step = request.form.get('step', 'request_code')
     username = request.form.get('username', '').strip()
     mobile = request.form.get('mobile', '').strip()
 
@@ -475,18 +475,17 @@ def login():
 
     if not name_is_valid or not mobile_is_valid:
       flash('Use correct name (letters only) and valid mobile number.', 'danger')
-      return render_template('login.html', step='request_otp')
+      return render_template('login.html', step='request_code', display_code='')
 
-    if step == 'request_otp':
-      otp_code = str(random.randint(1000, 9999))
-      PENDING_OTPS[mobile] = otp_code
-      print(f"DEBUG OTP for {mobile}: {otp_code}")
-      flash(f'OTP sent to {mobile}. (Demo OTP: {otp_code})', 'success')
-      return render_template('login.html', step='verify_otp', username=username, mobile=mobile)
+    if step == 'request_code':
+      display_code = str(random.randint(1000, 9999))
+      PENDING_OTPS[mobile] = display_code
+      return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
 
-    elif step == 'verify_otp':
-      entered_otp = request.form.get('otp', '').strip()
-      if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_otp:
+    elif step == 'verify_code':
+      entered_code = request.form.get('code', '').strip()
+      display_code = request.form.get('display_code', '').strip()
+      if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_code:
         del PENDING_OTPS[mobile]
         session.permanent = True
         session['username'] = username
@@ -508,10 +507,10 @@ def login():
           return redirect(url_for('pending_approval'))
         return redirect(url_for('user_dashboard'))
       else:
-        flash('Invalid OTP code. Please try again.', 'danger')
-        return render_template('login.html', step='verify_otp', username=username, mobile=mobile)
+        flash('Invalid code entered. Please type the correct displayed code.', 'danger')
+        return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
 
-  return render_template('login.html', step='request_otp')
+  return render_template('login.html', step='request_code', display_code='')
 
 
 @app.route('/pending-approval')
@@ -548,14 +547,15 @@ def user_dashboard():
     festival_greeting = get_festival_greeting()
 
     latest_data_updated = False
+    latest_filename = 'latest_nav.jpg'
     try:
       meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
       if os.path.exists(meta_path):
         with open(meta_path, 'r') as mf:
           meta = json.load(mf)
-          last_fn = meta.get('filename', '')
+          latest_filename = meta.get('filename', 'latest_nav.jpg')
           last_time = meta.get('upload_time', '')
-          if is_today_filename(last_fn, last_time):
+          if is_today_filename(latest_filename, last_time):
             latest_data_updated = True
     except Exception as e:
       print(f"Error checking upload status: {e}")
@@ -577,6 +577,7 @@ def user_dashboard():
         festival_greeting=festival_greeting,
         download_requests=user_requests,
         feedbacks=USER_FEEDBACKS,
+        latest_filename=latest_filename,
     )
   except Exception as e:
     print(f"Error in user dashboard: {e}")
@@ -589,7 +590,7 @@ def request_download():
     return jsonify({'success': False, 'message': 'Not logged in'})
   data = request.get_json() or {}
   file_name = data.get('filename', 'latest_nav.jpg')
-  download_type = data.get('type', 'latest')
+  download_type = data.get('type', 'download')
 
   req_id = len(DOWNLOAD_REQUESTS) + 1
   DOWNLOAD_REQUESTS.append({
@@ -602,26 +603,54 @@ def request_download():
   })
   return jsonify({
       'success': True,
-      'message': 'Download approval request sent to Admin successfully.',
+      'message': 'Approval request sent to Admin successfully.',
   })
 
 
-@app.route('/view-latest-nav')
-def view_latest_nav():
-  files = [
-      f
-      for f in os.listdir(app.config['UPLOAD_FOLDER'])
-      if f.lower().endswith(('.jpg', '.jpeg', '.png'))
-  ]
-  if files:
-    files.sort(
-        key=lambda x: os.path.getmtime(
-            os.path.join(app.config['UPLOAD_FOLDER'], x)
-        ),
-        reverse=True,
-    )
-    return send_from_directory(app.config['UPLOAD_FOLDER'], files[0])
-  return "No NAV image uploaded yet.", 404
+@app.route('/get-nav-image-base64/<path:filename>')
+def get_nav_image_base64(filename):
+  if 'username' not in session and not session.get('is_admin'):
+    return jsonify({'success': False, 'message': 'Unauthorized'})
+  
+  target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+  if not os.path.exists(target_path):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        target_path = os.path.join(root, filename)
+        break
+
+  if os.path.exists(target_path):
+    import base64
+    with open(target_path, 'rb') as img_f:
+      b64_data = base64.b64encode(img_f.read()).decode('utf-8')
+    return jsonify({'success': True, 'image_data': f"data:image/jpeg;base64,{b64_data}"})
+  
+  return jsonify({'success': False, 'message': 'Image not found'})
+
+
+@app.route('/view-archive-secured/<path:filename>')
+def view_archive_secured(filename):
+  if 'username' not in session and not session.get('is_admin'):
+    return redirect(url_for('login'))
+  
+  if session.get('is_admin'):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+  approved_req = next((r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username') and r['filename'] == filename and r['status'] == 'Approved' and r['type'] == 'download'), None)
+  if approved_req:
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+  
+  flash('Download requires Admin Approval. Request submitted.', 'warning')
+  return redirect(url_for('user_dashboard'))
 
 
 @app.route('/submit-feedback', methods=['POST'])
@@ -951,15 +980,6 @@ def get_archive_files():
 
   sorted_files = sorted(list(set(matched_files)), reverse=True)
   return jsonify({'success': True, 'files': sorted_files})
-
-
-@app.route('/view-archive-file/<path:filename>')
-def view_archive_file(filename):
-  archive_base = ARCHIVE_FOLDER
-  for root, dirs, files in os.walk(archive_base):
-    if filename in files:
-      return send_from_directory(root, filename)
-  return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 if __name__ == '__main__':
