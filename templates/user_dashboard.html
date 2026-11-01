@@ -16,8 +16,8 @@
             --text-muted: #9ca3af;
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
-            --green: #00FF00; /* Electric Green matched from Admin Dashboard */
-            --red: #FF0800;   /* Candy Apple Red matched from Admin Dashboard */
+            --green: #00FF00;
+            --red: #FF0800;
         }
 
         body { 
@@ -130,8 +130,8 @@
             border: 1px solid var(--border-color);
             padding: 30px;
             border-radius: 12px;
-            width: 650px;
-            max-width: 90%;
+            width: 850px;
+            max-width: 95%;
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
@@ -372,10 +372,10 @@
             </div>
 
             <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <h3>Today's NAV Image View & Download Approval</h3>
-                <span style="font-size: 13px; color: var(--text-muted);">Locked Direct Download (Admin Approval Required)</span>
+                <h3>Today's NAV Image View & Download</h3>
+                <span style="font-size: 13px; color: var(--text-muted);">View in Modal (Download Requires Admin Approval)</span>
                 <div style="display: flex; gap: 8px; margin-top: 10px;">
-                    <a href="{{ url_for('view_latest_nav') }}" target="_blank" class="btn-batch" style="background: #0d9488; color: #fff; text-decoration: none; flex: 1; text-align: center;">View Full Page</a>
+                    <button type="button" onclick="openNavImageModal('{{ latest_filename }}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
                     <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
                 </div>
             </div>
@@ -409,7 +409,7 @@
                 </div>
             </div>
             <div style="display: flex; gap: 15px;">
-                <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View</button>
+                <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View NAV</button>
                 <button type="button" id="btn-request-archive" class="btn-batch">Request Download Approval</button>
             </div>
         </div>
@@ -461,7 +461,7 @@
                         <td>{{ req.timestamp }}</td>
                         <td>
                             {% if req.status == 'Approved' %}
-                            <a href="/view-archive-file/{{ req.filename }}" target="_blank" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;">Download File</a>
+                            <a href="/view-archive-secured/{{ req.filename }}" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;">Download File</a>
                             {% else %}
                             <span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>
                             {% endif %}
@@ -573,6 +573,7 @@
         </footer>
     </div>
 
+    <!-- Modal for Funds Performance -->
     <div id="fundModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
@@ -604,6 +605,17 @@
                     <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Modal for Viewing NAV Image Securely -->
+    <div id="navImageModal" class="modal-overlay">
+        <div class="modal-content" style="text-align: center;">
+            <span class="modal-close" onclick="closeNavImageModal()">&times;</span>
+            <h2 id="nav-modal-title" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">NAV Image Viewer</h2>
+            <div id="nav-image-container" style="margin-top: 15px; overflow: auto; max-height: 75vh;">
+                <img id="nav-modal-img" src="" alt="NAV Image" style="max-width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border-color);" oncontextmenu="return false;" />
+            </div>
         </div>
     </div>
 
@@ -671,16 +683,38 @@
             document.getElementById('fundModal').style.display = 'none';
         }
 
+        function openNavImageModal(filename) {
+            document.getElementById('nav-modal-title').innerText = "NAV Viewer: " + filename;
+            fetch('/get-nav-image-base64/' + filename)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('nav-modal-img').src = data.image_data;
+                        document.getElementById('navImageModal').style.display = 'flex';
+                    } else {
+                        alert('Error loading NAV image.');
+                    }
+                })
+                .catch(err => console.error('Error opening NAV modal:', err));
+        }
+
+        function closeNavImageModal() {
+            document.getElementById('navImageModal').style.display = 'none';
+            document.getElementById('nav-modal-img').src = '';
+        }
+
         window.onclick = function(event) {
-            let modal = document.getElementById('fundModal');
-            if (event.target == modal) { closeModal(); }
+            let fundModal = document.getElementById('fundModal');
+            let navModal = document.getElementById('navImageModal');
+            if (event.target == fundModal) { closeModal(); }
+            if (event.target == navModal) { closeNavImageModal(); }
         }
 
         document.getElementById('btn-request-latest').addEventListener('click', () => {
             fetch('/request-download', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename: 'latest_nav.jpg', type: 'latest'})
+                body: JSON.stringify({filename: '{{ latest_filename }}', type: 'download'})
             }).then(r => r.json()).then(d => alert(d.message));
         });
 
@@ -714,19 +748,19 @@
                 alert('Please select a specific date/file first.');
                 return;
             }
-            window.open('/view-archive-file/' + filename, '_blank');
+            openNavImageModal(filename);
         });
 
         document.getElementById('btn-request-archive').addEventListener('click', function() {
             const filename = document.getElementById('archive-file-select').value;
             if (!filename) {
-                alert('Please select a specific date/file first for approval request.');
+                alert('Please select a specific date/file first for download approval request.');
                 return;
             }
             fetch('/request-download', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename: filename, type: 'archive'})
+                body: JSON.stringify({filename: filename, type: 'download'})
             }).then(r => r.json()).then(d => alert(d.message));
         });
 

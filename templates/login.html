@@ -80,6 +80,18 @@
             font-size: 13px;
             text-align: center;
         }
+        .code-display-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px dashed var(--accent-gold);
+            color: var(--accent-gold);
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -95,8 +107,8 @@
         {% endwith %}
 
         <form action="{{ url_for('login') }}" method="POST">
-            {% if step == 'request_otp' %}
-                <input type="hidden" name="step" value="request_otp">
+            {% if step == 'request_code' %}
+                <input type="hidden" name="step" value="request_code">
                 <div class="form-group">
                     <label>Full Name (Letters and spaces only)</label>
                     <input type="text" name="username" placeholder="e.g. Rahul Sharma" required>
@@ -105,16 +117,18 @@
                     <label>Mobile Number (10 to 12 digits)</label>
                     <input type="text" name="mobile" placeholder="e.g. +919876543210" required>
                 </div>
-                <button type="submit" class="btn-submit">Send Verification OTP</button>
-            {% elif step == 'verify_otp' %}
-                <input type="hidden" name="step" value="verify_otp">
+                <button type="submit" class="btn-submit">Proceed to Verification</button>
+            {% elif step == 'verify_code' %}
+                <input type="hidden" name="step" value="verify_code">
                 <input type="hidden" name="username" value="{{ username }}">
                 <input type="hidden" name="mobile" value="{{ mobile }}">
+                <input type="hidden" name="display_code" value="{{ display_code }}">
                 <div class="form-group">
-                    <label>Enter 4-digit OTP sent to <b>{{ mobile }}</b></label>
-                    <input type="text" name="otp" placeholder="Enter OTP code" maxlength="4" required autofocus>
+                    <label>Please type the verification code shown below:</label>
+                    <div class="code-display-box">{{ display_code }}</div>
+                    <input type="text" name="code" placeholder="Enter code here" maxlength="4" required autofocus>
                 </div>
-                <button type="submit" class="btn-submit">Verify OTP & Login</button>
+                <button type="submit" class="btn-submit">Verify & Login</button>
             {% endif %}
         </form>
     </div>
