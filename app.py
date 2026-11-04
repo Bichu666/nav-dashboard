@@ -51,14 +51,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
-SUPABASE_URL = "https://fcrimrjdilmfelobswhy.supabase.co"
-SUPABASE_KEY = "sb_publishable_7fOxuiC9sfWkuW2BwSz0pQ_wfhUwuRj"
-REST_HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-}
-
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
@@ -264,15 +256,15 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '23,960.60', 'change': '+519.80 pts (+2.22%)', 'is_positive': True},
-    'sensex': {'value': '77,301.40', 'change': '+383.55 pts (+0.50%)', 'is_positive': True},
-    'nifty500': {'value': '22,769.20', 'change': '+527.80 pts (+2.37%)', 'is_positive': True},
+    'nifty50': {'value': '23,810.85', 'change': '+370.05 pts (+1.58%)', 'is_positive': True},
+    'sensex': {'value': '76,917.85', 'change': '+1,225.07 pts (+1.62%)', 'is_positive': True},
+    'nifty500': {'value': '22,520.35', 'change': '+278.95 pts (+1.25%)', 'is_positive': True},
     'trend_data': [
+        {'date': '28 Oct', 'nifty50': '22,650.00', 'sensex': '73,246.03', 'nifty500': '21,500.00', 'change': -352.64},
         {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 905.01},
         {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
         {'date': '02 Nov', 'nifty50': '23,440.80', 'sensex': '75,692.78', 'nifty500': '22,241.40', 'change': 1233.25},
         {'date': '03 Nov', 'nifty50': '23,810.85', 'sensex': '76,917.85', 'nifty500': '22,520.35', 'change': 1225.07},
-        {'date': '04 Nov', 'nifty50': '23,960.60', 'sensex': '77,301.40', 'nifty500': '22,769.20', 'change': 383.55},
     ]
 }
 
@@ -317,25 +309,24 @@ def get_live_market_data():
 
   for key, ticker in indices.items():
     try:
-      t = yf.Ticker(ticker)
-      fi = t.fast_info
-      ltp = float(fi.last_price) if fi and hasattr(fi, 'last_price') and fi.last_price else 0.0
-      prev_close = float(fi.previous_close) if fi and hasattr(fi, 'previous_close') and fi.previous_close else ltp
-      
-      if ltp == 0 or not ltp:
-        hist = t.history(period="2d")
-        if not hist.empty:
-          ltp = float(hist['Close'].iloc[-1])
-          prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else ltp
+      df = yf.download(ticker, period="5d", interval="1d", progress=False)
+      if not df.empty:
+        if isinstance(df.columns, pd.MultiIndex):
+          close_series = df['Close'][ticker].dropna()
+        else:
+          close_series = df['Close'].dropna()
 
-      if ltp > 0:
-        change = ltp - prev_close
-        pct_change = (change / prev_close) * 100 if prev_close else 0
-        result[key] = {
-            'value': f"{ltp:,.2f}",
-            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-            'is_positive': change >= 0
-        }
+        if len(close_series) > 0:
+          ltp = float(close_series.iloc[-1])
+          prev_close = float(close_series.iloc[-2]) if len(close_series) >= 2 else ltp
+          change = ltp - prev_close
+          pct_change = (change / prev_close) * 100 if prev_close else 0.0
+
+          result[key] = {
+              'value': f"{ltp:,.2f}",
+              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+              'is_positive': change >= 0
+          }
     except Exception as e:
       print(f"yfinance error for {ticker}: {e}")
 
@@ -377,34 +368,34 @@ def format_pct(val):
 
 def parse_fund_excel_from_db(table_name):
   fund_list = []
+  if not engine:
+    return fund_list
   try:
-    response = requests.get(
-        f"{SUPABASE_URL}/rest/v1/{table_name}?select=*", headers=REST_HEADERS
-    )
-    if response.status_code == 200:
-      rows = response.json()
-      for row in rows:
-        vals = list(row.values())
-        if vals and str(vals[0]).strip().lower() not in ['', 'nan', 'funds', 'none']:
+    df = pd.read_sql(f'SELECT * FROM {table_name}', engine)
+    if not df.empty:
+      df = df.dropna(subset=[df.columns[0]])
+      for _, row in df.iterrows():
+        val = str(row.iloc[0]).strip()
+        if val and val.lower() not in ['nan', 'funds']:
           fund_list.append({
-              'fund': str(vals[0]) if len(vals) > 0 else '',
-              'inception': str(vals[1]) if len(vals) > 1 else '',
-              'benchmark': str(vals[2]) if len(vals) > 2 else '',
-              'since': format_pct(vals[3]) if len(vals) > 3 else '0',
-              'm1': format_pct(vals[4]) if len(vals) > 4 else '0',
-              'm6': format_pct(vals[5]) if len(vals) > 5 else '0',
-              'y1': format_pct(vals[6]) if len(vals) > 6 else '0',
-              'y2': format_pct(vals[7]) if len(vals) > 7 else '0',
-              'y3': format_pct(vals[8]) if len(vals) > 8 else '0',
-              'y4': format_pct(vals[9]) if len(vals) > 9 else '0',
-              'y5': format_pct(vals[10]) if len(vals) > 10 else '0',
-              'y7': format_pct(vals[11]) if len(vals) > 11 else '0',
-              'y10': format_pct(vals[12]) if len(vals) > 12 else '0',
-              'high': str(vals[13]) if len(vals) > 13 else '0',
-              'latest': str(vals[14]) if len(vals) > 14 else (str(vals[-1]) if len(vals) > 1 else '0'),
+              'fund': val,
+              'inception': str(row.iloc[1]) if len(row) > 1 else '',
+              'benchmark': str(row.iloc[2]) if len(row) > 2 else '',
+              'since': format_pct(row.iloc[3]) if len(row) > 3 else '0',
+              'm1': format_pct(row.iloc[4]) if len(row) > 4 else '0',
+              'm6': format_pct(row.iloc[5]) if len(row) > 5 else '0',
+              'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
+              'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
+              'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0',
           })
   except Exception as e:
-    print(f'Error reading table {table_name} via REST API: {e}')
+    print(f'Error reading table {table_name} from Supabase: {e}')
   return fund_list
 
 
@@ -838,18 +829,11 @@ def upload_master_category():
         if file and file.filename != '':
           df = pd.read_excel(file)
           table_name = f'{category}_funds'
-          
-          records = df.where(df.notnull(), None).to_dict(orient='records')
-          upload_headers = REST_HEADERS.copy()
-          upload_headers["Prefer"] = "resolution=merge-upsert"
-
-          requests.delete(f"{SUPABASE_URL}/rest/v1/{table_name}?select=*", headers=upload_headers)
-          res = requests.post(f"{SUPABASE_URL}/rest/v1/{table_name}", headers=upload_headers, json=records)
-
-          if res.status_code in [200, 201, 204]:
-            flash(f'{category.capitalize()} funds updated permanently in Supabase via REST API!', 'success')
+          if engine:
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+            flash(f'{category.capitalize()} funds updated permanently in Supabase database!', 'success')
           else:
-            flash(f'Error updating Supabase: {res.text}', 'danger')
+            flash('Database connection error.', 'danger')
     except Exception as e:
       flash(f'Error updating category: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
