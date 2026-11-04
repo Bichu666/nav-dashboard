@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import pandas as pd
 import requests
+import yfinance as yf
 from flask import (
     Flask,
     flash,
@@ -313,27 +314,30 @@ def get_live_market_data():
   }
   
   result = {}
-  headers = {'User-Agent': 'Mozilla/5.0'}
 
   for key, ticker in indices.items():
     try:
-      url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m"
-      response = requests.get(url, headers=headers, timeout=4)
-      if response.status_code == 200:
-        res_json = response.json()
-        meta = res_json['chart']['result'][0]['meta']
-        ltp = float(meta.get('regularMarketPrice', 0))
-        prev_close = float(meta.get('chartPreviousClose', ltp))
-        if ltp > 0:
-          change = ltp - prev_close
-          pct_change = (change / prev_close) * 100 if prev_close else 0
-          result[key] = {
-              'value': f"{ltp:,.2f}",
-              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-              'is_positive': change >= 0
-          }
-    except Exception:
-      pass
+      t = yf.Ticker(ticker)
+      fi = t.fast_info
+      ltp = float(fi.last_price) if fi and hasattr(fi, 'last_price') and fi.last_price else 0.0
+      prev_close = float(fi.previous_close) if fi and hasattr(fi, 'previous_close') and fi.previous_close else ltp
+      
+      if ltp == 0 or not ltp:
+        hist = t.history(period="2d")
+        if not hist.empty:
+          ltp = float(hist['Close'].iloc[-1])
+          prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else ltp
+
+      if ltp > 0:
+        change = ltp - prev_close
+        pct_change = (change / prev_close) * 100 if prev_close else 0
+        result[key] = {
+            'value': f"{ltp:,.2f}",
+            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+            'is_positive': change >= 0
+        }
+    except Exception as e:
+      print(f"yfinance error for {ticker}: {e}")
 
     if key not in result:
       cached_item = cache.get(key, {})
