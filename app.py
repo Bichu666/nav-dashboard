@@ -255,15 +255,15 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '23,053.10', 'change': '+116.35 pts (+0.51%)', 'is_positive': True},
-    'sensex': {'value': '74,459.53', 'change': '+308.49 pts (+0.42%)', 'is_positive': True},
-    'nifty500': {'value': '21,895.90', 'change': '-45.60 pts (-0.21%)', 'is_positive': False},
+    'nifty50': {'value': '23,810.85', 'change': '+370.05 pts (+1.58%)', 'is_positive': True},
+    'sensex': {'value': '76,917.85', 'change': '+1,225.07 pts (+1.62%)', 'is_positive': True},
+    'nifty500': {'value': '22,520.35', 'change': '+278.95 pts (+1.25%)', 'is_positive': True},
     'trend_data': [
-        {'date': '26 Oct', 'nifty50': '22,850.10', 'sensex': '73,924.68', 'nifty500': '21,650.00', 'change': -120.50},
-        {'date': '27 Oct', 'nifty50': '22,940.25', 'sensex': '74,103.78', 'nifty500': '21,740.10', 'change': 180.25},
-        {'date': '28 Oct', 'nifty50': '22,890.00', 'sensex': '73,981.89', 'nifty500': '21,700.50', 'change': -50.25},
-        {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 210.15},
+        {'date': '28 Oct', 'nifty50': '22,650.00', 'sensex': '73,246.03', 'nifty500': '21,500.00', 'change': -352.64},
+        {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 905.01},
         {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
+        {'date': '02 Nov', 'nifty50': '23,440.80', 'sensex': '75,692.78', 'nifty500': '22,241.40', 'change': 1233.25},
+        {'date': '03 Nov', 'nifty50': '23,810.85', 'sensex': '76,917.85', 'nifty500': '22,520.35', 'change': 1225.07},
     ]
 }
 
@@ -336,7 +336,7 @@ def get_live_market_data():
       }
 
   if not is_market_hours:
-    time_label = f"CLOSED | As on 04:00 PM | 30 Oct 2026"
+    time_label = f"CLOSED | As on 04:00 PM | 03 Nov 2026"
   else:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
 
@@ -966,7 +966,7 @@ def get_archive_files():
       'jan': 'January', 'feb': 'February', 'mar': 'March',
       'apr': 'April', 'may': 'May', 'jun': 'June',
       'jul': 'July', 'aug': 'August', 'sep': 'September',
-      'october': 'October', 'november': 'November', 'december': 'December',
+      'oct': 'October', 'nov': 'November', 'dec': 'December',
       'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
       'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
       'october': 'October', 'november': 'November', 'december': 'December'
