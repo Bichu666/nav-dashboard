@@ -344,7 +344,7 @@ def get_live_market_data():
       }
 
   if not is_market_hours:
-    time_label = f"CLOSED | As on 04:00 PM | 04 Nov 2026"
+    time_label = f"CLOSED | As on 04:00 PM | {ist_now.strftime('%d %b %Y')}"
   else:
     time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
 
@@ -839,7 +839,6 @@ def upload_master_category():
           upload_headers = REST_HEADERS.copy()
           upload_headers["Prefer"] = "resolution=merge-upsert"
 
-          # Clear existing rows and insert new records via REST API
           requests.delete(f"{SUPABASE_URL}/rest/v1/{table_name}?select=*", headers=upload_headers)
           res = requests.post(f"{SUPABASE_URL}/rest/v1/{table_name}", headers=upload_headers, json=records)
 
