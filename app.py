@@ -159,6 +159,38 @@ def get_festival_greeting():
       (2026, 11, 8): "Happy Diwali",
       (2026, 11, 24): "Happy Guru Nanak Jayanti",
       (2026, 12, 25): "Merry Christmas",
+
+      (2027, 1, 1): "Happy New Year",
+      (2027, 1, 15): "Happy Makar Sankranti / Pongal",
+      (2027, 1, 26): "Happy Republic Day",
+      (2027, 2, 11): "Happy Vasant Panchami",
+      (2027, 2, 19): "Happy Shivaji Maharaj Jayanti",
+      (2027, 3, 6): "Happy Maha Shivaratri",
+      (2027, 3, 10): "Happy Eid al-Fitr",
+      (2027, 3, 22): "Happy Holi",
+      (2027, 3, 26): "Happy Good Friday",
+      (2027, 4, 7): "Happy Ugadi / Gudi Padwa",
+      (2027, 4, 14): "Happy Baisakhi / Ambedkar Jayanti",
+      (2027, 4, 15): "Happy Rama Navami",
+      (2027, 4, 19): "Happy Mahavir Jayanti",
+      (2027, 5, 1): "Happy Labour Day",
+      (2027, 5, 17): "Happy Eid al-Adha",
+      (2027, 5, 20): "Happy Buddha Purnima",
+      (2027, 6, 16): "Happy Muharram",
+      (2027, 7, 5): "Happy Rathyatra",
+      (2027, 8, 15): "Happy Independence Day",
+      (2027, 8, 17): "Happy Raksha Bandhan",
+      (2027, 8, 25): "Happy Janmashtami",
+      (2027, 9, 4): "Happy Ganesh Chaturthi",
+      (2027, 9, 12): "Happy Onam",
+      (2027, 10, 2): "Happy Mahatma Gandhi Jayanti",
+      (2027, 10, 9): "Happy Dussehra",
+      (2027, 10, 18): "Happy Karwa Chauth",
+      (2027, 10, 29): "Happy Diwali",
+      (2027, 10, 31): "Happy Bhaiya Dooj",
+      (2027, 11, 4): "Happy Chhath Puja",
+      (2027, 11, 14): "Happy Guru Nanak Jayanti",
+      (2027, 12, 25): "Merry Christmas",
   }
 
   recurring_festivals = {
@@ -333,42 +365,34 @@ def format_pct(val):
 
 def parse_fund_excel_from_db(table_name):
   fund_list = []
-  supabase_url = "https://fcrimrjdilmfelobswhy.supabase.co"
-  supabase_key = "sb_publishable_7fOxuiC9sfWkuW2BwSz0pQ_wfhUwuRj"
-  headers = {
-      "apikey": supabase_key,
-      "Authorization": f"Bearer {supabase_key}",
-      "Content-Type": "application/json",
-  }
+  if not engine:
+    return fund_list
   try:
-    response = requests.get(
-        f"{supabase_url}/rest/v1/{table_name}?select=*", headers=headers
-    )
-    if response.status_code == 200:
-      rows = response.json()
-      for row in rows:
-        keys = list(row.keys())
-        val = str(row.get(keys[0], '')).strip() if keys else ''
+    df = pd.read_sql(f'SELECT * FROM {table_name}', engine)
+    if not df.empty:
+      df = df.dropna(subset=[df.columns[0]])
+      for _, row in df.iterrows():
+        val = str(row.iloc[0]).strip()
         if val and val.lower() not in ['nan', 'funds']:
           fund_list.append({
               'fund': val,
-              'inception': str(row.get(keys[1], '')) if len(keys) > 1 else '',
-              'benchmark': str(row.get(keys[2], '')) if len(keys) > 2 else '',
-              'since': format_pct(row.get(keys[3], 0)) if len(keys) > 3 else '0',
-              'm1': format_pct(row.get(keys[4], 0)) if len(keys) > 4 else '0',
-              'm6': format_pct(row.get(keys[5], 0)) if len(keys) > 5 else '0',
-              'y1': format_pct(row.get(keys[6], 0)) if len(keys) > 6 else '0',
-              'y2': format_pct(row.get(keys[7], 0)) if len(keys) > 7 else '0',
-              'y3': format_pct(row.get(keys[8], 0)) if len(keys) > 8 else '0',
-              'y4': format_pct(row.get(keys[9], 0)) if len(keys) > 9 else '0',
-              'y5': format_pct(row.get(keys[10], 0)) if len(keys) > 10 else '0',
-              'y7': format_pct(row.get(keys[11], 0)) if len(keys) > 11 else '0',
-              'y10': format_pct(row.get(keys[12], 0)) if len(keys) > 12 else '0',
-              'high': str(row.get(keys[13], '')) if len(keys) > 13 else '0',
-              'latest': str(row.get(keys[14], '')) if len(keys) > 14 else '0',
+              'inception': str(row.iloc[1]) if len(row) > 1 else '',
+              'benchmark': str(row.iloc[2]) if len(row) > 2 else '',
+              'since': format_pct(row.iloc[3]) if len(row) > 3 else '0',
+              'm1': format_pct(row.iloc[4]) if len(row) > 4 else '0',
+              'm6': format_pct(row.iloc[5]) if len(row) > 5 else '0',
+              'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
+              'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
+              'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0',
           })
   except Exception as e:
-    print(f'Error reading table {table_name} via REST API: {e}')
+    print(f'Error reading table {table_name} from Supabase: {e}')
   return fund_list
 
 
