@@ -120,8 +120,8 @@
             border: 1px solid var(--border-color);
             padding: 30px;
             border-radius: 12px;
-            width: 650px;
-            max-width: 90%;
+            width: 850px;
+            max-width: 95%;
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
@@ -506,6 +506,8 @@
                     <tr>
                         <th>Registered User Accounts</th>
                         <th>Mobile number</th>
+                        <th>Presence Status</th>
+                        <th>Last Login Date & Time</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -516,6 +518,14 @@
                         <tr>
                             <td>{{ user.name }} (ID: {{ user.id }})</td>
                             <td>{{ user.mobile }}</td>
+                            <td>
+                                {% if user.is_online %}
+                                    <span style="color: var(--green); font-weight: bold;">● Online</span>
+                                {% else %}
+                                    <span style="color: var(--text-muted);">○ Offline</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.last_login | default('N/A') }}</td>
                             <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                             <td>
                                 <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
@@ -533,8 +543,8 @@
         </div>
 
         <div class="funds-stack-container">
-            <div class="fund-section-box">
-                <div class="section-title-bar">Equity Funds</div>
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -563,8 +573,8 @@
                 </table>
             </div>
 
-            <div class="fund-section-box">
-                <div class="section-title-bar">Balancer Funds</div>
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -593,8 +603,8 @@
                 </table>
             </div>
 
-            <div class="fund-section-box">
-                <div class="section-title-bar">Debt Funds</div>
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -673,6 +683,47 @@
         setInterval(updateClock, 1000);
         updateClock();
 
+        function openModal(data) {
+            document.getElementById('modal-fund-name').innerText = data.fund;
+            document.getElementById('modal-inception').innerText = data.inception;
+            document.getElementById('modal-benchmark').innerText = data.benchmark;
+
+            const percentageFields = [
+                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
+            ];
+
+            percentageFields.forEach(f => {
+                let cell = document.getElementById(f.id);
+                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
+                let num = parseFloat(String(rawVal).replace('%', ''));
+                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
+                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
+            });
+
+            let highCell = document.getElementById('m-high');
+            highCell.innerText = data.high;
+            highCell.className = "nav-green";
+
+            let latestCell = document.getElementById('m-latest');
+            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
+            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
+            latestCell.innerText = latestRaw;
+            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
+
+            document.getElementById('fundModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('fundModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            let fundModal = document.getElementById('fundModal');
+            if (event.target == fundModal) { closeModal(); }
+        }
+
         setInterval(() => {
             fetch('/api/market-live')
                 .then(response => response.json())
@@ -685,7 +736,7 @@
                     if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
                     if (nifty50Chg) {
                         nifty50Chg.innerText = data.nifty50.change;
-                        nifty50Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
+                        nifty500Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
                     }
 
                     const sensexVal = document.getElementById('sensex-val');
@@ -707,9 +758,9 @@
                 .catch(err => console.error('Market live refresh error:', err));
         }, 10000);
 
-        setTimeout(function() {
-            location.reload();
-        }, 120000);
+        setInterval(() => {
+            fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
+        }, 30000);
     </script>
 </body>
 </html>
