@@ -15,83 +15,15 @@
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
         }
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            font-family: 'Inter', system-ui, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .login-card {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            padding: 40px;
-            border-radius: 12px;
-            width: 400px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        .login-card h2 {
-            color: var(--accent-gold);
-            margin-top: 0;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 13px;
-            color: var(--text-muted);
-            margin-bottom: 5px;
-        }
-        .form-group input {
-            width: 100%;
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            padding: 10px;
-            color: var(--text-main);
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        .btn-submit {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            color: #000;
-            font-weight: 700;
-            border: none;
-            padding: 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 15px;
-            margin-top: 10px;
-        }
-        .flash-msg {
-            background: rgba(255, 8, 0, 0.1);
-            border: 1px solid var(--accent-orange);
-            color: var(--accent-orange);
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            font-size: 13px;
-            text-align: center;
-        }
-        .code-display-box {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px dashed var(--accent-gold);
-            color: var(--accent-gold);
-            padding: 12px;
-            border-radius: 6px;
-            text-align: center;
-            font-size: 22px;
-            font-weight: bold;
-            letter-spacing: 4px;
-            margin-bottom: 15px;
-        }
+        body { background-color: var(--bg-main); color: var(--text-main); font-family: 'Inter', system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: var(--bg-panel); border: 1px solid var(--border-color); padding: 40px; border-radius: 12px; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-card h2 { color: var(--accent-gold); margin-top: 0; margin-bottom: 20px; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
+        .form-group input { width: 100%; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: var(--text-main); border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        .btn-submit { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #000; font-weight: 700; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 15px; margin-top: 10px; }
+        .flash-msg { background: rgba(255, 8, 0, 0.1); border: 1px solid var(--accent-orange); color: var(--accent-orange); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; text-align: center; }
+        .code-display-box { background: rgba(251, 191, 36, 0.1); border: 1px dashed var(--accent-gold); color: var(--accent-gold); padding: 12px; border-radius: 6px; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 4px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -107,7 +39,7 @@
         {% endwith %}
 
         <form action="{{ url_for('login') }}" method="POST">
-            {% if step == 'request_code' %}
+            {% if step == 'request_code' or not step %}
                 <input type="hidden" name="step" value="request_code">
                 <div class="form-group">
                     <label>Full Name (Letters and spaces only)</label>
