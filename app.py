@@ -10,7 +10,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import pandas as pd
 import requests
-import yfinance as yf
 from flask import (
     Flask,
     flash,
@@ -256,15 +255,15 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '23,810.85', 'change': '+370.05 pts (+1.58%)', 'is_positive': True},
-    'sensex': {'value': '76,917.85', 'change': '+1,225.07 pts (+1.62%)', 'is_positive': True},
-    'nifty500': {'value': '22,520.35', 'change': '+278.95 pts (+1.25%)', 'is_positive': True},
+    'nifty50': {'value': '23,960.60', 'change': '+519.80 pts (+2.22%)', 'is_positive': True},
+    'sensex': {'value': '77,301.40', 'change': '+383.55 pts (+0.50%)', 'is_positive': True},
+    'nifty500': {'value': '22,769.20', 'change': '+527.80 pts (+2.37%)', 'is_positive': True},
     'trend_data': [
-        {'date': '28 Oct', 'nifty50': '22,650.00', 'sensex': '73,246.03', 'nifty500': '21,500.00', 'change': -352.64},
         {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 905.01},
         {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
         {'date': '02 Nov', 'nifty50': '23,440.80', 'sensex': '75,692.78', 'nifty500': '22,241.40', 'change': 1233.25},
         {'date': '03 Nov', 'nifty50': '23,810.85', 'sensex': '76,917.85', 'nifty500': '22,520.35', 'change': 1225.07},
+        {'date': '04 Nov', 'nifty50': '23,960.60', 'sensex': '77,301.40', 'nifty500': '22,769.20', 'change': 383.55},
     ]
 }
 
@@ -306,29 +305,27 @@ def get_live_market_data():
   }
   
   result = {}
+  headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
 
   for key, ticker in indices.items():
     try:
-      df = yf.download(ticker, period="5d", interval="1d", progress=False)
-      if not df.empty:
-        if isinstance(df.columns, pd.MultiIndex):
-          close_series = df['Close'][ticker].dropna()
-        else:
-          close_series = df['Close'].dropna()
-
-        if len(close_series) > 0:
-          ltp = float(close_series.iloc[-1])
-          prev_close = float(close_series.iloc[-2]) if len(close_series) >= 2 else ltp
+      url = f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m&range=1d"
+      response = requests.get(url, headers=headers, timeout=5)
+      if response.status_code == 200:
+        res_json = response.json()
+        meta = res_json['chart']['result'][0]['meta']
+        ltp = float(meta.get('regularMarketPrice', 0))
+        prev_close = float(meta.get('chartPreviousClose', ltp))
+        if ltp > 0:
           change = ltp - prev_close
-          pct_change = (change / prev_close) * 100 if prev_close else 0.0
-
+          pct_change = (change / prev_close) * 100 if prev_close else 0
           result[key] = {
               'value': f"{ltp:,.2f}",
               'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
               'is_positive': change >= 0
           }
     except Exception as e:
-      print(f"yfinance error for {ticker}: {e}")
+      print(f"API fetch error for {key}: {e}")
 
     if key not in result:
       cached_item = cache.get(key, {})
