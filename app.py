@@ -87,8 +87,7 @@ USER_FEEDBACKS = [
     {
         'id': 1,
         'username': 'Rahul Sharma',
-        'feedback': 'Great portal! Very intuitive and fast NAV updates.',
-        'rating': 5,
+        'feedback': 'Great portal! Very intuitive and fast NAV updates. (Rating: 5★)',
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     },
 ]
@@ -367,6 +366,24 @@ def check_approval_status():
     return "PENDING"
 
 
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    feedback_text = request.form.get('feedback', '').strip()
+    rating = request.form.get('rating', '5')
+    username = session.get('username')
+    if feedback_text:
+        USER_FEEDBACKS.append({
+            'id': len(USER_FEEDBACKS) + 1,
+            'username': username,
+            'feedback': f"{feedback_text} (Rating: {rating}★)",
+            'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p')
+        })
+        flash('Feedback submitted successfully!', 'success')
+    return redirect(url_for('user_dashboard'))
+
+
 @app.route('/user-dashboard')
 def user_dashboard():
     try:
@@ -553,6 +570,7 @@ def admin_dashboard():
         market_trend=market_trend_data,
         users=formatted_users,
         download_requests=filtered_requests,
+        feedbacks=USER_FEEDBACKS,
         equity_data=parse_fund_excel_from_db('equity_funds'),
         balancer_data=parse_fund_excel_from_db('balancer_funds'),
         debt_data=parse_fund_excel_from_db('debt_funds'),
