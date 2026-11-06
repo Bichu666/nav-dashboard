@@ -115,6 +115,16 @@ DOWNLOAD_REQUESTS = [
     }
 ]
 
+CHAT_MESSAGES = [
+    {
+        'id': 1,
+        'username': 'biju',
+        'message': 'Hello Admin, checking connection.',
+        'timestamp': 'Nov 06, 2026, 10:00 PM',
+        'sender': 'user'
+    }
+]
+
 PENDING_OTPS = {}
 
 
@@ -254,9 +264,11 @@ DEFAULT_MARKET_CACHE = {
     'sensex': {'value': '81,028.02', 'change': '+1,718.02 pts (+2.17%)', 'is_positive': True},
     'nifty500': {'value': '22,769.20', 'change': '+527.80 pts (+2.37%)', 'is_positive': True},
     'trend_data': [
+        {'date': '01 Nov', 'sensex': '74,151.04', 'change': 905.01},
+        {'date': '02 Nov', 'sensex': '74,459.53', 'change': 308.49},
+        {'date': '03 Nov', 'sensex': '76,917.85', 'change': 1225.07},
         {'date': '04 Nov', 'sensex': '77,301.40', 'change': 383.55},
-        {'date': '05 Nov', 'sensex': '79,310.01', 'change': 2008.61},
-        {'date': '06 Nov', 'sensex': '81,028.02', 'change': 1718.02},
+        {'date': '05 Nov', 'sensex': '81,028.02', 'change': 1718.02},
     ]
 }
 
@@ -284,7 +296,7 @@ def get_live_market_data():
     try:
       t_obj = yf.Ticker(ticker)
       todays_data = t_obj.history(period="2d")
-      if not todays_data.empty:
+      if not todays_data.empty and len(todays_data) >= 1:
         ltp = float(todays_data['Close'].iloc[-1])
         prev_close = float(todays_data['Close'].iloc[-2]) if len(todays_data) > 1 else ltp
         change = ltp - prev_close
@@ -307,17 +319,14 @@ def get_live_market_data():
 
   trend_data = []
   try:
-    sensex_hist = yf.Ticker('^BSESN').history(period="7d")
-    if not sensex_hist.empty and len(sensex_hist) >= 2:
+    sensex_hist = yf.Ticker('^BSESN').history(period="15d")
+    if not sensex_hist.empty:
       sensex_hist = sensex_hist.tail(5)
       prev_val = None
       for idx, row in sensex_hist.iterrows():
         dt_str = idx.strftime('%d %b')
         close_val = float(row['Close'])
-        if prev_val is not None:
-          chg = round(close_val - prev_val, 2)
-        else:
-          chg = 0.0
+        chg = round(close_val - prev_val, 2) if prev_val is not None else 0.0
         prev_val = close_val
         trend_data.append({
             'date': dt_str,
@@ -327,7 +336,7 @@ def get_live_market_data():
   except Exception as e:
     print(f"yfinance trend fetch error: {e}")
 
-  if not trend_data:
+  if not trend_data or len(trend_data) < 5:
     trend_data = cache.get('trend_data', [])
 
   if not is_market_hours:
@@ -349,6 +358,46 @@ def get_live_market_data():
 def market_live():
   market_info, _ = get_live_market_data()
   return jsonify(market_info)
+
+
+@app.route('/api/messages', methods=['GET'])
+def get_messages():
+  if 'username' not in session and not session.get('is_admin'):
+    return jsonify({'success': False, 'messages': []})
+  
+  user_filter = session.get('username') if not session.get('is_admin') else request.args.get('user', '')
+  if session.get('is_admin') and not user_filter:
+    return jsonify({'success': True, 'messages': CHAT_MESSAGES})
+
+  filtered = [m for m in CHAT_MESSAGES if m['username'] == user_filter or session.get('is_admin')]
+  return jsonify({'success': True, 'messages': filtered})
+
+
+@app.route('/api/send-message', methods=['POST'])
+def send_message():
+  if 'username' not in session and not session.get('is_admin'):
+    return jsonify({'success': False, 'message': 'Unauthorized'})
+  
+  data = request.get_json() or {}
+  msg_text = data.get('message', '').strip()
+  if not msg_text:
+    return jsonify({'success': False, 'message': 'Empty message'})
+
+  now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+  timestamp_str = now_ist.strftime('%b %d, %Y, %I:%M %p')
+
+  username = 'Admin Bijoosh' if session.get('is_admin') else session.get('username', 'Client')
+  sender_type = 'admin' if session.get('is_admin') else 'user'
+
+  new_msg = {
+      'id': len(CHAT_MESSAGES) + 1,
+      'username': username,
+      'message': msg_text,
+      'timestamp': timestamp_str,
+      'sender': sender_type
+  }
+  CHAT_MESSAGES.append(new_msg)
+  return jsonify({'success': True, 'message': 'Message sent successfully.'})
 
 
 def format_pct(val):
@@ -682,6 +731,7 @@ def admin_dashboard():
       users=REGISTERED_USERS,
       feedbacks=USER_FEEDBACKS,
       download_requests=DOWNLOAD_REQUESTS,
+      chat_messages=CHAT_MESSAGES,
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
       debt_data=parse_fund_excel_from_db('debt_funds'),
