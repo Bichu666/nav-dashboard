@@ -72,9 +72,10 @@ def send_whatsapp_alert(message_text):
     }
     headers = {'Content-Type': 'application/json'}
     try:
-      requests.post(url, json=payload, headers=headers, timeout=5)
-    except Exception:
-      pass
+      response = requests.post(url, json=payload, headers=headers, timeout=5)
+      print(f"Green-API Status: {response.status_code}, Response: {response.text}")
+    except Exception as e:
+      print(f"Green-API Error: {e}")
 
   threading.Thread(target=_send, daemon=True).start()
 
@@ -314,7 +315,6 @@ def get_live_market_data():
   result = {}
   indices = {'nifty50': '^NSEI', 'sensex': '^BSESN', 'nifty500': '^CRSLDX'}
   
-  # Non-blocking fast fetch with fallback to cache
   for key, ticker in indices.items():
     cached_item = cache.get(key, {})
     result[key] = {
@@ -927,4 +927,5 @@ def get_archive_files():
 
 
 if __name__ == '__main__':
-  app.run(debug=True)
+  port = int(os.environ.get("PORT", 10000))
+  app.run(host="0.0.0.0", port=port)
