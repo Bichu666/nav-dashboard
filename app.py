@@ -21,7 +21,6 @@ from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from PIL import Image
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -691,30 +690,22 @@ def upload_nav():
             if file and file.filename != '':
                 raw_fn = file.filename
                 filename = secure_filename(raw_fn) or 'latest_nav.jpg'
+                file_bytes = file.read()
                 
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 latest_filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
-                # Optimize and compress image for lightning-fast uploads and rendering
-                try:
-                    img = Image.open(file)
-                    img.thumbnail((1600, 1600))
-                    img.save(filepath, optimize=True, quality=85)
-                    img.save(latest_filepath, optimize=True, quality=85)
-                except Exception:
-                    file.seek(0)
-                    file_bytes = file.read()
-                    with open(filepath, 'wb') as f:
-                        f.write(file_bytes)
-                    with open(latest_filepath, 'wb') as f:
-                        f.write(file_bytes)
+                with open(filepath, 'wb') as f:
+                    f.write(file_bytes)
+                with open(latest_filepath, 'wb') as f:
+                    f.write(file_bytes)
 
                 # Instantly update metadata so user dashboard switches to latest data immediately
                 meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
                 with open(meta_path, 'w') as mf:
                     json.dump({'filename': filename, 'original_filename': raw_fn, 'updated_at': datetime.now().isoformat()}, mf)
 
-                flash(f'Successfully published and optimized NAV: {filename}', 'success')
+                flash(f'Successfully published NAV: {filename}', 'success')
         except Exception as e:
             flash(f'Error uploading NAV image: {e}', 'danger')
     return redirect(url_for('admin_dashboard'))
