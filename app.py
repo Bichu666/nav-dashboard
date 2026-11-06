@@ -60,7 +60,7 @@ ADMIN_MOBILE = "+918078535666"
 # Green-API Configuration for Private Secondary WhatsApp Alerts
 GREEN_API_ID_INSTANCE = "710722793507"
 GREEN_API_TOKEN = "c6563630f983424d9c02ff4b2450537877e8a329d6be4d88a1"
-GREEN_API_RECIPIENT = "917356963666@c.us"
+GREEN_API_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", "917356963666@c.us")
 
 def send_whatsapp_alert(message_text):
   """Sends an instant secure WhatsApp notification asynchronously in a background thread."""
@@ -347,6 +347,7 @@ def market_live():
 
 
 @app.route('/api/messages', methods=['GET'])
+@app.route('/api/get-messages', methods=['GET'])
 def get_messages():
   if 'username' not in session and not session.get('is_admin'):
     return jsonify({'success': False, 'messages': []})
@@ -810,7 +811,7 @@ def decline_all_users():
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   for user in REGISTERED_USERS:
     if user['status'] == 'Pending':
-      user['status'] = 'Pending'
+      user['status'] == 'Pending'
   flash('All pending users declined successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
