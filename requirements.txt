@@ -11,3 +11,4 @@ supabase==2.3.0
 Flask-Limiter==3.5.0
 requests==2.31.0
 yfinance==0.2.36
+Pillow==10.2.0
