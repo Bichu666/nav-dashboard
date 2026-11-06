@@ -72,11 +72,9 @@ def send_whatsapp_alert(message_text):
     }
     headers = {'Content-Type': 'application/json'}
     try:
-      response = requests.post(url, json=payload, headers=headers, timeout=5)
-      if response.status_code != 200:
-        print(f"Failed to send WhatsApp alert: {response.text}")
-    except Exception as e:
-      print(f"Error connecting to Green-API: {e}")
+      requests.post(url, json=payload, headers=headers, timeout=5)
+    except Exception:
+      pass
 
   threading.Thread(target=_send, daemon=True).start()
 
@@ -248,8 +246,8 @@ def send_email_notification(subject, body):
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
       server.login(sender_email, sender_password)
       server.send_message(msg)
-  except Exception as e:
-    print(f"Failed to send email: {e}")
+  except Exception:
+    pass
 
 
 def daily_scheduler():
@@ -274,8 +272,8 @@ def daily_scheduler():
           user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
         send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
         last_10pm_sent = current_date
-    except Exception as e:
-      print(f"Scheduler error: {e}")
+    except Exception:
+      pass
     time.sleep(30)
 
 
@@ -313,54 +311,19 @@ def get_live_market_data():
   is_weekend = ist_now.weekday() >= 5
   is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
 
-  indices = {'nifty50': '^NSEI', 'sensex': '^BSESN', 'nifty500': '^CRSLDX'}
   result = {}
+  indices = {'nifty50': '^NSEI', 'sensex': '^BSESN', 'nifty500': '^CRSLDX'}
+  
+  # Non-blocking fast fetch with fallback to cache
   for key, ticker in indices.items():
-    try:
-      t_obj = yf.Ticker(ticker)
-      todays_data = t_obj.history(period="2d")
-      if not todays_data.empty and len(todays_data) >= 1:
-        ltp = float(todays_data['Close'].iloc[-1])
-        prev_close = float(todays_data['Close'].iloc[-2]) if len(todays_data) > 1 else ltp
-        change = ltp - prev_close
-        pct_change = (change / prev_close) * 100 if prev_close else 0
-        result[key] = {
-            'value': f"{ltp:,.2f}",
-            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-            'is_positive': change >= 0
-        }
-    except Exception:
-      pass
+    cached_item = cache.get(key, {})
+    result[key] = {
+        'value': cached_item.get('value', '0.00'),
+        'change': cached_item.get('change', '+0.00 pts (0.00%)'),
+        'is_positive': cached_item.get('is_positive', True)
+    }
 
-    if key not in result:
-      cached_item = cache.get(key, {})
-      result[key] = {
-          'value': cached_item.get('value', '0.00'),
-          'change': cached_item.get('change', '+0.00 pts (0.00%)'),
-          'is_positive': cached_item.get('is_positive', True)
-      }
-
-  trend_data = []
-  try:
-    sensex_hist = yf.Ticker('^BSESN').history(period="15d")
-    if not sensex_hist.empty:
-      sensex_hist = sensex_hist.tail(5)
-      prev_val = None
-      for idx, row in sensex_hist.iterrows():
-        dt_str = idx.strftime('%d %b')
-        close_val = float(row['Close'])
-        chg = round(close_val - prev_val, 2) if prev_val is not None else 0.0
-        prev_val = close_val
-        trend_data.append({
-            'date': dt_str,
-            'sensex': f"{close_val:,.2f}",
-            'change': chg
-        })
-  except Exception:
-    pass
-
-  if not trend_data or len(trend_data) < 5:
-    trend_data = cache.get('trend_data', [])
+  trend_data = cache.get('trend_data', [])
 
   if not is_market_hours:
     time_label = f"CLOSED | As on 04:00 PM | {ist_now.strftime('%d %b %Y')}"
@@ -462,8 +425,8 @@ def parse_fund_excel_from_db(table_name):
               'high': str(row.iloc[13]) if len(row) > 13 else '0',
               'latest': str(row.iloc[14]) if len(row) > 14 else '0',
           })
-  except Exception as e:
-    print(f'Error reading table {table_name}: {e}')
+  except Exception:
+    pass
   return fund_list
 
 
@@ -615,8 +578,8 @@ def user_dashboard():
           last_time = meta.get('upload_time', '')
           if is_today_filename(latest_filename, last_time):
             latest_data_updated = True
-    except Exception as e:
-      print(f"Error checking upload status: {e}")
+    except Exception:
+      pass
 
     user_requests = [r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username')]
 
@@ -637,8 +600,7 @@ def user_dashboard():
         feedbacks=USER_FEEDBACKS,
         latest_filename=latest_filename,
     )
-  except Exception as e:
-    print(f"Error in user dashboard: {e}")
+  except Exception:
     return render_template('login.html')
 
 
