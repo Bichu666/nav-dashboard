@@ -21,6 +21,7 @@ from sqlalchemy import create_engine
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from PIL import Image
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -403,12 +404,14 @@ def user_dashboard():
         festival_greeting = None
 
         latest_filename = 'latest_nav.jpg'
+        latest_data_updated = False
         try:
             meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
             if os.path.exists(meta_path):
                 with open(meta_path, 'r') as mf:
                     meta = json.load(mf)
                     latest_filename = meta.get('filename', 'latest_nav.jpg')
+                    latest_data_updated = True
         except Exception:
             pass
 
@@ -435,7 +438,8 @@ def user_dashboard():
             festival_greeting=festival_greeting,
             download_requests=user_requests,
             latest_filename=latest_filename,
-            can_download_latest=can_download_latest
+            can_download_latest=can_download_latest,
+            latest_data_updated=latest_data_updated
         )
     except Exception:
         return redirect(url_for('login'))
@@ -687,17 +691,30 @@ def upload_nav():
             if file and file.filename != '':
                 raw_fn = file.filename
                 filename = secure_filename(raw_fn) or 'latest_nav.jpg'
-                file_bytes = file.read()
                 
-                with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'wb') as f:
-                    f.write(file_bytes)
-                with open(os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg'), 'wb') as f:
-                    f.write(file_bytes)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                latest_filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
-                with open(os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json'), 'w') as mf:
-                    json.dump({'filename': filename, 'original_filename': raw_fn}, mf)
+                # Optimize and compress image for lightning-fast uploads and rendering
+                try:
+                    img = Image.open(file)
+                    img.thumbnail((1600, 1600))
+                    img.save(filepath, optimize=True, quality=85)
+                    img.save(latest_filepath, optimize=True, quality=85)
+                except Exception:
+                    file.seek(0)
+                    file_bytes = file.read()
+                    with open(filepath, 'wb') as f:
+                        f.write(file_bytes)
+                    with open(latest_filepath, 'wb') as f:
+                        f.write(file_bytes)
 
-                flash(f'Successfully published NAV: {filename}', 'success')
+                # Instantly update metadata so user dashboard switches to latest data immediately
+                meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+                with open(meta_path, 'w') as mf:
+                    json.dump({'filename': filename, 'original_filename': raw_fn, 'updated_at': datetime.now().isoformat()}, mf)
+
+                flash(f'Successfully published and optimized NAV: {filename}', 'success')
         except Exception as e:
             flash(f'Error uploading NAV image: {e}', 'danger')
     return redirect(url_for('admin_dashboard'))
