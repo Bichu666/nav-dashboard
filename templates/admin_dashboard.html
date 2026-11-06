@@ -103,55 +103,6 @@
         .nav-red-alert, .market-neg { color: var(--red) !important; font-weight: 600; }
         .nav-green, .market-pos { color: var(--green) !important; font-weight: 600; }
 
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            padding: 30px;
-            border-radius: 12px;
-            width: 850px;
-            max-width: 95%;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 15px; right: 20px;
-            font-size: 26px;
-            font-weight: bold;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-        .modal-close:hover { color: #fff; }
-
-        .modal-returns-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .modal-returns-table th, .modal-returns-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            text-align: left;
-            font-size: 14px;
-        }
-        .modal-returns-table th { background: var(--bg-card); color: var(--accent-gold); }
-
         .top-grid {
             display: grid;
             grid-template-columns: 1.5fr 1.6fr 1.2fr 1.2fr;
@@ -289,6 +240,60 @@
             align-items: center;
             border: 1px solid var(--border-color);
         }
+
+        /* Upgraded 145px Apple Red Analog Clock Styling */
+        .analog-clock-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(31, 41, 55, 0.7);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px;
+            border-radius: 12px;
+        }
+        .clock-face {
+            width: 145px;
+            height: 145px;
+            border: 6px solid #FF0800;
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle, #ff332e 0%, #cc0600 100%);
+            box-shadow: 0 0 22px rgba(255, 8, 0, 0.5), inset 0 0 12px rgba(0, 0, 0, 0.35);
+            flex-shrink: 0;
+        }
+        .clock-marker {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
+        }
+        .marker-hour {
+            width: 2.5px;
+            height: 12px;
+            margin-left: -1.25px;
+        }
+        .clock-hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg);
+            border-radius: 3px;
+        }
+        .hour-hand { width: 5px; height: 38px; background: #ffffff; z-index: 3; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .min-hand { width: 3.5px; height: 55px; background: #ffffff; z-index: 4; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .sec-hand { width: 2px; height: 60px; background: #ffffff; z-index: 5; opacity: 0.95; }
+        .clock-center-dot {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 12px; height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+            box-shadow: 0 0 4px rgba(0,0,0,0.6);
+        }
     </style>
 </head>
 <body>
@@ -309,10 +314,23 @@
                     <h1>NAV UPDATES</h1>
                 {% endif %}
             </div>
-            <div class="header-right" style="text-align: right;">
-                <p class="live-datetime" id="live-clock">Loading Date & Time...</p>
-                <p class="admin-identity">Admin Portal Active</p>
-                <p class="session-badge">Lifetime Admin Session Active</p>
+            <div class="header-right" style="display: flex; align-items: center; gap: 18px;">
+                <div class="analog-clock-wrapper">
+                    <div class="clock-face" id="admin-clock-face">
+                        <div class="clock-hand hour-hand" id="admin-hour-hand"></div>
+                        <div class="clock-hand min-hand" id="admin-min-hand"></div>
+                        <div class="clock-hand sec-hand" id="admin-sec-hand"></div>
+                        <div class="clock-center-dot"></div>
+                    </div>
+                    <div style="text-align: left;">
+                        <div id="admin-analog-date-label" style="font-size: 14px; font-weight: 700; color: var(--accent-gold);">Loading Date...</div>
+                        <div id="admin-analog-time-label" style="font-size: 13px; color: var(--text-muted); font-weight: 500; margin-top: 4px;">00:00:00 AM</div>
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <p class="admin-identity">Admin Portal Active</p>
+                    <p class="session-badge">Lifetime Admin Session Active</p>
+                </div>
             </div>
         </header>
 
@@ -440,6 +458,38 @@
             </table>
         </div>
 
+        <!-- Live User Messages & Chat Center Placed Just Below Feedback Panel -->
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>Live User Messages & Chat Center</h3>
+            <table class="approval-table" id="admin-user-messages-table">
+                <thead>
+                    <tr>
+                        <th>User Name</th>
+                        <th>Message</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-messages-tbody">
+                    {% for msg in chat_messages %}
+                    <tr>
+                        <td>{{ msg.username }}</td>
+                        <td>{{ msg.message }}</td>
+                        <td>{{ msg.timestamp }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">No user messages received yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+                <input type="text" id="admin-reply-recipient" placeholder="Recipient User Name (e.g. biju)" style="width: 240px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
+                <input type="text" id="admin-reply-input" placeholder="Type reply message to user..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
+                <button type="button" onclick="sendAdminReply()" class="btn-batch" style="width: 160px;">Send Reply</button>
+            </div>
+        </div>
+
         <div class="panel" style="margin-bottom: 24px;">
             <h3>NAV Image Download Approval Requests</h3>
             <table class="approval-table">
@@ -558,7 +608,7 @@
                     </thead>
                     <tbody>
                         {% for row in equity_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/equity/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -588,7 +638,7 @@
                     </thead>
                     <tbody>
                         {% for row in balancer_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/balancer/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -618,7 +668,7 @@
                     </thead>
                     <tbody>
                         {% for row in debt_data %}
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/debt/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -639,124 +689,188 @@
         </footer>
     </div>
 
-    <div id="fundModal" class="modal-overlay">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <h2 id="modal-fund-name" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">Fund Name</h2>
-            <div class="modal-info-grid" style="font-size: 14px; margin-bottom: 15px; display: flex; gap: 20px; color: var(--text-muted);">
-                <div><strong>Inception Date:</strong> <span id="modal-inception" style="color:#fff;"></span></div>
-                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark" style="color:#fff;"></span></div>
-            </div>
-            
-            <table class="modal-returns-table">
-                <thead>
-                    <tr>
-                        <th>Metric / Period</th>
-                        <th>Value / Return</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
-                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
-                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
-                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
-                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
-                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
-                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
-                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
-                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
-                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
-                    <tr><td>Highest NAV</td><td id="m-high"></td></tr>
-                    <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     <script>
-        function updateClock() {
+        // Generate crisp 12 hour ticks around the 145px Admin clock face
+        const adminClockFace = document.getElementById('admin-clock-face');
+        if (adminClockFace) {
+            for (let i = 0; i < 12; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'clock-marker marker-hour';
+                marker.style.transform = `rotate(${i * 30}deg) translateY(-60px)`;
+                adminClockFace.appendChild(marker);
+            }
+        }
+
+        function updateAdminAnalogClock() {
             const now = new Date();
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString('en-US', options);
-            document.getElementById('live-clock').innerText = timeString;
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const hours = now.getHours();
+
+            const secDeg = (seconds / 60) * 360;
+            const minDeg = ((minutes + seconds / 60) / 60) * 360;
+            const hourDeg = ((hours % 12 + minutes / 60) / 12) * 360;
+
+            const secHand = document.getElementById('admin-sec-hand');
+            const minHand = document.getElementById('admin-min-hand');
+            const hourHand = document.getElementById('admin-hour-hand');
+
+            if (secHand) secHand.style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
+            if (minHand) minHand.style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
+            if (hourHand) hourHand.style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
+
+            const dateOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+            const dateLabel = document.getElementById('admin-analog-date-label');
+            const timeLabel = document.getElementById('admin-analog-time-label');
+
+            if (dateLabel) dateLabel.innerText = now.toLocaleDateString('en-US', dateOptions);
+            if (timeLabel) timeLabel.innerText = now.toLocaleTimeString('en-US', timeOptions);
         }
-        setInterval(updateClock, 1000);
-        updateClock();
+        setInterval(updateAdminAnalogClock, 1000);
+        updateAdminAnalogClock();
 
-        function openModal(data) {
-            document.getElementById('modal-fund-name').innerText = data.fund;
-            document.getElementById('modal-inception').innerText = data.inception;
-            document.getElementById('modal-benchmark').innerText = data.benchmark;
+        // Browser-Side Market Data Sync
+        const MARKET_SYMBOLS = {
+            nifty50: '^NSEI',
+            sensex: '^BSESN',
+            nifty500: '^CRSLDX'
+        };
 
-            const percentageFields = [
-                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
-                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
-                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
-            ];
-
-            percentageFields.forEach(f => {
-                let cell = document.getElementById(f.id);
-                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
-                let num = parseFloat(String(rawVal).replace('%', ''));
-                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
-                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
+        function formatMarketNumber(num) {
+            return Number(num).toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
             });
-
-            let highCell = document.getElementById('m-high');
-            highCell.innerText = data.high;
-            highCell.className = "nav-green";
-
-            let latestCell = document.getElementById('m-latest');
-            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
-            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
-            latestCell.innerText = latestRaw;
-            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
-
-            document.getElementById('fundModal').style.display = 'flex';
         }
 
-        function closeModal() {
-            document.getElementById('fundModal').style.display = 'none';
+        function applyMarketToUI(payload) {
+            const statusLabel = document.getElementById('market-status-label');
+            if (statusLabel && payload.time_label) statusLabel.innerText = payload.time_label;
+
+            ['nifty50', 'sensex', 'nifty500'].forEach((key) => {
+                if (!payload[key]) return;
+                const valEl = document.getElementById(`${key}-val`);
+                const chgEl = document.getElementById(`${key}-chg`);
+                if (valEl) valEl.innerText = payload[key].value;
+                if (chgEl) {
+                    chgEl.innerText = payload[key].change;
+                    chgEl.className = payload[key].is_positive ? 'market-pos' : 'market-neg';
+                }
+            });
         }
 
-        window.onclick = function(event) {
-            let fundModal = document.getElementById('fundModal');
-            if (event.target == fundModal) { closeModal(); }
+        async function fetchYahooTicker(symbol) {
+            const endpoints = [
+                `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+                `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`)}`
+            ];
+            for (const url of endpoints) {
+                try {
+                    const resp = await fetch(url);
+                    if (!resp.ok) continue;
+                    const json = await resp.json();
+                    const result = json?.chart?.result?.[0];
+                    const meta = result?.meta;
+                    if (!meta || meta.regularMarketPrice === undefined) continue;
+
+                    const price = Number(meta.regularMarketPrice);
+                    const prevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
+                    const diff = price - prevClose;
+                    const pct = prevClose ? (diff / prevClose) * 100 : 0;
+                    const isPos = diff >= 0;
+                    const sign = isPos ? '+' : '';
+
+                    return {
+                        value: formatMarketNumber(price),
+                        change: `${sign}${diff.toFixed(2)} pts (${sign}${pct.toFixed(2)}%)`,
+                        is_positive: isPos
+                    };
+                } catch (e) {
+                    continue;
+                }
+            }
+            return null;
         }
 
-        setInterval(() => {
-            fetch('/api/market-live')
-                .then(response => response.json())
-                .then(data => {
-                    const statusLabel = document.getElementById('market-status-label');
-                    if (statusLabel) statusLabel.innerText = data.time_label;
+        async function syncMarketBrowserSide() {
+            try {
+                const [nifty50, sensex, nifty500] = await Promise.all([
+                    fetchYahooTicker(MARKET_SYMBOLS.nifty50),
+                    fetchYahooTicker(MARKET_SYMBOLS.sensex),
+                    fetchYahooTicker(MARKET_SYMBOLS.nifty500)
+                ]);
 
-                    const nifty50Val = document.getElementById('nifty50-val');
-                    const nifty50Chg = document.getElementById('nifty50-chg');
-                    if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
-                    if (nifty50Chg) {
-                        nifty50Chg.innerText = data.nifty50.change;
-                        nifty500Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
-                    }
+                if (!nifty50 && !sensex && !nifty500) {
+                    const fallback = await fetch('/api/market-live').then(r => r.json());
+                    applyMarketToUI(fallback);
+                    return;
+                }
 
-                    const sensexVal = document.getElementById('sensex-val');
-                    const sensexChg = document.getElementById('sensex-chg');
-                    if (sensexVal) sensexVal.innerText = data.sensex.value;
-                    if (sensexChg) {
-                        sensexChg.innerText = data.sensex.change;
-                        sensexChg.className = data.sensex.is_positive ? 'market-pos' : 'market-neg';
-                    }
+                const now = new Date();
+                const payload = {
+                    nifty50: nifty50 || null,
+                    sensex: sensex || null,
+                    nifty500: nifty500 || null,
+                    time_label: `Live as of: ${now.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`
+                };
 
-                    const nifty500Val = document.getElementById('nifty500-val');
-                    const nifty500Chg = document.getElementById('nifty500-chg');
-                    if (nifty500Val) nifty500Val.innerText = data.nifty500.value;
-                    if (nifty500Chg) {
-                        nifty500Chg.innerText = data.nifty500.change;
-                        nifty500Chg.className = data.nifty500.is_positive ? 'market-pos' : 'market-neg';
+                applyMarketToUI(payload);
+
+                fetch('/api/market-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            } catch (err) {
+                console.error('Browser market sync error:', err);
+            }
+        }
+
+        syncMarketBrowserSide();
+        setInterval(syncMarketBrowserSide, 15000);
+
+        // Live User Messages & Chat Center Polling
+        function loadAdminMessages() {
+            fetch('/api/get-messages').then(r => r.json()).then(data => {
+                if (data.success) {
+                    const tbody = document.getElementById('admin-messages-tbody');
+                    if (!tbody) return;
+                    if (!data.messages || data.messages.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No user messages received yet.</td></tr>';
+                        return;
                     }
-                })
-                .catch(err => console.error('Market live refresh error:', err));
-        }, 10000);
+                    tbody.innerHTML = data.messages.map(m => `
+                        <tr>
+                            <td>${m.username}</td>
+                            <td>${m.message}</td>
+                            <td>${m.timestamp}</td>
+                        </tr>
+                    `).join('');
+                }
+            }).catch(() => {});
+        }
+
+        function sendAdminReply() {
+            const input = document.getElementById('admin-reply-input');
+            const recipientInput = document.getElementById('admin-reply-recipient');
+            if (!input || !input.value.trim()) return;
+            const recipient = (recipientInput && recipientInput.value.trim()) ? recipientInput.value.trim() : 'All';
+            fetch('/api/send-message', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: input.value, recipient: recipient})
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    input.value = '';
+                    loadAdminMessages();
+                }
+            }).catch(() => {});
+        }
+
+        setInterval(loadAdminMessages, 5000);
+        loadAdminMessages();
 
         setInterval(() => {
             fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
