@@ -844,37 +844,46 @@ def upload_nav():
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   if request.method == 'POST':
     try:
+      if 'nav_image' not in request.files:
+        flash('No file part in the request.', 'danger')
+        return redirect(url_for('admin_dashboard'))
+        
       file = request.files.get('nav_image')
-      if file and file.filename != '':
-        raw_fn = file.filename
-        filename = secure_filename(raw_fn) or f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
-        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+      if not file or file.filename == '':
+        flash('No image selected for uploading.', 'danger')
+        return redirect(url_for('admin_dashboard'))
 
-        try:
-          img = Image.open(file)
-          img.thumbnail((1600, 1600))
-          img.save(file_path_upload, optimize=True, quality=85)
-          img.save(latest_ref_path, optimize=True, quality=85)
-        except Exception:
-          file.seek(0)
-          file_bytes = file.read()
-          with open(file_path_upload, 'wb') as f:
-            f.write(file_bytes)
-          with open(latest_ref_path, 'wb') as f:
-            f.write(file_bytes)
+      raw_fn = file.filename
+      filename = secure_filename(raw_fn) or f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+      file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+      latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
-        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      try:
+        file.save(file_path_upload)
+        shutil.copy(file_path_upload, latest_ref_path)
+      except Exception as save_err:
+        print(f"File save error: {save_err}")
+        flash(f'Error saving file: {save_err}', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      try:
         with open(meta_path, 'w') as mf:
           json.dump({'filename': filename, 'original_filename': raw_fn, 'upload_time': datetime.now().isoformat()}, mf)
+      except Exception:
+        pass
 
+      try:
         target_year, target_month = extract_date_from_filename(raw_fn)
         archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
         os.makedirs(archive_target_dir, exist_ok=True)
         shutil.copy(file_path_upload, os.path.join(archive_target_dir, filename))
+      except Exception as arc_err:
+        print(f"Archive copy warning: {arc_err}")
 
-        flash(f'Successfully published NAV: {filename}', 'success')
+      flash(f'Successfully published NAV: {filename}', 'success')
     except Exception as e:
+      print(f"Critical upload error: {e}")
       flash(f'Error uploading NAV image: {e}', 'danger')
   return redirect(url_for('admin_dashboard'))
 
