@@ -329,8 +329,8 @@ def get_live_market_data():
             'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
             'is_positive': change >= 0
         }
-    except Exception as e:
-      print(f"yfinance fetch error for {key}: {e}")
+    except Exception:
+      pass
 
     if key not in result:
       cached_item = cache.get(key, {})
@@ -356,8 +356,8 @@ def get_live_market_data():
             'sensex': f"{close_val:,.2f}",
             'change': chg
         })
-  except Exception as e:
-    print(f"yfinance trend fetch error: {e}")
+  except Exception:
+    pass
 
   if not trend_data or len(trend_data) < 5:
     trend_data = cache.get('trend_data', [])
