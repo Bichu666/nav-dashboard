@@ -346,8 +346,17 @@ def market_live():
   return jsonify(market_info)
 
 
+@app.route('/api/heartbeat', methods=['POST'])
+@limiter.exempt
+def heartbeat():
+  if session.get('is_admin'):
+    ADMIN_ACTIVITY['last_active'] = datetime.now()
+  return jsonify({'success': True})
+
+
 @app.route('/api/messages', methods=['GET'])
 @app.route('/api/get-messages', methods=['GET'])
+@app.route('/api/messages/get', methods=['GET'])
 def get_messages():
   if 'username' not in session and not session.get('is_admin'):
     return jsonify({'success': False, 'messages': []})
@@ -811,7 +820,7 @@ def decline_all_users():
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   for user in REGISTERED_USERS:
     if user['status'] == 'Pending':
-      user['status'] == 'Pending'
+      user['status'] = 'Pending'
   flash('All pending users declined successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
