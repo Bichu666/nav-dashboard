@@ -102,8 +102,6 @@
 
         .nav-red-alert, .market-neg { color: var(--red) !important; font-weight: 600; }
         .nav-green, .market-pos { color: var(--green) !important; font-weight: 600; }
-<<<<<<< HEAD
-=======
 
         .modal-overlay {
             display: none;
@@ -153,7 +151,6 @@
             font-size: 14px;
         }
         .modal-returns-table th { background: var(--bg-card); color: var(--accent-gold); }
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
         .top-grid {
             display: grid;
@@ -293,7 +290,7 @@
             border: 1px solid var(--border-color);
         }
 
-        /* Upgraded 145px Apple Red Analog Clock Styling */
+        /* Matched 145px Apple Red Analog Clock Styling */
         .analog-clock-wrapper {
             display: flex;
             align-items: center;
@@ -354,19 +351,19 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 2 mins)</span>
+                <span class="control-center-text">Admin Control Center (Live Auto-Sync Active)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
             <div class="header-center-banner text-center">
                 {% if festival_greeting %}
                     <div style="font-family: 'Great Vibes', cursive; font-size: 3.2rem; background: linear-gradient(45deg, #ffd700, #ff8c00, #ff4500, #ff1493, #00ffff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 69, 0, 0.4); letter-spacing: 3px; font-weight: bold; line-height: 1.1;">
-                        ✨ {{ festival_greeting }} ✨
+                        &#10024; {{ festival_greeting }} &#10024;
                     </div>
                 {% else %}
                     <h1>NAV UPDATES</h1>
                 {% endif %}
             </div>
-            <div class="header-right" style="display: flex; align-items: center; gap: 18px;">
+            <div class="header-right" style="display: flex; align-items: center; gap: 18px; text-align: right;">
                 <div class="analog-clock-wrapper">
                     <div class="clock-face" id="admin-clock-face">
                         <div class="clock-hand hour-hand" id="admin-hour-hand"></div>
@@ -375,11 +372,12 @@
                         <div class="clock-center-dot"></div>
                     </div>
                     <div style="text-align: left;">
-                        <div id="admin-analog-date-label" style="font-size: 14px; font-weight: 700; color: var(--accent-gold);">Loading Date...</div>
-                        <div id="admin-analog-time-label" style="font-size: 13px; color: var(--text-muted); font-weight: 500; margin-top: 4px;">00:00:00 AM</div>
+                        <div id="admin-date-label" style="font-size: 14px; font-weight: 700; color: var(--accent-gold);">Loading Date...</div>
+                        <div id="admin-time-label" style="font-size: 13px; color: var(--text-muted); font-weight: 500; margin-top: 4px;">00:00:00 AM</div>
                     </div>
                 </div>
-                <div style="text-align: right;">
+                <div>
+                    <p class="live-datetime" id="live-clock" style="margin: 0; font-weight: 600;">Loading Date & Time...</p>
                     <p class="admin-identity">Admin Portal Active</p>
                     <p class="session-badge">Lifetime Admin Session Active</p>
                 </div>
@@ -410,7 +408,7 @@
 
             <div class="panel trend-panel">
                 <h3>BSE SENSEX PREVIOUS 5 DAYS VALUE</h3>
-                <div class="trend-boxes">
+                <div class="trend-boxes" id="sensex-trend-boxes">
                     {% for item in market_trend %}
                     <div class="t-box">
                         <div class="t-date" style="font-size: 13px; color: var(--text-muted);">{{ item.date }}</div>
@@ -484,13 +482,6 @@
             </div>
         </div>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-        <!-- Moved User Feedback & Download Approvals Just Below Upload Excels -->
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
         <div class="panel" style="margin-bottom: 24px;">
             <h3>Show User Feedback, Suggestion and Rating</h3>
             <table class="approval-table">
@@ -501,7 +492,7 @@
                         <th>Timestamp</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-feedback-body">
                     {% for item in feedbacks %}
                     <tr>
                         <td>{{ item.username }}</td>
@@ -517,11 +508,9 @@
             </table>
         </div>
 
-<<<<<<< HEAD
-        <!-- Live User Messages & Chat Center Placed Just Below Feedback Panel -->
         <div class="panel" style="margin-bottom: 24px;">
             <h3>Live User Messages & Chat Center</h3>
-            <table class="approval-table" id="admin-user-messages-table">
+            <table class="approval-table">
                 <thead>
                     <tr>
                         <th>User Name</th>
@@ -529,29 +518,27 @@
                         <th>Timestamp</th>
                     </tr>
                 </thead>
-                <tbody id="admin-messages-tbody">
-                    {% for msg in chat_messages %}
+                <tbody id="admin-chat-body">
+                    {% for m in messages %}
                     <tr>
-                        <td>{{ msg.username }}</td>
-                        <td>{{ msg.message }}</td>
-                        <td>{{ msg.timestamp }}</td>
+                        <td>{{ m.username or m.user or m.sender or 'Client' }}</td>
+                        <td>{{ m.message }}</td>
+                        <td>{{ m.timestamp }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="3" style="text-align: center; color: var(--text-muted);">No user messages received yet.</td>
+                        <td colspan="3" style="text-align: center; color: var(--text-muted);">No messages yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            <div style="display: flex; gap: 10px; margin-top: 14px;">
-                <input type="text" id="admin-reply-recipient" placeholder="Recipient User Name (e.g. biju)" style="width: 240px; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
-                <input type="text" id="admin-reply-input" placeholder="Type reply message to user..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
-                <button type="button" onclick="sendAdminReply()" class="btn-batch" style="width: 160px;">Send Reply</button>
+            <div style="display: grid; grid-template-columns: 220px 1fr 140px; gap: 10px; margin-top: 12px;">
+                <input type="text" id="admin-chat-recipient" placeholder="Recipient User Name (e.g. biju)" style="background: var(--bg-card); color: var(--text-main); padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                <input type="text" id="admin-chat-input" placeholder="Type reply message to user" style="background: var(--bg-card); color: var(--text-main); padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                <button type="button" class="btn-auto-update" onclick="sendAdminChat()">Send Reply</button>
             </div>
         </div>
 
-=======
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
         <div class="panel" style="margin-bottom: 24px;">
             <h3>NAV Image Download Approval Requests</h3>
             <table class="approval-table">
@@ -564,7 +551,7 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-download-requests-body">
                     {% for req in download_requests %}
                     <tr>
                         <td>{{ req.username }}</td>
@@ -618,43 +605,26 @@
                     <tr>
                         <th>Registered User Accounts</th>
                         <th>Mobile number</th>
-<<<<<<< HEAD
-<<<<<<< HEAD
                         <th>Presence Status</th>
                         <th>Last Login Date & Time</th>
-=======
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
-                        <th>Presence Status</th>
-                        <th>Last Login Date & Time</th>
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-users-body">
                     {% for user in users %}
                         {% if user_filter == 'all' or (user_filter == 'approved' and user.status == 'Approved') or (user_filter == 'pending' and user.status == 'Pending') %}
                         <tr>
                             <td>{{ user.name }} (ID: {{ user.id }})</td>
                             <td>{{ user.mobile }}</td>
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
                             <td>
                                 {% if user.is_online %}
-                                    <span style="color: var(--green); font-weight: bold;">● Online</span>
+                                    <span style="color: var(--green); font-weight: bold;">Online</span>
                                 {% else %}
-                                    <span style="color: var(--text-muted);">○ Offline</span>
+                                    <span style="color: var(--text-muted);">Offline</span>
                                 {% endif %}
                             </td>
-                            <td>{{ user.last_login | default('N/A') }}</td>
-<<<<<<< HEAD
-=======
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
+                            <td>{{ user.last_seen.strftime('%b %d, %Y, %I:%M %p') if user.last_seen else user.last_login | default('N/A') }}</td>
                             <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                             <td>
                                 <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
@@ -672,18 +642,8 @@
         </div>
 
         <div class="funds-stack-container">
-<<<<<<< HEAD
-<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
-=======
-            <div class="fund-section-box">
-                <div class="section-title-bar">Equity Funds</div>
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -697,11 +657,7 @@
                     </thead>
                     <tbody>
                         {% for row in equity_data %}
-<<<<<<< HEAD
-                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/equity/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
-=======
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }}, "equity")' style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -716,18 +672,8 @@
                 </table>
             </div>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
-=======
-            <div class="fund-section-box">
-                <div class="section-title-bar">Balancer Funds</div>
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -741,11 +687,7 @@
                     </thead>
                     <tbody>
                         {% for row in balancer_data %}
-<<<<<<< HEAD
-                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/balancer/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
-=======
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }}, "balancer")' style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -760,18 +702,8 @@
                 </table>
             </div>
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
-=======
-            <div class="fund-section-box">
-                <div class="section-title-bar">Debt Funds</div>
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
-            <div class="fund-section-box" style="margin-bottom: 20px;">
-                <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -785,11 +717,7 @@
                     </thead>
                     <tbody>
                         {% for row in debt_data %}
-<<<<<<< HEAD
-                        <tr class="fund-clickable-row" onclick="window.location.href='/fund/debt/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
-=======
-                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }}, "debt")' style="cursor: pointer;">
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -810,194 +738,6 @@
         </footer>
     </div>
 
-<<<<<<< HEAD
-    <script>
-        // Generate crisp 12 hour ticks around the 145px Admin clock face
-        const adminClockFace = document.getElementById('admin-clock-face');
-        if (adminClockFace) {
-            for (let i = 0; i < 12; i++) {
-                const marker = document.createElement('div');
-                marker.className = 'clock-marker marker-hour';
-                marker.style.transform = `rotate(${i * 30}deg) translateY(-60px)`;
-                adminClockFace.appendChild(marker);
-            }
-        }
-
-        function updateAdminAnalogClock() {
-            const now = new Date();
-            const seconds = now.getSeconds();
-            const minutes = now.getMinutes();
-            const hours = now.getHours();
-
-            const secDeg = (seconds / 60) * 360;
-            const minDeg = ((minutes + seconds / 60) / 60) * 360;
-            const hourDeg = ((hours % 12 + minutes / 60) / 12) * 360;
-
-            const secHand = document.getElementById('admin-sec-hand');
-            const minHand = document.getElementById('admin-min-hand');
-            const hourHand = document.getElementById('admin-hour-hand');
-
-            if (secHand) secHand.style.transform = `translateX(-50%) rotate(${secDeg}deg)`;
-            if (minHand) minHand.style.transform = `translateX(-50%) rotate(${minDeg}deg)`;
-            if (hourHand) hourHand.style.transform = `translateX(-50%) rotate(${hourDeg}deg)`;
-
-            const dateOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
-            const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-
-            const dateLabel = document.getElementById('admin-analog-date-label');
-            const timeLabel = document.getElementById('admin-analog-time-label');
-
-            if (dateLabel) dateLabel.innerText = now.toLocaleDateString('en-US', dateOptions);
-            if (timeLabel) timeLabel.innerText = now.toLocaleTimeString('en-US', timeOptions);
-        }
-        setInterval(updateAdminAnalogClock, 1000);
-        updateAdminAnalogClock();
-
-        // Browser-Side Market Data Sync
-        const MARKET_SYMBOLS = {
-            nifty50: '^NSEI',
-            sensex: '^BSESN',
-            nifty500: '^CRSLDX'
-        };
-
-        function formatMarketNumber(num) {
-            return Number(num).toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
-        function applyMarketToUI(payload) {
-            const statusLabel = document.getElementById('market-status-label');
-            if (statusLabel && payload.time_label) statusLabel.innerText = payload.time_label;
-
-            ['nifty50', 'sensex', 'nifty500'].forEach((key) => {
-                if (!payload[key]) return;
-                const valEl = document.getElementById(`${key}-val`);
-                const chgEl = document.getElementById(`${key}-chg`);
-                if (valEl) valEl.innerText = payload[key].value;
-                if (chgEl) {
-                    chgEl.innerText = payload[key].change;
-                    chgEl.className = payload[key].is_positive ? 'market-pos' : 'market-neg';
-                }
-            });
-        }
-
-        async function fetchYahooTicker(symbol) {
-            const endpoints = [
-                `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
-                `https://corsproxy.io/?${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`)}`
-            ];
-            for (const url of endpoints) {
-                try {
-                    const resp = await fetch(url);
-                    if (!resp.ok) continue;
-                    const json = await resp.json();
-                    const result = json?.chart?.result?.[0];
-                    const meta = result?.meta;
-                    if (!meta || meta.regularMarketPrice === undefined) continue;
-
-                    const price = Number(meta.regularMarketPrice);
-                    const prevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
-                    const diff = price - prevClose;
-                    const pct = prevClose ? (diff / prevClose) * 100 : 0;
-                    const isPos = diff >= 0;
-                    const sign = isPos ? '+' : '';
-
-                    return {
-                        value: formatMarketNumber(price),
-                        change: `${sign}${diff.toFixed(2)} pts (${sign}${pct.toFixed(2)}%)`,
-                        is_positive: isPos
-                    };
-                } catch (e) {
-                    continue;
-                }
-            }
-            return null;
-        }
-
-        async function syncMarketBrowserSide() {
-            try {
-                const [nifty50, sensex, nifty500] = await Promise.all([
-                    fetchYahooTicker(MARKET_SYMBOLS.nifty50),
-                    fetchYahooTicker(MARKET_SYMBOLS.sensex),
-                    fetchYahooTicker(MARKET_SYMBOLS.nifty500)
-                ]);
-
-                if (!nifty50 && !sensex && !nifty500) {
-                    const fallback = await fetch('/api/market-live').then(r => r.json());
-                    applyMarketToUI(fallback);
-                    return;
-                }
-
-                const now = new Date();
-                const payload = {
-                    nifty50: nifty50 || null,
-                    sensex: sensex || null,
-                    nifty500: nifty500 || null,
-                    time_label: `Live as of: ${now.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`
-                };
-
-                applyMarketToUI(payload);
-
-                fetch('/api/market-sync', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).catch(() => {});
-            } catch (err) {
-                console.error('Browser market sync error:', err);
-            }
-        }
-
-        syncMarketBrowserSide();
-        setInterval(syncMarketBrowserSide, 15000);
-
-        // Live User Messages & Chat Center Polling
-        function loadAdminMessages() {
-            fetch('/api/get-messages').then(r => r.json()).then(data => {
-                if (data.success) {
-                    const tbody = document.getElementById('admin-messages-tbody');
-                    if (!tbody) return;
-                    if (!data.messages || data.messages.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No user messages received yet.</td></tr>';
-                        return;
-                    }
-                    tbody.innerHTML = data.messages.map(m => `
-                        <tr>
-                            <td>${m.username}</td>
-                            <td>${m.message}</td>
-                            <td>${m.timestamp}</td>
-                        </tr>
-                    `).join('');
-                }
-            }).catch(() => {});
-        }
-
-        function sendAdminReply() {
-            const input = document.getElementById('admin-reply-input');
-            const recipientInput = document.getElementById('admin-reply-recipient');
-            if (!input || !input.value.trim()) return;
-            const recipient = (recipientInput && recipientInput.value.trim()) ? recipientInput.value.trim() : 'All';
-            fetch('/api/send-message', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({message: input.value, recipient: recipient})
-            }).then(r => r.json()).then(d => {
-                if (d.success) {
-                    input.value = '';
-                    loadAdminMessages();
-                }
-            }).catch(() => {});
-        }
-
-        setInterval(loadAdminMessages, 5000);
-        loadAdminMessages();
-
-        setInterval(() => {
-            fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
-        }, 30000);
-=======
     <div id="fundModal" class="modal-overlay">
         <div class="modal-content">
             <span class="modal-close" onclick="closeModal()">&times;</span>
@@ -1029,23 +769,68 @@
                     <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
                 </tbody>
             </table>
+
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+                <a id="modal-full-detail-link" href="#" class="btn-batch" style="width: auto; padding: 8px 16px; text-decoration: none;">Open Full Portfolio Details Page</a>
+            </div>
+            <div id="modal-portfolio-details" style="margin-top: 18px;">
+                <h3 style="color: var(--accent-gold); font-size: 16px; margin-bottom: 8px;">Top Sectors</h3>
+                <div id="modal-sectors-wrap" style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Loading portfolio details...</div>
+                <h3 style="color: var(--accent-gold); font-size: 16px; margin-bottom: 8px;">Portfolio Holdings</h3>
+                <div id="modal-holdings-wrap" style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Loading holdings...</div>
+                <h3 style="color: var(--accent-gold); font-size: 16px; margin-bottom: 8px;">Debt Metrics</h3>
+                <div id="modal-debt-wrap" style="font-size: 13px; color: var(--text-muted);">Loading debt metrics...</div>
+            </div>
         </div>
     </div>
 
     <script>
+        const CURRENT_USER_FILTER = "{{ user_filter | default('all') }}";
+        const adminClockFace = document.getElementById('admin-clock-face');
+        if (adminClockFace) {
+            for (let i = 0; i < 12; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'clock-marker marker-hour';
+                marker.style.transform = `rotate(${i * 30}deg) translateY(-60px)`;
+                adminClockFace.appendChild(marker);
+            }
+        }
+
         function updateClock() {
             const now = new Date();
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
-            const timeString = now.toLocaleString('en-US', options);
-            document.getElementById('live-clock').innerText = timeString;
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            const el = document.getElementById('live-clock');
+            if (el) el.innerText = now.toLocaleString('en-US', options);
+
+            const sec = now.getSeconds();
+            const min = now.getMinutes() + sec / 60;
+            const hr = (now.getHours() % 12) + min / 60;
+
+            const secHand = document.getElementById('admin-sec-hand');
+            const minHand = document.getElementById('admin-min-hand');
+            const hourHand = document.getElementById('admin-hour-hand');
+
+            if (secHand) secHand.style.transform = `translateX(-50%) rotate(${sec * 6}deg)`;
+            if (minHand) minHand.style.transform = `translateX(-50%) rotate(${min * 6}deg)`;
+            if (hourHand) hourHand.style.transform = `translateX(-50%) rotate(${hr * 30}deg)`;
+
+            const dateLabel = document.getElementById('admin-date-label');
+            const timeLabel = document.getElementById('admin-time-label');
+            if (dateLabel) dateLabel.innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            if (timeLabel) timeLabel.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         }
         setInterval(updateClock, 1000);
         updateClock();
 
-        function openModal(data) {
+        function openModal(data, category = 'equity') {
             document.getElementById('modal-fund-name').innerText = data.fund;
             document.getElementById('modal-inception').innerText = data.inception;
             document.getElementById('modal-benchmark').innerText = data.benchmark;
+
+            const detailLink = document.getElementById('modal-full-detail-link');
+            if (detailLink) {
+                detailLink.href = `/admin/fund/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}`;
+            }
 
             const percentageFields = [
                 {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
@@ -1071,6 +856,46 @@
             latestCell.innerText = latestRaw;
             latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
 
+            const secWrap = document.getElementById('modal-sectors-wrap');
+            const holdWrap = document.getElementById('modal-holdings-wrap');
+            const debtWrap = document.getElementById('modal-debt-wrap');
+            secWrap.innerHTML = 'Loading portfolio details...';
+            holdWrap.innerHTML = 'Loading holdings...';
+            debtWrap.innerHTML = 'Loading debt metrics...';
+
+            fetch(`/api/fund-portfolio/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res || !res.success) {
+                        secWrap.innerHTML = 'No portfolio details found in database.';
+                        holdWrap.innerHTML = 'No holdings found in database.';
+                        debtWrap.innerHTML = 'No debt metrics found in database.';
+                        return;
+                    }
+                    secWrap.innerHTML = (res.sectors && res.sectors.length)
+                        ? `<table class="modal-returns-table"><thead><tr><th>Sector</th><th>Allocation</th></tr></thead><tbody>${
+                            res.sectors.map(s => `<tr><td>${escHtml(s.sector || '')}</td><td>${escHtml(s.allocation || '')}</td></tr>`).join('')
+                          }</tbody></table>`
+                        : 'No sector data uploaded yet.';
+
+                    holdWrap.innerHTML = (res.holdings && res.holdings.length)
+                        ? `<table class="modal-returns-table"><thead><tr><th>Type</th><th>Holding</th><th>Rating</th><th>Allocation</th></tr></thead><tbody>${
+                            res.holdings.map(h => `<tr><td>${escHtml(h.asset_type || '')}</td><td>${escHtml(h.holding || '')}</td><td>${escHtml(h.rating || '-')}</td><td>${escHtml(h.allocation || '')}</td></tr>`).join('')
+                          }</tbody></table>`
+                        : 'No holdings data uploaded yet.';
+
+                    debtWrap.innerHTML = (res.debt_metrics && res.debt_metrics.length)
+                        ? `<table class="modal-returns-table"><thead><tr><th>Metric</th><th>Label</th><th>Allocation</th></tr></thead><tbody>${
+                            res.debt_metrics.map(d => `<tr><td>${escHtml(d.metric_type || '')}</td><td>${escHtml(d.label || '')}</td><td>${escHtml(d.allocation || '')}</td></tr>`).join('')
+                          }</tbody></table>`
+                        : 'No debt metrics uploaded yet.';
+                })
+                .catch(() => {
+                    secWrap.innerHTML = 'Unable to load portfolio details.';
+                    holdWrap.innerHTML = 'Unable to load holdings.';
+                    debtWrap.innerHTML = 'Unable to load debt metrics.';
+                });
+
             document.getElementById('fundModal').style.display = 'flex';
         }
 
@@ -1081,6 +906,103 @@
         window.onclick = function(event) {
             let fundModal = document.getElementById('fundModal');
             if (event.target == fundModal) { closeModal(); }
+        }
+
+        function escHtml(v) {
+            return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function renderAdminChat(messages) {
+            const tbody = document.getElementById('admin-chat-body');
+            if (!tbody || !Array.isArray(messages) || !messages.length) return;
+            tbody.innerHTML = messages.map(m => {
+                const uname = m.username || m.user || m.sender || 'Client';
+                return `<tr><td>${escHtml(uname)}</td><td>${escHtml(m.message || '')}</td><td>${escHtml(m.timestamp || '')}</td></tr>`;
+            }).join('');
+        }
+
+        async function loadAdminChat() {
+            try {
+                const res = await fetch('/api/get-messages');
+                const data = await res.json();
+                if (data && data.success) renderAdminChat(data.messages);
+            } catch (e) {}
+        }
+
+        async function sendAdminChat() {
+            const rec = document.getElementById('admin-chat-recipient').value.trim();
+            const inp = document.getElementById('admin-chat-input');
+            const msg = inp.value.trim();
+            if (!msg) return;
+            const res = await fetch('/api/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: rec ? `[@${rec}] ${msg}` : msg,
+                    username: 'Admin - Bijoosh Padmakumar',
+                    role: 'admin'
+                })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                inp.value = '';
+                renderAdminChat(data.messages);
+            }
+        }
+
+        async function syncAdminTables() {
+            try {
+                const res = await fetch('/api/admin-state');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data || !data.success) return;
+
+                const reqBody = document.getElementById('admin-download-requests-body');
+                if (reqBody && Array.isArray(data.download_requests)) {
+                    if (!data.download_requests.length) {
+                        reqBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pending requests.</td></tr>';
+                    } else {
+                        reqBody.innerHTML = data.download_requests.map(req => {
+                            const actions = req.status === 'Pending'
+                                ? `<form action="/admin/approve-download/${req.id}" method="POST" style="display:inline;"><button type="submit" class="btn-app">Approve</button></form> <form action="/admin/reject-download/${req.id}" method="POST" style="display:inline;"><button type="submit" class="btn-dec">Reject</button></form>`
+                                : '<span style="color: var(--text-muted);">Processed</span>';
+                            return `<tr><td>${escHtml(req.username)}</td><td>${escHtml(req.filename)}</td><td>${escHtml(req.type)}</td><td>${escHtml(req.status)}</td><td>${actions}</td></tr>`;
+                        }).join('');
+                    }
+                }
+
+                const fbBody = document.getElementById('admin-feedback-body');
+                if (fbBody && Array.isArray(data.feedbacks) && data.feedbacks.length) {
+                    fbBody.innerHTML = data.feedbacks.map(item =>
+                        `<tr><td>${escHtml(item.username)}</td><td>${escHtml(item.feedback)}</td><td>${escHtml(item.timestamp)}</td></tr>`
+                    ).join('');
+                }
+
+                const usersBody = document.getElementById('admin-users-body');
+                if (usersBody && Array.isArray(data.users)) {
+                    const filtered = data.users.filter(u =>
+                        CURRENT_USER_FILTER === 'all' ||
+                        (CURRENT_USER_FILTER === 'approved' && u.status === 'Approved') ||
+                        (CURRENT_USER_FILTER === 'pending' && u.status === 'Pending')
+                    );
+                    usersBody.innerHTML = filtered.map(u => {
+                        const presence = u.is_online
+                            ? '<span style="color: var(--green); font-weight: bold;">Online</span>'
+                            : '<span style="color: var(--text-muted);">Offline</span>';
+                        return `<tr>
+                            <td>${escHtml(u.name)} (ID: ${u.id})</td>
+                            <td>${escHtml(u.mobile)}</td>
+                            <td>${presence}</td>
+                            <td>${escHtml(u.last_seen)}</td>
+                            <td><span class="status-badge ${escHtml(u.status.toLowerCase())}">${escHtml(u.status)}</span></td>
+                            <td>
+                                <form action="/update-user-status/${u.id}/Approved" method="POST" style="display:inline;"><button type="submit" class="btn-app">Approve</button></form>
+                                <form action="/update-user-status/${u.id}/Pending" method="POST" style="display:inline;"><button type="submit" class="btn-dec">Decline</button></form>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) {}
         }
 
         setInterval(() => {
@@ -1095,7 +1017,7 @@
                     if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
                     if (nifty50Chg) {
                         nifty50Chg.innerText = data.nifty50.change;
-                        nifty500Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
+                        nifty50Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
                     }
 
                     const sensexVal = document.getElementById('sensex-val');
@@ -1113,20 +1035,28 @@
                         nifty500Chg.innerText = data.nifty500.change;
                         nifty500Chg.className = data.nifty500.is_positive ? 'market-pos' : 'market-neg';
                     }
+
+                    const trendBox = document.getElementById('sensex-trend-boxes');
+                    if (trendBox && Array.isArray(data.trend_data) && data.trend_data.length) {
+                        trendBox.innerHTML = data.trend_data.map(item => {
+                            const chg = Number(item.change || 0);
+                            const cls = chg >= 0 ? 'market-pos' : 'market-neg';
+                            const sign = chg >= 0 ? '+' : '';
+                            return `<div class="t-box">
+                                <div class="t-date" style="font-size: 13px; color: var(--text-muted);">${escHtml(item.date)}</div>
+                                <div class="t-val" style="font-size: 14px; font-weight: 600;">${escHtml(item.sensex)}</div>
+                                <div class="t-chg ${cls}" style="font-size: 13px;">${sign}${chg} pts</div>
+                            </div>`;
+                        }).join('');
+                    }
                 })
                 .catch(err => console.error('Market live refresh error:', err));
         }, 10000);
 
-<<<<<<< HEAD
-        setTimeout(function() {
-            location.reload();
-        }, 120000);
->>>>>>> 45aef26 (Update indices, zoom modal, and login security)
-=======
-        setInterval(() => {
-            fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
-        }, 30000);
->>>>>>> 3e15637 (Update app.py with live market data and image compression)
+        loadAdminChat();
+        syncAdminTables();
+        setInterval(loadAdminChat, 4000);
+        setInterval(syncAdminTables, 5000);
     </script>
 </body>
 </html>

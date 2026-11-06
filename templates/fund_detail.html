@@ -198,13 +198,19 @@
     </style>
 </head>
 <body>
+    {% macro ret_cell(val) -%}
+        {%- set clean_str = (val | string | replace('%', '') | replace(',', '') | trim) if val is not none else '' -%}
+        {%- set num_val = clean_str | float(default=0) if clean_str not in ['', 'nan', 'None', '-', 'NA', 'N/A'] else 0 -%}
+        <td class="{% if num_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ val }}%</td>
+    {%- endmacro %}
+
     <div class="dashboard-container">
         <header class="main-header">
             <div>
                 <span class="category-pill">{{ category }} Fund</span>
                 <h1>{{ fund_data.fund }}</h1>
                 <div style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
-                    Viewer: <strong style="color: var(--accent-gold);">{{ username }}</strong> &bull; Admin - Bijoosh Padmakumar
+                    Viewer: <strong style="color: var(--accent-gold);">{{ viewer_label }}</strong>
                 </div>
             </div>
             <div>
@@ -229,8 +235,9 @@
                 </div>
                 <div class="meta-card">
                     <div class="label">Latest NAV</div>
-                    {% set latest_val = fund_data.latest | string | replace(',', '') | float(default=10) %}
-                    <div class="value {% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ fund_data.latest }}</div>
+                    {% set latest_str = (fund_data.latest | string | replace(',', '') | trim) if fund_data.latest is not none else '' %}
+                    {% set latest_val = latest_str | float(default=0) if latest_str not in ['', 'nan', 'None', '-', 'NA', 'N/A'] else 0 %}
+                    <div class="value {% if latest_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ fund_data.latest }}</div>
                 </div>
             </div>
 
@@ -253,17 +260,16 @@
                     </thead>
                     <tbody>
                         <tr>
-                            {% set since_val = fund_data.since | string | replace('%', '') | float(default=0) %}
-                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ fund_data.since }}%</td>
-                            <td>{{ fund_data.m1 }}%</td>
-                            <td>{{ fund_data.m6 }}%</td>
-                            <td>{{ fund_data.y1 }}%</td>
-                            <td>{{ fund_data.y2 }}%</td>
-                            <td>{{ fund_data.y3 }}%</td>
-                            <td>{{ fund_data.y4 }}%</td>
-                            <td>{{ fund_data.y5 }}%</td>
-                            <td>{{ fund_data.y7 }}%</td>
-                            <td>{{ fund_data.y10 }}%</td>
+                            {{ ret_cell(fund_data.since) }}
+                            {{ ret_cell(fund_data.m1) }}
+                            {{ ret_cell(fund_data.m6) }}
+                            {{ ret_cell(fund_data.y1) }}
+                            {{ ret_cell(fund_data.y2) }}
+                            {{ ret_cell(fund_data.y3) }}
+                            {{ ret_cell(fund_data.y4) }}
+                            {{ ret_cell(fund_data.y5) }}
+                            {{ ret_cell(fund_data.y7) }}
+                            {{ ret_cell(fund_data.y10) }}
                         </tr>
                     </tbody>
                 </table>
@@ -306,6 +312,7 @@
                         <tr>
                             <th>#</th>
                             <th>Holding / Security</th>
+                            <th>Type / Rating</th>
                             <th>Allocation</th>
                         </tr>
                     </thead>
@@ -314,11 +321,12 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ item.holding }}</td>
+                            <td>{{ item.asset_type }}{% if item.rating %} ({{ item.rating }}){% endif %}</td>
                             <td>{{ item.allocation }}</td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="3" style="text-align: center; color: var(--text-muted);">
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">
                                 No asset holdings uploaded for this fund yet.
                             </td>
                         </tr>
@@ -327,6 +335,30 @@
                 </table>
             </div>
         </div>
+
+        {% if debt_metrics %}
+        <div class="panel">
+            <h3>Debt Portfolio Maturity & Rating Profile</h3>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Bracket / Rating</th>
+                        <th>Allocation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in debt_metrics %}
+                    <tr>
+                        <td>{{ item.metric_type | capitalize }}</td>
+                        <td>{{ item.label }}</td>
+                        <td>{{ item.allocation }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
 
         <footer class="portal-footer" style="font-size: 14px; padding: 24px 0; text-align: center; color: var(--text-muted);">
             <p>NAV Updates Portal &bull; Full Fund & Portfolio View</p>
