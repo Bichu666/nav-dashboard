@@ -57,6 +57,26 @@ ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 ADMIN_MOBILE = "+918078535666"
 
+# Green-API Configuration for Private Secondary WhatsApp Alerts
+GREEN_API_ID_INSTANCE = "710722793507"
+GREEN_API_TOKEN = "c6563630f983424d9c02ff4b2450537877e8a329d6be4d88a1"  # Your active Green-API token instance
+GREEN_API_RECIPIENT = "917356963666@c.us"  # Private secondary mobile number chat ID
+
+def send_whatsapp_alert(message_text):
+  """Sends an instant secure WhatsApp notification to your private secondary number."""
+  url = f"https://7107.api.greenapi.com/waInstance{GREEN_API_ID_INSTANCE}/sendMessage/{GREEN_API_TOKEN}"
+  payload = {
+      "chatId": GREEN_API_RECIPIENT,
+      "message": message_text
+  }
+  headers = {'Content-Type': 'application/json'}
+  try:
+    response = requests.post(url, json=payload, headers=headers, timeout=5)
+    if response.status_code != 200:
+      print(f"Failed to send WhatsApp alert: {response.text}")
+  except Exception as e:
+    print(f"Error connecting to Green-API: {e}")
+
 REGISTERED_USERS = [
     {
         'id': 1,
@@ -397,6 +417,11 @@ def send_message():
       'sender': sender_type
   }
   CHAT_MESSAGES.append(new_msg)
+
+  # Send WhatsApp notification for new client messages
+  if not session.get('is_admin'):
+    send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
+
   return jsonify({'success': True, 'message': 'Message sent successfully.'})
 
 
@@ -538,6 +563,9 @@ def login():
           user_record['last_login'] = login_time_str
           check_user_validity(user_record)
 
+        # Send WhatsApp alert for user login
+        send_whatsapp_alert(f"🔐 *User Login Alert*\n\n*Name:* {username}\n*Mobile:* {mobile}\n*Status:* {user_record['status']}")
+
         if user_record['status'] == 'Pending':
           return redirect(url_for('pending_approval'))
         return redirect(url_for('user_dashboard'))
@@ -622,14 +650,19 @@ def request_download():
   download_type = data.get('type', 'download')
 
   req_id = len(DOWNLOAD_REQUESTS) + 1
+  username = session.get('username', 'Client')
   DOWNLOAD_REQUESTS.append({
       'id': req_id,
-      'username': session.get('username', 'Client'),
+      'username': username,
       'filename': file_name,
       'type': download_type,
       'status': 'Pending',
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
   })
+
+  # Send WhatsApp alert for download request
+  send_whatsapp_alert(f"📥 *Download Request*\n\n*User:* {username}\n*File:* {file_name}\n*Type:* {download_type}")
+
   return jsonify({'success': True, 'message': 'Approval request sent to Admin successfully.'})
 
 
@@ -678,13 +711,16 @@ def submit_feedback():
   feedback_text = request.form.get('feedback')
   rating = request.form.get('rating', '5')
   if feedback_text:
+    username = session.get('username', 'Client')
     USER_FEEDBACKS.append({
         'id': len(USER_FEEDBACKS) + 1,
-        'username': session.get('username', 'Client'),
+        'username': username,
         'feedback': feedback_text,
         'rating': int(rating) if str(rating).isdigit() else 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     })
+    # Optional WhatsApp alert for feedback
+    send_whatsapp_alert(f"⭐ *New Feedback Received*\n\n*User:* {username}\n*Rating:* {rating}/5\n*Feedback:* {feedback_text}")
     flash('Feedback submitted successfully!', 'success')
   return redirect(url_for('user_dashboard'))
 
@@ -699,6 +735,7 @@ def admin_login():
       session.permanent = True
       session['is_admin'] = True
       ADMIN_ACTIVITY['last_active'] = datetime.now()
+      send_whatsapp_alert("🛡️ *Admin Login Alert*\n\nAdmin successfully logged into the control panel.")
       return redirect(url_for('admin_dashboard'))
     else:
       flash('Invalid Admin Credentials', 'danger')
