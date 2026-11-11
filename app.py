@@ -57,10 +57,10 @@ ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 ADMIN_MOBILE = "+918078535666"
 
-# Green-API Configuration for Private Secondary WhatsApp Alerts
+# Green-API Configuration for Private Secondary WhatsApp Group Alerts
 GREEN_API_ID_INSTANCE = "710722793507"
 GREEN_API_TOKEN = "c6563630f983424d9c02ff4b2450537877e8a329d6be4d88a1"
-GREEN_API_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", "917356963666@c.us")
+GREEN_API_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", "120363413370592164@g.us")
 
 def send_whatsapp_alert(message_text):
   """Sends an instant secure WhatsApp notification asynchronously in a background thread."""
@@ -72,10 +72,12 @@ def send_whatsapp_alert(message_text):
     }
     headers = {'Content-Type': 'application/json'}
     try:
-      response = requests.post(url, json=payload, headers=headers, timeout=5)
-      print(f"Green-API Status: {response.status_code}, Response: {response.text}")
+      print(f"Attempting to send Green-API message to: {GREEN_API_RECIPIENT}")
+      response = requests.post(url, json=payload, headers=headers, timeout=10)
+      print(f"Green-API Status Code: {response.status_code}")
+      print(f"Green-API Response Body: {response.text}")
     except Exception as e:
-      print(f"Green-API Error: {e}")
+      print(f"Green-API Exception Error: {e}")
 
   threading.Thread(target=_send, daemon=True).start()
 
