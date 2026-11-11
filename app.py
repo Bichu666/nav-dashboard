@@ -396,8 +396,8 @@ def send_message():
   }
   CHAT_MESSAGES.append(new_msg)
 
-  if not session.get('is_admin'):
-    send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
+  # 🔥 Unconditional WhatsApp alert trigger for all messages
+  send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
 
   return jsonify({'success': True, 'message': 'Message sent successfully.'})
 
