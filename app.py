@@ -56,10 +56,10 @@ ADMIN_ACTIVITY = {'last_active': datetime.now()}
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 
-# Green-API Configuration and Admin WhatsApp Target (Hidden securely in backend)
+# Green-API Configuration and Admin WhatsApp Target (Updated with active console token)
 GREEN_API_ID_INSTANCE = "710722793507"
-GREEN_API_TOKEN = "c6563630f983424d9c02ff4b2450537877e8a329d6be4d88a1"
-ADMIN_WHATSAPP_RECIPIENT = os.getenv("ADMIN_WHATSAPP_NUMBER", "917356963666@c.us")
+GREEN_API_TOKEN = os.getenv("GREEN_API_TOKEN", "92579905afbb4198a8e249f7092382fe9f5de4df4d0242d09c")
+ADMIN_WHATSAPP_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", os.getenv("ADMIN_WHATSAPP_NUMBER", "120363413370592164@g.us"))
 
 def send_whatsapp_alert(message_text):
   """Sends an instant secure WhatsApp notification asynchronously to the admin in a background thread."""
