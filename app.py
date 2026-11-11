@@ -56,7 +56,7 @@ ADMIN_ACTIVITY = {'last_active': datetime.now()}
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 
-# Green-API Configuration and Admin WhatsApp Target (Updated with active console token)
+# Green-API Configuration and Admin WhatsApp Target
 GREEN_API_ID_INSTANCE = "710722793507"
 GREEN_API_TOKEN = os.getenv("GREEN_API_TOKEN", "92579905afbb4198a8e249f7092382fe9f5de4df4d0242d09c")
 ADMIN_WHATSAPP_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", os.getenv("ADMIN_WHATSAPP_NUMBER", "120363413370592164@g.us"))
@@ -383,8 +383,9 @@ def send_message():
   now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
   timestamp_str = now_ist.strftime('%b %d, %Y, %I:%M %p')
 
-  username = 'Admin Bijoosh' if session.get('is_admin') else session.get('username', 'Client')
-  sender_type = 'admin' if session.get('is_admin') else 'user'
+  is_admin_user = session.get('is_admin', False)
+  username = 'Admin Bijoosh' if is_admin_user else session.get('username', 'Client')
+  sender_type = 'admin' if is_admin_user else 'user'
 
   new_msg = {
       'id': len(CHAT_MESSAGES) + 1,
@@ -395,7 +396,10 @@ def send_message():
   }
   CHAT_MESSAGES.append(new_msg)
 
-  send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
+  if is_admin_user:
+    send_whatsapp_alert(f"💬 *Admin Reply*\n\n*Admin:* {username}\n*Message:* {msg_text}")
+  else:
+    send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
 
   return jsonify({'success': True, 'message': 'Message sent successfully.'})
 
