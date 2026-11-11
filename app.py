@@ -55,24 +55,23 @@ os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
-ADMIN_MOBILE = "+918078535666"
 
-# Green-API Configuration for Private Secondary WhatsApp Group Alerts
+# Green-API Configuration and Admin WhatsApp Target (Hidden securely in backend)
 GREEN_API_ID_INSTANCE = "710722793507"
 GREEN_API_TOKEN = "c6563630f983424d9c02ff4b2450537877e8a329d6be4d88a1"
-GREEN_API_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", "120363413370592164@g.us")
+ADMIN_WHATSAPP_RECIPIENT = os.getenv("ADMIN_WHATSAPP_NUMBER", "917356963666@c.us")
 
 def send_whatsapp_alert(message_text):
-  """Sends an instant secure WhatsApp notification asynchronously in a background thread."""
+  """Sends an instant secure WhatsApp notification asynchronously to the admin in a background thread."""
   def _send():
     url = f"https://7107.api.greenapi.com/waInstance{GREEN_API_ID_INSTANCE}/sendMessage/{GREEN_API_TOKEN}"
     payload = {
-        "chatId": GREEN_API_RECIPIENT,
+        "chatId": ADMIN_WHATSAPP_RECIPIENT,
         "message": message_text
     }
     headers = {'Content-Type': 'application/json'}
     try:
-      print(f"Attempting to send Green-API message to: {GREEN_API_RECIPIENT}")
+      print(f"Attempting to send Green-API message to admin: {ADMIN_WHATSAPP_RECIPIENT}")
       response = requests.post(url, json=payload, headers=headers, timeout=10)
       print(f"Green-API Status Code: {response.status_code}")
       print(f"Green-API Response Body: {response.text}")
@@ -396,7 +395,6 @@ def send_message():
   }
   CHAT_MESSAGES.append(new_msg)
 
-  # 🔥 Unconditional WhatsApp alert trigger for all messages
   send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
 
   return jsonify({'success': True, 'message': 'Message sent successfully.'})
@@ -606,7 +604,6 @@ def user_dashboard():
         debt_data=parse_fund_excel_from_db('debt_funds'),
         latest_data_updated=latest_data_updated,
         admin_online=admin_online,
-        admin_mobile=ADMIN_MOBILE,
         festival_greeting=festival_greeting,
         download_requests=user_requests,
         feedbacks=USER_FEEDBACKS,
@@ -635,7 +632,7 @@ def request_download():
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
   })
 
-  send_whatsapp_alert(f"📥 *Download Request*\n\n*User:* {username}\n*File:* {file_name}\n*Type:* {download_type}")
+  send_whatsapp_alert(f"📥 *Download/View Request (Latest or Old NAV)*\n\n*User:* {username}\n*File:* {file_name}\n*Type:* {download_type}")
 
   return jsonify({'success': True, 'message': 'Approval request sent to Admin successfully.'})
 
@@ -644,13 +641,17 @@ def request_download():
 def get_nav_image_base64(filename):
   if 'username' not in session and not session.get('is_admin'):
     return jsonify({'success': False, 'message': 'Unauthorized'})
+  
+  username = session.get('username', 'Client')
   target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
   if not os.path.exists(target_path):
     for root, dirs, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         target_path = os.path.join(root, filename)
         break
+        
   if os.path.exists(target_path):
+    send_whatsapp_alert(f"👁️ *NAV Viewed (Latest/Old)*\n\n*User:* {username}\n*File:* {filename}")
     import base64
     with open(target_path, 'rb') as img_f:
       b64_data = base64.b64encode(img_f.read()).decode('utf-8')
@@ -662,6 +663,8 @@ def get_nav_image_base64(filename):
 def view_archive_secured(filename):
   if 'username' not in session and not session.get('is_admin'):
     return redirect(url_for('login'))
+  
+  username = session.get('username', 'Client')
   if session.get('is_admin'):
     for root, dirs, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
@@ -670,6 +673,7 @@ def view_archive_secured(filename):
 
   approved_req = next((r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username') and r['filename'] == filename and r['status'] == 'Approved'), None)
   if approved_req:
+    send_whatsapp_alert(f"👁️ *Secured NAV / Archive Viewed or Downloaded*\n\n*User:* {username}\n*File:* {filename}")
     for root, dirs, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         return send_from_directory(root, filename)
