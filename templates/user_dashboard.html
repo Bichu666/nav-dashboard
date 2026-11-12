@@ -662,7 +662,7 @@
                     if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
                     if (nifty50Chg) {
                         nifty50Chg.innerText = data.nifty50.change;
-                        nifty50Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
+                        nifty500Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
                     }
 
                     const sensexVal = document.getElementById('sensex-val');
@@ -843,12 +843,12 @@
 
         loadArchiveFiles();
 
-        // Chat Polling & Sending
+        // Chat Polling & Sending (Updated to display correct username instead of generic sender label)
         function loadMessages() {
             fetch('/api/get-messages').then(r => r.json()).then(data => {
                 if (data.success) {
                     const c = document.getElementById('chat-messages-container');
-                    c.innerHTML = data.messages.map(m => `<div><b>${m.sender}:</b> ${m.message} <span style="font-size:10px; color:#888;">(${m.timestamp})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
+                    c.innerHTML = data.messages.map(m => `<div><b>${m.username}:</b> ${m.message} <span style="font-size:10px; color:#888;">(${m.timestamp})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
                     c.scrollTop = c.scrollHeight;
                 }
             });
