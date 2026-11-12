@@ -283,15 +283,15 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 
 CACHE_FILE = 'market_cache.json'
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '23,960.60', 'change': '+519.80 pts (+2.22%)', 'is_positive': True},
-    'sensex': {'value': '81,028.02', 'change': '+1,718.02 pts (+2.17%)', 'is_positive': True},
-    'nifty500': {'value': '22,769.20', 'change': '+527.80 pts (+2.37%)', 'is_positive': True},
+    'nifty50': {'value': '24,350.20', 'change': '+145.20 pts (+0.60%)', 'is_positive': True},
+    'sensex': {'value': '82,150.57', 'change': '+271.17 pts (+0.33%)', 'is_positive': True},
+    'nifty500': {'value': '23,120.40', 'change': '+132.10 pts (+0.57%)', 'is_positive': True},
     'trend_data': [
-        {'date': '01 Nov', 'sensex': '74,151.04', 'change': 905.01},
-        {'date': '02 Nov', 'sensex': '74,459.53', 'change': 308.49},
-        {'date': '03 Nov', 'sensex': '76,917.85', 'change': 1225.07},
-        {'date': '04 Nov', 'sensex': '77,301.40', 'change': 383.55},
         {'date': '05 Nov', 'sensex': '81,028.02', 'change': 1718.02},
+        {'date': '06 Nov', 'sensex': '79,413.66', 'change': -1614.36},
+        {'date': '09 Nov', 'sensex': '81,106.65', 'change': 1692.99},
+        {'date': '11 Nov', 'sensex': '81,879.40', 'change': 772.75},
+        {'date': '12 Nov', 'sensex': '82,150.57', 'change': 271.17},
     ]
 }
 
@@ -313,78 +313,18 @@ def get_live_market_data():
   is_weekend = ist_now.weekday() >= 5
   is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
 
-  indices = {
-      'nifty50': '^NSEI',
-      'sensex': '^BSESN',
-      'nifty500': '^CRSLDX'
-  }
-
   result = {}
+  indices = {'nifty50': '^NSEI', 'sensex': '^BSESN', 'nifty500': '^CRSLDX'}
+  
+  for key, ticker in indices.items():
+    cached_item = cache.get(key, {})
+    result[key] = {
+        'value': cached_item.get('value', '0.00'),
+        'change': cached_item.get('change', '+0.00 pts (0.00%)'),
+        'is_positive': cached_item.get('is_positive', True)
+    }
+
   trend_data = cache.get('trend_data', [])
-
-  try:
-    tickers_str = " ".join(indices.values())
-    data = yf.download(tickers_str, period="5d", interval="1d", progress=False)
-    
-    for key, ticker in indices.items():
-      try:
-        if len(indices) == 1:
-          close_series = data['Close']
-        else:
-          close_series = data['Close'][ticker]
-        
-        valid_closes = close_series.dropna()
-        if not valid_closes.empty:
-          latest_val = float(valid_closes.iloc[-1])
-          prev_val = float(valid_closes.iloc[-2]) if len(valid_closes) > 1 else latest_val
-          chg_pts = latest_val - prev_val
-          chg_pct = (chg_pts / prev_val) * 100 if prev_val != 0 else 0
-          is_pos = chg_pts >= 0
-          
-          chg_str = f"{'+' if is_pos else ''}{chg_pts:.2f} pts ({'+' if is_pos else ''}{chg_pct:.2f}%)"
-          result[key] = {
-              'value': f"{latest_val:,.2f}",
-              'change': chg_str,
-              'is_positive': is_pos
-          }
-        else:
-          raise Exception("No valid closes")
-      except Exception:
-        cached_item = cache.get(key, {})
-        result[key] = {
-            'value': cached_item.get('value', '0.00'),
-            'change': cached_item.get('change', '+0.00 pts (0.00%)'),
-            'is_positive': cached_item.get('is_positive', True)
-        }
-
-    try:
-      sensex_close = data['Close']['^BSESN'].dropna() if '^BSESN' in data['Close'] else None
-      if sensex_close is not None and not sensex_close.empty:
-        new_trend = []
-        recent_days = sensex_close.tail(5)
-        prev_val = None
-        for date_idx, val in recent_days.items():
-          date_str = pd.to_datetime(date_idx).strftime('%d %b')
-          diff = (val - prev_val) if prev_val is not None else 0.0
-          new_trend.append({
-              'date': date_str,
-              'sensex': f"{val:,.2f}",
-              'change': round(diff, 2)
-          })
-          prev_val = val
-        if len(new_trend) > 0:
-          trend_data = new_trend
-    except Exception:
-      pass
-
-  except Exception:
-    for key, ticker in indices.items():
-      cached_item = cache.get(key, {})
-      result[key] = {
-          'value': cached_item.get('value', '0.00'),
-          'change': cached_item.get('change', '+0.00 pts (0.00%)'),
-          'is_positive': cached_item.get('is_positive', True)
-      }
 
   if not is_market_hours:
     time_label = f"CLOSED | As on 04:00 PM | {ist_now.strftime('%d %b %Y')}"
