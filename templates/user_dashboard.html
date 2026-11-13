@@ -17,7 +17,7 @@
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
             --green: #00FF00;
-            --red: #FF0800;
+            --red: #FF0800; /* Apple Red */
         }
 
         body { 
@@ -263,25 +263,49 @@
             gap: 8px; 
         }
 
-        /* Running Round Analog Clock Styling */
+        /* Apple Red Analog Clock Styling (Larger & Detailed Dial) */
         .analog-clock-wrapper {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
             background: rgba(31, 41, 55, 0.6);
             border: 1px solid var(--border-color);
-            padding: 8px 12px;
+            padding: 8px 14px;
             border-radius: 10px;
         }
         .clock-face {
-            width: 54px;
-            height: 54px;
-            border: 2px solid var(--accent-gold);
+            width: 75px;
+            height: 75px;
+            border: 4px solid #FF0800;
             border-radius: 50%;
             position: relative;
-            background: var(--bg-main);
-            box-shadow: 0 0 10px rgba(251, 191, 36, 0.25);
+            background: #FF0800;
+            box-shadow: 0 0 14px rgba(255, 8, 0, 0.4);
         }
+        .clock-number {
+            position: absolute;
+            font-size: 10px;
+            font-weight: 800;
+            color: #ffffff;
+            width: 14px;
+            height: 14px;
+            text-align: center;
+            line-height: 14px;
+        }
+        /* Positioning 12 numbers around the dial */
+        .num-12 { top: 3px; left: 30px; }
+        .num-1 { top: 9px; left: 47px; }
+        .num-2 { top: 23px; left: 58px; }
+        .num-3 { top: 40px; left: 61px; }
+        .num-4 { top: 57px; left: 56px; }
+        .num-5 { top: 71px; left: 47px; }
+        .num-6 { top: 76px; left: 31px; }
+        .num-7 { top: 71px; left: 14px; }
+        .num-8 { top: 57px; left: 6px; }
+        .num-9 { top: 40px; left: 2px; }
+        .num-10 { top: 23px; left: 5px; }
+        .num-11 { top: 9px; left: 15px; }
+
         .clock-hand {
             position: absolute;
             bottom: 50%;
@@ -290,16 +314,17 @@
             transform: translateX(-50%) rotate(0deg);
             border-radius: 2px;
         }
-        .hour-hand { width: 3px; height: 14px; background: #fff; }
-        .min-hand { width: 2px; height: 20px; background: var(--accent-gold); }
-        .sec-hand { width: 1px; height: 22px; background: var(--red); }
+        .hour-hand { width: 3px; height: 20px; background: #ffffff; z-index: 3; }
+        .min-hand { width: 2px; height: 28px; background: #ffffff; z-index: 4; }
+        .sec-hand { width: 1px; height: 32px; background: #ffffff; z-index: 5; opacity: 0.9; }
         .clock-center-dot {
             position: absolute;
             top: 50%; left: 50%;
-            width: 6px; height: 6px;
-            background: var(--accent-gold);
+            width: 7px; height: 7px;
+            background: #ffffff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
+            z-index: 6;
         }
     </style>
 </head>
@@ -336,10 +361,22 @@
                 {% endif %}
             </div>
 
-            <!-- Header Right with Analog Clock on the Left of Username -->
+            <!-- Header Right with Apple Red Analog Clock on Left of Username -->
             <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
                 <div class="analog-clock-wrapper">
                     <div class="clock-face">
+                        <div class="clock-number num-12">12</div>
+                        <div class="clock-number num-1">1</div>
+                        <div class="clock-number num-2">2</div>
+                        <div class="clock-number num-3">3</div>
+                        <div class="clock-number num-4">4</div>
+                        <div class="clock-number num-5">5</div>
+                        <div class="clock-number num-6">6</div>
+                        <div class="clock-number num-7">7</div>
+                        <div class="clock-number num-8">8</div>
+                        <div class="clock-number num-9">9</div>
+                        <div class="clock-number num-10">10</div>
+                        <div class="clock-number num-11">11</div>
                         <div class="clock-hand hour-hand" id="hour-hand"></div>
                         <div class="clock-hand min-hand" id="min-hand"></div>
                         <div class="clock-hand sec-hand" id="sec-hand"></div>
@@ -688,7 +725,7 @@
     </div>
 
     <script>
-        // Real-Time Analog Clock & Date Ticker Script
+        // Real-Time Apple Red Analog Clock Script
         function updateAnalogClock() {
             const now = new Date();
             const seconds = now.getSeconds();
