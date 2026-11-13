@@ -138,6 +138,7 @@ CHAT_MESSAGES = [
     {
         'id': 1,
         'username': 'biju',
+        'recipient': 'Admin',
         'message': 'Hello Admin, checking connection.',
         'timestamp': 'Nov 06, 2026, 10:00 PM',
         'sender': 'user'
@@ -153,7 +154,6 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    # Automatically approve after 2 minutes
     if now - reg_time > timedelta(minutes=2):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
@@ -281,14 +281,14 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 DEFAULT_MARKET_CACHE = {
     'nifty50': {'value': '24,350.20', 'change': '+145.20 pts (+0.60%)', 'is_positive': True},
-    'sensex': {'value': '82,150.57', 'change': '+271.17 pts (+0.33%)', 'is_positive': True},
+    'sensex': {'value': '81,911.01', 'change': '+31.61 pts (+0.04%)', 'is_positive': True},
     'nifty500': {'value': '23,120.40', 'change': '+132.10 pts (+0.57%)', 'is_positive': True},
     'trend_data': [
-        {'date': '05 Nov', 'sensex': '81,028.02', 'change': 1718.02},
         {'date': '06 Nov', 'sensex': '79,413.66', 'change': -1614.36},
         {'date': '09 Nov', 'sensex': '81,106.65', 'change': 1692.99},
         {'date': '11 Nov', 'sensex': '81,879.40', 'change': 772.75},
         {'date': '12 Nov', 'sensex': '82,150.57', 'change': 271.17},
+        {'date': '13 Nov', 'sensex': '81,911.01', 'change': 31.61},
     ]
 }
 
@@ -748,6 +748,7 @@ def admin_dashboard():
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   for user in REGISTERED_USERS:
     check_user_validity(user)
+    user['is_online'] = (datetime.now() - user.get('last_active', datetime.min)) < timedelta(minutes=5)
 
   market_info, market_trend_data = get_live_market_data()
   festival_greeting = get_festival_greeting()
