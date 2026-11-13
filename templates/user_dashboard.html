@@ -263,68 +263,59 @@
             gap: 8px; 
         }
 
-        /* Apple Red Analog Clock Styling (Larger & Detailed Dial) */
+        /* Large Clean Apple Red Analog Clock Styling */
         .analog-clock-wrapper {
             display: flex;
             align-items: center;
-            gap: 14px;
-            background: rgba(31, 41, 55, 0.6);
+            gap: 16px;
+            background: rgba(31, 41, 55, 0.7);
             border: 1px solid var(--border-color);
-            padding: 8px 14px;
-            border-radius: 10px;
+            padding: 10px 16px;
+            border-radius: 12px;
         }
         .clock-face {
-            width: 75px;
-            height: 75px;
-            border: 4px solid #FF0800;
+            width: 90px;
+            height: 90px;
+            border: 5px solid #FF0800;
             border-radius: 50%;
             position: relative;
-            background: #FF0800;
-            box-shadow: 0 0 14px rgba(255, 8, 0, 0.4);
+            background: radial-gradient(circle, #ff332e 0%, #cc0600 100%);
+            box-shadow: 0 0 18px rgba(255, 8, 0, 0.5), inset 0 0 10px rgba(0, 0, 0, 0.3);
         }
-        .clock-number {
+        /* Dial Hour Markers */
+        .clock-marker {
             position: absolute;
-            font-size: 10px;
-            font-weight: 800;
-            color: #ffffff;
-            width: 14px;
-            height: 14px;
-            text-align: center;
-            line-height: 14px;
+            background: rgba(255, 255, 255, 0.85);
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
         }
-        /* Positioning 12 numbers around the dial */
-        .num-12 { top: 3px; left: 30px; }
-        .num-1 { top: 9px; left: 47px; }
-        .num-2 { top: 23px; left: 58px; }
-        .num-3 { top: 40px; left: 61px; }
-        .num-4 { top: 57px; left: 56px; }
-        .num-5 { top: 71px; left: 47px; }
-        .num-6 { top: 76px; left: 31px; }
-        .num-7 { top: 71px; left: 14px; }
-        .num-8 { top: 57px; left: 6px; }
-        .num-9 { top: 40px; left: 2px; }
-        .num-10 { top: 23px; left: 5px; }
-        .num-11 { top: 9px; left: 15px; }
-
+        .marker-hour {
+            width: 2px;
+            height: 8px;
+            margin-left: -1px;
+        }
+        
         .clock-hand {
             position: absolute;
             bottom: 50%;
             left: 50%;
             transform-origin: bottom center;
             transform: translateX(-50%) rotate(0deg);
-            border-radius: 2px;
+            border-radius: 3px;
         }
-        .hour-hand { width: 3px; height: 20px; background: #ffffff; z-index: 3; }
-        .min-hand { width: 2px; height: 28px; background: #ffffff; z-index: 4; }
-        .sec-hand { width: 1px; height: 32px; background: #ffffff; z-index: 5; opacity: 0.9; }
+        .hour-hand { width: 4px; height: 24px; background: #ffffff; z-index: 3; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .min-hand { width: 3px; height: 35px; background: #ffffff; z-index: 4; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .sec-hand { width: 1.5px; height: 38px; background: #ffffff; z-index: 5; opacity: 0.95; }
         .clock-center-dot {
             position: absolute;
             top: 50%; left: 50%;
-            width: 7px; height: 7px;
+            width: 9px; height: 9px;
             background: #ffffff;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             z-index: 6;
+            box-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
     </style>
 </head>
@@ -361,30 +352,19 @@
                 {% endif %}
             </div>
 
-            <!-- Header Right with Apple Red Analog Clock on Left of Username -->
-            <div class="header-right" style="display: flex; align-items: center; gap: 16px;">
+            <!-- Header Right with Large Apple Red Analog Clock on Left of Username -->
+            <div class="header-right" style="display: flex; align-items: center; gap: 18px;">
                 <div class="analog-clock-wrapper">
-                    <div class="clock-face">
-                        <div class="clock-number num-12">12</div>
-                        <div class="clock-number num-1">1</div>
-                        <div class="clock-number num-2">2</div>
-                        <div class="clock-number num-3">3</div>
-                        <div class="clock-number num-4">4</div>
-                        <div class="clock-number num-5">5</div>
-                        <div class="clock-number num-6">6</div>
-                        <div class="clock-number num-7">7</div>
-                        <div class="clock-number num-8">8</div>
-                        <div class="clock-number num-9">9</div>
-                        <div class="clock-number num-10">10</div>
-                        <div class="clock-number num-11">11</div>
+                    <div class="clock-face" id="clock-face">
+                        <!-- Hour Markers (Generated dynamically or rendered cleanly) -->
                         <div class="clock-hand hour-hand" id="hour-hand"></div>
                         <div class="clock-hand min-hand" id="min-hand"></div>
                         <div class="clock-hand sec-hand" id="sec-hand"></div>
                         <div class="clock-center-dot"></div>
                     </div>
                     <div style="text-align: left;">
-                        <div id="analog-date-label" style="font-size: 12px; font-weight: 600; color: var(--accent-gold);">Loading Date...</div>
-                        <div id="analog-time-label" style="font-size: 11px; color: var(--text-muted);">00:00:00 AM</div>
+                        <div id="analog-date-label" style="font-size: 13px; font-weight: 600; color: var(--accent-gold);">Loading Date...</div>
+                        <div id="analog-time-label" style="font-size: 12px; color: var(--text-muted); font-weight: 500;">00:00:00 AM</div>
                     </div>
                 </div>
 
@@ -725,6 +705,17 @@
     </div>
 
     <script>
+        // Generate crisp hour ticks automatically around the clock face
+        const clockFace = document.getElementById('clock-face');
+        if (clockFace) {
+            for (let i = 0; i < 12; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'clock-marker marker-hour';
+                marker.style.transform = `rotate(${i * 30}deg) translateY(-37px)`;
+                clockFace.appendChild(marker);
+            }
+        }
+
         // Real-Time Apple Red Analog Clock Script
         function updateAnalogClock() {
             const now = new Date();
