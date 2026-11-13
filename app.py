@@ -62,19 +62,12 @@ GREEN_API_TOKEN = os.getenv("GREEN_API_TOKEN", "92579905afbb4198a8e249f7092382fe
 ADMIN_WHATSAPP_RECIPIENT = os.getenv("GREEN_API_RECIPIENT", os.getenv("ADMIN_WHATSAPP_NUMBER", "120363413370592164@g.us"))
 
 def send_whatsapp_alert(message_text):
-  """Sends an instant secure WhatsApp notification asynchronously to the admin in a background thread."""
   def _send():
     url = f"https://7107.api.greenapi.com/waInstance{GREEN_API_ID_INSTANCE}/sendMessage/{GREEN_API_TOKEN}"
-    payload = {
-        "chatId": ADMIN_WHATSAPP_RECIPIENT,
-        "message": message_text
-    }
+    payload = {"chatId": ADMIN_WHATSAPP_RECIPIENT, "message": message_text}
     headers = {'Content-Type': 'application/json'}
     try:
-      print(f"Attempting to send Green-API message to admin: {ADMIN_WHATSAPP_RECIPIENT}")
-      response = requests.post(url, json=payload, headers=headers, timeout=10)
-      print(f"Green-API Status Code: {response.status_code}")
-      print(f"Green-API Response Body: {response.text}")
+      requests.post(url, json=payload, headers=headers, timeout=10)
     except Exception as e:
       print(f"Green-API Exception Error: {e}")
 
@@ -89,6 +82,7 @@ REGISTERED_USERS = [
         'registered_at': datetime.now() - timedelta(minutes=3),
         'approved_at': None,
         'last_login': 'Nov 06, 2026, 09:45 PM',
+        'last_active': datetime.now() - timedelta(minutes=2),
     },
     {
         'id': 2,
@@ -98,6 +92,7 @@ REGISTERED_USERS = [
         'registered_at': datetime.now() - timedelta(days=5),
         'approved_at': datetime.now().isoformat(),
         'last_login': 'Nov 06, 2026, 08:30 PM',
+        'last_active': datetime.now() - timedelta(minutes=1),
     },
     {
         'id': 3,
@@ -107,6 +102,7 @@ REGISTERED_USERS = [
         'registered_at': datetime.now() - timedelta(days=10),
         'approved_at': datetime.now().isoformat(),
         'last_login': 'Nov 06, 2026, 10:00 PM',
+        'last_active': datetime.now(),
     },
 ]
 
@@ -157,7 +153,8 @@ def check_user_validity(user):
   now = datetime.now()
   if user['status'] == 'Pending':
     reg_time = user.get('registered_at', now)
-    if now - reg_time > timedelta(minutes=5):
+    # Automatically approve after 2 minutes
+    if now - reg_time > timedelta(minutes=2):
       user['status'] = 'Approved'
       user['approved_at'] = now.isoformat()
 
@@ -352,6 +349,11 @@ def market_live():
 def heartbeat():
   if session.get('is_admin'):
     ADMIN_ACTIVITY['last_active'] = datetime.now()
+  elif 'username' in session:
+    mobile = session.get('mobile', '')
+    user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+    if user_record:
+      user_record['last_active'] = datetime.now()
   return jsonify({'success': True})
 
 
@@ -362,12 +364,16 @@ def get_messages():
   if 'username' not in session and not session.get('is_admin'):
     return jsonify({'success': False, 'messages': []})
   
-  user_filter = session.get('username') if not session.get('is_admin') else request.args.get('user', '')
-  if session.get('is_admin') and not user_filter:
-    return jsonify({'success': True, 'messages': CHAT_MESSAGES})
-
-  filtered = [m for m in CHAT_MESSAGES if m['username'] == user_filter or session.get('is_admin')]
-  return jsonify({'success': True, 'messages': filtered})
+  if session.get('is_admin'):
+    user_filter = request.args.get('user', '')
+    if not user_filter or user_filter == 'all':
+      return jsonify({'success': True, 'messages': CHAT_MESSAGES})
+    filtered = [m for m in CHAT_MESSAGES if m['username'] == user_filter or m.get('recipient') == user_filter]
+    return jsonify({'success': True, 'messages': filtered})
+  else:
+    current_username = session.get('username')
+    filtered = [m for m in CHAT_MESSAGES if m['username'] == current_username or m.get('recipient') == current_username]
+    return jsonify({'success': True, 'messages': filtered})
 
 
 @app.route('/api/send-message', methods=['POST'])
@@ -386,10 +392,12 @@ def send_message():
   is_admin_user = session.get('is_admin', False)
   username = 'Admin Bijoosh' if is_admin_user else session.get('username', 'Client')
   sender_type = 'admin' if is_admin_user else 'user'
+  recipient = data.get('recipient', 'Admin') if is_admin_user else 'Admin'
 
   new_msg = {
       'id': len(CHAT_MESSAGES) + 1,
       'username': username,
+      'recipient': recipient,
       'message': msg_text,
       'timestamp': timestamp_str,
       'sender': sender_type
@@ -397,7 +405,7 @@ def send_message():
   CHAT_MESSAGES.append(new_msg)
 
   if is_admin_user:
-    send_whatsapp_alert(f"💬 *Admin Reply*\n\n*Admin:* {username}\n*Message:* {msg_text}")
+    send_whatsapp_alert(f"💬 *Admin Reply to {recipient}*\n\n*Message:* {msg_text}")
   else:
     send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
 
@@ -536,10 +544,12 @@ def login():
               'registered_at': datetime.now(),
               'approved_at': None,
               'last_login': login_time_str,
+              'last_active': datetime.now(),
           }
           REGISTERED_USERS.append(user_record)
         else:
           user_record['last_login'] = login_time_str
+          user_record['last_active'] = datetime.now()
           check_user_validity(user_record)
 
         send_whatsapp_alert(f"🔐 *User Login Alert*\n\n*Name:* {username}\n*Mobile:* {mobile}\n*Status:* {user_record['status']}")
@@ -571,6 +581,7 @@ def user_dashboard():
     mobile = session.get('mobile', '')
     user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
     if user_record:
+      user_record['last_active'] = datetime.now()
       check_user_validity(user_record)
       if user_record['status'] == 'Pending':
         return redirect(url_for('pending_approval'))
@@ -741,6 +752,11 @@ def admin_dashboard():
   market_info, market_trend_data = get_live_market_data()
   festival_greeting = get_festival_greeting()
   user_filter = request.args.get('user_filter', 'all')
+  req_filter = request.args.get('req_filter', 'all')
+
+  filtered_requests = DOWNLOAD_REQUESTS
+  if req_filter != 'all':
+    filtered_requests = [r for r in DOWNLOAD_REQUESTS if r['status'].lower() == req_filter.lower()]
 
   return render_template(
       'admin_dashboard.html',
@@ -748,7 +764,8 @@ def admin_dashboard():
       market_trend=market_trend_data,
       users=REGISTERED_USERS,
       feedbacks=USER_FEEDBACKS,
-      download_requests=DOWNLOAD_REQUESTS,
+      download_requests=filtered_requests,
+      req_filter=req_filter,
       chat_messages=CHAT_MESSAGES,
       equity_data=parse_fund_excel_from_db('equity_funds'),
       balancer_data=parse_fund_excel_from_db('balancer_funds'),
