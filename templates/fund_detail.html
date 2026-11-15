@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ fund_data.fund }} - Fund & Portfolio Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-panel: #111827;
+            --bg-card: #1f2937;
+            --border-color: #374151;
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --accent-gold: #fbbf24;
+            --accent-orange: #f59e0b;
+            --green: #00FF00;
+            --red: #FF0800;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-main) !important;
+            color: var(--text-main) !important;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-size: 16px;
+        }
+
+        .dashboard-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .main-header {
+            background: linear-gradient(135deg, var(--bg-panel) 0%, var(--bg-card) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .main-header h1 {
+            font-size: 26px;
+            margin: 4px 0 0 0;
+            background: linear-gradient(135deg, #ff8c00 0%, #f59e0b 50%, #fcd34d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .category-pill {
+            display: inline-block;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--accent-gold);
+            background: rgba(251, 191, 36, 0.12);
+            border: 1px solid rgba(251, 191, 36, 0.35);
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .btn-back {
+            display: inline-block;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: filter 0.2s ease, transform 0.15s ease;
+        }
+
+        .btn-back:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 17px;
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .meta-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .meta-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .meta-card .value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .section-title-bar {
+            font-size: 16px;
+            padding: 14px 18px;
+            background: linear-gradient(90deg, #1f2937 0%, #111827 100%);
+            border-left: 4px solid var(--accent-orange);
+            font-weight: 600;
+            color: #fff;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            overflow: hidden;
+        }
+
+        .detail-table th,
+        .detail-table td {
+            padding: 13px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .detail-table th {
+            background: var(--bg-card);
+            color: var(--accent-gold);
+        }
+
+        .detail-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .nav-red-alert {
+            color: var(--red) !important;
+            font-weight: 600;
+        }
+
+        .nav-green {
+            color: var(--green) !important;
+            font-weight: 600;
+        }
+
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 960px) {
+            .two-col-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="main-header">
+            <div>
+                <span class="category-pill">{{ category }} Fund</span>
+                <h1>{{ fund_data.fund }}</h1>
+                <div style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
+                    Viewer: <strong style="color: var(--accent-gold);">{{ username }}</strong> &bull; Admin - Bijoosh Padmakumar
+                </div>
+            </div>
+            <div>
+                <a href="{{ back_url }}" class="btn-back">&larr; Back to Dashboard</a>
+            </div>
+        </header>
+
+        <div class="panel">
+            <h3>Fund Overview & Performance Metrics</h3>
+            <div class="meta-grid">
+                <div class="meta-card">
+                    <div class="label">Inception Date</div>
+                    <div class="value">{{ fund_data.inception }}</div>
+                </div>
+                <div class="meta-card">
+                    <div class="label">Benchmark Name</div>
+                    <div class="value">{{ fund_data.benchmark }}</div>
+                </div>
+                <div class="meta-card">
+                    <div class="label">Highest NAV</div>
+                    <div class="value">{{ fund_data.high }}</div>
+                </div>
+                <div class="meta-card">
+                    <div class="label">Latest NAV</div>
+                    {% set latest_val = fund_data.latest | string | replace(',', '') | float(default=10) %}
+                    <div class="value {% if latest_val < 10 %}nav-red-alert{% else %}nav-green{% endif %}">{{ fund_data.latest }}</div>
+                </div>
+            </div>
+
+            <div class="section-title-bar">Trailing & Period Returns</div>
+            <div style="overflow-x: auto;">
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>Since Inception</th>
+                            <th>1M</th>
+                            <th>6M</th>
+                            <th>1Y</th>
+                            <th>2Y</th>
+                            <th>3Y</th>
+                            <th>4Y</th>
+                            <th>5Y</th>
+                            <th>7Y</th>
+                            <th>10Y</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            {% set since_val = fund_data.since | string | replace('%', '') | float(default=0) %}
+                            <td class="{% if since_val <= 0 %}nav-red-alert{% else %}nav-green{% endif %}">{{ fund_data.since }}%</td>
+                            <td>{{ fund_data.m1 }}%</td>
+                            <td>{{ fund_data.m6 }}%</td>
+                            <td>{{ fund_data.y1 }}%</td>
+                            <td>{{ fund_data.y2 }}%</td>
+                            <td>{{ fund_data.y3 }}%</td>
+                            <td>{{ fund_data.y4 }}%</td>
+                            <td>{{ fund_data.y5 }}%</td>
+                            <td>{{ fund_data.y7 }}%</td>
+                            <td>{{ fund_data.y10 }}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="two-col-grid">
+            <div>
+                <div class="section-title-bar">Top 10 Sectors</div>
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Sector</th>
+                            <th>Allocation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sectors %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.sector }}</td>
+                            <td>{{ item.allocation }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted);">
+                                No sector breakdown uploaded for this fund yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div>
+                <div class="section-title-bar">Full Asset Holdings</div>
+                <table class="detail-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Holding / Security</th>
+                            <th>Allocation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in holdings %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item.holding }}</td>
+                            <td>{{ item.allocation }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted);">
+                                No asset holdings uploaded for this fund yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <footer class="portal-footer" style="font-size: 14px; padding: 24px 0; text-align: center; color: var(--text-muted);">
+            <p>NAV Updates Portal &bull; Full Fund & Portfolio View</p>
+        </footer>
+    </div>
+</body>
+</html>
