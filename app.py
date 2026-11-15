@@ -12,8 +12,15 @@ import shutil
 import smtplib
 import threading
 import time
+<<<<<<< HEAD
 from urllib.parse import quote, unquote
 
+=======
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import pandas as pd
+import requests
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 from flask import (
     Flask,
     flash,
@@ -26,6 +33,12 @@ from flask import (
     session,
     url_for,
 )
+<<<<<<< HEAD
+=======
+import smtplib
+from sqlalchemy import create_engine
+from werkzeug.utils import secure_filename
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import pandas as pd
@@ -152,6 +165,7 @@ DOWNLOAD_REQUESTS = [
     }
 ]
 
+<<<<<<< HEAD
 CHAT_MESSAGES = [
     {
         'id': 1,
@@ -252,6 +266,9 @@ def validate_and_restore_auto_session():
     session['mobile'] = user_record['mobile']
     user_record['last_active'] = datetime.now()
     return True
+=======
+PENDING_OTPS = {}
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 def check_user_validity(user):
@@ -407,6 +424,7 @@ def daily_scheduler():
 threading.Thread(target=daily_scheduler, daemon=True).start()
 
 CACHE_FILE = 'market_cache.json'
+<<<<<<< HEAD
 DEFAULT_MARKET_CACHE = {
     'nifty50': {'value': '24,350.20', 'change': '+145.20 pts (+0.60%)', 'is_positive': True},
     'sensex': {'value': '81,911.01', 'change': '+31.61 pts (+0.04%)', 'is_positive': True},
@@ -417,11 +435,25 @@ DEFAULT_MARKET_CACHE = {
         {'date': '11 Nov', 'sensex': '81,879.40', 'change': 772.75},
         {'date': '12 Nov', 'sensex': '82,150.57', 'change': 271.17},
         {'date': '13 Nov', 'sensex': '81,911.01', 'change': 31.61},
+=======
+
+DEFAULT_MARKET_CACHE = {
+    'nifty50': {'value': '23,053.10', 'change': '+116.35 pts (+0.51%)', 'is_positive': True},
+    'sensex': {'value': '74,459.53', 'change': '+308.49 pts (+0.42%)', 'is_positive': True},
+    'nifty500': {'value': '21,895.90', 'change': '-45.60 pts (-0.21%)', 'is_positive': False},
+    'trend_data': [
+        {'date': '26 Oct', 'nifty50': '22,850.10', 'sensex': '73,924.68', 'nifty500': '21,650.00', 'change': -120.50},
+        {'date': '27 Oct', 'nifty50': '22,940.25', 'sensex': '74,103.78', 'nifty500': '21,740.10', 'change': 180.25},
+        {'date': '28 Oct', 'nifty50': '22,890.00', 'sensex': '73,981.89', 'nifty500': '21,700.50', 'change': -50.25},
+        {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 210.15},
+        {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
     ]
 }
 
 
 def load_market_cache():
+<<<<<<< HEAD
     try:
         if os.path.exists(CACHE_FILE):
             with open(CACHE_FILE, 'r') as f:
@@ -437,10 +469,28 @@ def get_live_market_data():
     ist_now = now_utc + timedelta(hours=5, minutes=30)
     is_weekend = ist_now.weekday() >= 5
     is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
+=======
+  try:
+    if os.path.exists(CACHE_FILE):
+      with open(CACHE_FILE, 'r') as f:
+        return json.load(f)
+  except Exception:
+    pass
+  return DEFAULT_MARKET_CACHE.copy()
+
+
+def save_market_cache(cache_data):
+  try:
+    with open(CACHE_FILE, 'w') as f:
+      json.dump(cache_data, f)
+  except Exception:
+    pass
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
     result = {}
     indices = {'nifty50': '^NSEI', 'sensex': '^BSESN', 'nifty500': '^CRSLDX'}
 
+<<<<<<< HEAD
     for key, ticker in indices.items():
         cached_item = cache.get(key, {})
         result[key] = {
@@ -463,11 +513,75 @@ def get_live_market_data():
         'time_label': time_label,
         'is_market_open': is_market_hours
     }, trend_data
+=======
+if not os.path.exists(CACHE_FILE):
+  save_market_cache(DEFAULT_MARKET_CACHE)
+
+
+def get_live_market_data():
+  cache = load_market_cache()
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  
+  is_weekend = ist_now.weekday() >= 5
+  is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
+
+  indices = {
+      'nifty50': '^NSEI',
+      'sensex': '^BSESN',
+      'nifty500': '^CRSLDX'
+  }
+  
+  result = {}
+  headers = {'User-Agent': 'Mozilla/5.0'}
+
+  for key, ticker in indices.items():
+    try:
+      url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1m"
+      response = requests.get(url, headers=headers, timeout=4)
+      if response.status_code == 200:
+        res_json = response.json()
+        meta = res_json['chart']['result'][0]['meta']
+        ltp = float(meta.get('regularMarketPrice', 0))
+        prev_close = float(meta.get('chartPreviousClose', ltp))
+        if ltp > 0:
+          change = ltp - prev_close
+          pct_change = (change / prev_close) * 100 if prev_close else 0
+          result[key] = {
+              'value': f"{ltp:,.2f}",
+              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+              'is_positive': change >= 0
+          }
+    except Exception:
+      pass
+
+    if key not in result:
+      cached_item = cache.get(key, {})
+      result[key] = {
+          'value': cached_item.get('value', '0.00'),
+          'change': cached_item.get('change', '+0.00 pts (0.00%)'),
+          'is_positive': cached_item.get('is_positive', True)
+      }
+
+  if not is_market_hours:
+    time_label = f"CLOSED | As on 04:00 PM | 30 Oct 2026"
+  else:
+    time_label = f"Live as of: {ist_now.strftime('%b %d, %Y, %I:%M:%S %p')}"
+
+  return {
+      'nifty50': result['nifty50'],
+      'sensex': result['sensex'],
+      'nifty500': result['nifty500'],
+      'time_label': time_label,
+      'is_market_open': is_market_hours
+  }, cache.get('trend_data', [])
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/api/market-live')
 @limiter.exempt
 def market_live():
+<<<<<<< HEAD
     market_info, _ = get_live_market_data()
     return jsonify(market_info)
 
@@ -571,6 +685,10 @@ def send_message():
         send_whatsapp_alert(f"💬 *New Chat Message*\n\n*User:* {username}\n*Message:* {msg_text}")
 
     return jsonify({'success': True, 'message': 'Message sent successfully.'})
+=======
+  market_info, _ = get_live_market_data()
+  return jsonify(market_info)
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 def format_pct(val):
@@ -718,6 +836,7 @@ def parse_fund_excel_from_db(table_name):
     except Exception:
         pass
     return fund_list
+<<<<<<< HEAD
 
 
 def get_fund_full_record(category, fund_name):
@@ -782,25 +901,123 @@ def extract_date_from_filename(filename):
             month = v
             break
     return year, month
+=======
+  try:
+    df = pd.read_sql(f'SELECT * FROM {table_name}', engine)
+    if not df.empty:
+      df = df.dropna(subset=[df.columns[0]])
+      for _, row in df.iterrows():
+        val = str(row.iloc[0]).strip()
+        if val and val.lower() not in ['nan', 'funds']:
+          fund_list.append({
+              'fund': val,
+              'inception': str(row.iloc[1]) if len(row) > 1 else '',
+              'benchmark': str(row.iloc[2]) if len(row) > 2 else '',
+              'since': format_pct(row.iloc[3]) if len(row) > 3 else '0',
+              'm1': format_pct(row.iloc[4]) if len(row) > 4 else '0',
+              'm6': format_pct(row.iloc[5]) if len(row) > 5 else '0',
+              'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
+              'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
+              'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0',
+          })
+  except Exception as e:
+    print(f'Error reading table {table_name} from Supabase: {e}')
+  return fund_list
+
+
+def is_today_filename(filename, upload_timestamp=None):
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  
+  today_patterns = [
+      ist_now.strftime('%d-%m-%Y'),
+      ist_now.strftime('%d_%m_%Y'),
+      ist_now.strftime('%d.%m.%Y'),
+      ist_now.strftime('%Y-%m-%d'),
+      ist_now.strftime('%Y_%m_%d'),
+  ]
+  
+  fn = filename.lower()
+  for pattern in today_patterns:
+    if pattern in fn:
+      return True
+
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
+  return False
+
+
+def extract_date_from_filename(filename):
+  fn = filename.lower()
+  clean_name = os.path.splitext(filename)[0]
+  
+  for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
+    try:
+      dt = datetime.strptime(clean_name, fmt)
+      return dt.strftime('%Y'), dt.strftime('%B')
+    except ValueError:
+      continue
+
+  year = datetime.now().strftime('%Y')
+  match_year = re.search(r'(20\d{2})', fn)
+  if match_year:
+    year = match_year.group(1)
+
+  month = datetime.now().strftime('%B')
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+      'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
+      break
+  return year, month
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/')
 def home():
+<<<<<<< HEAD
     if validate_and_restore_auto_session():
         if session.get('is_admin'):
             return redirect(url_for('admin_dashboard'))
         return redirect(url_for('user_dashboard'))
     return redirect(url_for('login'))
+=======
+  return redirect(url_for('login'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/health')
 def health_check():
+<<<<<<< HEAD
     return 'OK', 200
+=======
+  return 'OK', 200
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
 def login():
+<<<<<<< HEAD
     if request.method == 'GET' and validate_and_restore_auto_session():
         return redirect(url_for('user_dashboard'))
 
@@ -876,10 +1093,60 @@ def logout():
     session.clear()
     resp = make_response(redirect(url_for('login')))
     return revoke_auto_login_cookie(resp)
+=======
+  if request.method == 'POST':
+    step = request.form.get('step', 'request_code')
+    username = request.form.get('username', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+
+    name_is_valid = bool(re.match(r'^[A-Za-z\s]+$', username))
+    clean_mobile = re.sub(r'\D', '', mobile)
+    mobile_is_valid = 10 <= len(clean_mobile) <= 12
+
+    if not name_is_valid or not mobile_is_valid:
+      flash('Use correct name (letters only) and valid mobile number.', 'danger')
+      return render_template('login.html', step='request_code', display_code='')
+
+    if step == 'request_code':
+      display_code = str(random.randint(1000, 9999))
+      PENDING_OTPS[mobile] = display_code
+      return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
+
+    elif step == 'verify_code':
+      entered_code = request.form.get('code', '').strip()
+      display_code = request.form.get('display_code', '').strip()
+      if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_code:
+        del PENDING_OTPS[mobile]
+        session.permanent = True
+        session['username'] = username
+        session['mobile'] = mobile
+        user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+        if not user_record:
+          user_record = {
+              'id': len(REGISTERED_USERS) + 1,
+              'name': username,
+              'mobile': mobile,
+              'status': 'Pending',
+              'registered_at': datetime.now(),
+              'approved_at': None,
+          }
+          REGISTERED_USERS.append(user_record)
+        else:
+          check_user_validity(user_record)
+        if user_record['status'] == 'Pending':
+          return redirect(url_for('pending_approval'))
+        return redirect(url_for('user_dashboard'))
+      else:
+        flash('Invalid code entered. Please type the correct displayed code.', 'danger')
+        return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
+
+  return render_template('login.html', step='request_code', display_code='')
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/pending-approval')
 def pending_approval():
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     mobile = session.get('mobile', '')
     user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
@@ -890,10 +1157,24 @@ def pending_approval():
             issue_auto_login_cookie(resp, user_record['name'], user_record['mobile'], is_admin=False)
             return resp
     return render_template('pending_approval.html', username=session.get('username', 'User'))
+=======
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/user-dashboard')
 def user_dashboard():
+<<<<<<< HEAD
     try:
         validate_and_restore_auto_session()
         mobile = session.get('mobile', '')
@@ -1006,10 +1287,65 @@ def api_fund_portfolio(category, fund_name):
         'sectors': (portfolio_entry or {}).get('sectors', []),
         'holdings': (portfolio_entry or {}).get('holdings', []),
     })
+=======
+  try:
+    mobile = session.get('mobile', '')
+    user_record = next(
+        (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+    )
+    if user_record:
+      check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+    if not user_record:
+      return redirect(url_for('login'))
+
+    market_info, market_trend_data = get_live_market_data()
+    admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    festival_greeting = get_festival_greeting()
+
+    latest_data_updated = False
+    latest_filename = 'latest_nav.jpg'
+    try:
+      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      if os.path.exists(meta_path):
+        with open(meta_path, 'r') as mf:
+          meta = json.load(mf)
+          latest_filename = meta.get('filename', 'latest_nav.jpg')
+          last_time = meta.get('upload_time', '')
+          if is_today_filename(latest_filename, last_time):
+            latest_data_updated = True
+    except Exception as e:
+      print(f"Error checking upload status: {e}")
+
+    user_requests = [r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username')]
+
+    return render_template(
+        'user_dashboard.html',
+        username=session.get('username', 'Client'),
+        mobile=mobile,
+        market=market_info,
+        market_trend=market_trend_data,
+        equity_data=parse_fund_excel_from_db('equity_funds'),
+        balancer_data=parse_fund_excel_from_db('balancer_funds'),
+        debt_data=parse_fund_excel_from_db('debt_funds'),
+        latest_data_updated=latest_data_updated,
+        admin_online=admin_online,
+        admin_mobile=ADMIN_MOBILE,
+        festival_greeting=festival_greeting,
+        download_requests=user_requests,
+        feedbacks=USER_FEEDBACKS,
+        latest_filename=latest_filename,
+    )
+  except Exception as e:
+    print(f"Error in user dashboard: {e}")
+    return render_template('login.html')
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/request-download', methods=['POST'])
 def request_download():
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if 'username' not in session:
         return jsonify({'success': False, 'message': 'Not logged in'})
@@ -1031,10 +1367,32 @@ def request_download():
     send_whatsapp_alert(f"📥 *Download/View Request (Latest or Old NAV)*\n\n*User:* {username}\n*File:* {file_name}\n*Type:* {download_type}")
 
     return jsonify({'success': True, 'message': 'Approval request sent to Admin successfully.'})
+=======
+  if 'username' not in session:
+    return jsonify({'success': False, 'message': 'Not logged in'})
+  data = request.get_json() or {}
+  file_name = data.get('filename', 'latest_nav.jpg')
+  download_type = data.get('type', 'download')
+
+  req_id = len(DOWNLOAD_REQUESTS) + 1
+  DOWNLOAD_REQUESTS.append({
+      'id': req_id,
+      'username': session.get('username', 'Client'),
+      'filename': file_name,
+      'type': download_type,
+      'status': 'Pending',
+      'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+  })
+  return jsonify({
+      'success': True,
+      'message': 'Approval request sent to Admin successfully.',
+  })
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/get-nav-image-base64/<path:filename>')
 def get_nav_image_base64(filename):
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if 'username' not in session and not session.get('is_admin'):
         return jsonify({'success': False, 'message': 'Unauthorized'})
@@ -1053,10 +1411,31 @@ def get_nav_image_base64(filename):
             b64_data = base64.b64encode(img_f.read()).decode('utf-8')
         return jsonify({'success': True, 'image_data': f"data:image/jpeg;base64,{b64_data}"})
     return jsonify({'success': False, 'message': 'Image not found'})
+=======
+  if 'username' not in session and not session.get('is_admin'):
+    return jsonify({'success': False, 'message': 'Unauthorized'})
+  
+  target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+  if not os.path.exists(target_path):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        target_path = os.path.join(root, filename)
+        break
+
+  if os.path.exists(target_path):
+    import base64
+    with open(target_path, 'rb') as img_f:
+      b64_data = base64.b64encode(img_f.read()).decode('utf-8')
+    return jsonify({'success': True, 'image_data': f"data:image/jpeg;base64,{b64_data}"})
+  
+  return jsonify({'success': False, 'message': 'Image not found'})
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/view-archive-secured/<path:filename>')
 def view_archive_secured(filename):
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if 'username' not in session and not session.get('is_admin'):
         return redirect(url_for('login'))
@@ -1077,10 +1456,33 @@ def view_archive_secured(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
     flash('Download requires Admin Approval.', 'warning')
     return redirect(url_for('user_dashboard'))
+=======
+  if 'username' not in session and not session.get('is_admin'):
+    return redirect(url_for('login'))
+  
+  if session.get('is_admin'):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+  approved_req = next((r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username') and r['filename'] == filename and r['status'] == 'Approved' and r['type'] == 'download'), None)
+  if approved_req:
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+  
+  flash('Download requires Admin Approval. Request submitted.', 'warning')
+  return redirect(url_for('user_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/submit-feedback', methods=['POST'])
 def submit_feedback():
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if 'username' not in session:
         return redirect(url_for('login'))
@@ -1098,11 +1500,28 @@ def submit_feedback():
         send_whatsapp_alert(f"⭐ *New Feedback Received*\n\n*User:* {username}\n*Rating:* {rating}/5\n*Feedback:* {feedback_text}")
         flash('Feedback submitted successfully!', 'success')
     return redirect(url_for('user_dashboard'))
+=======
+  if 'username' not in session:
+    return redirect(url_for('login'))
+  feedback_text = request.form.get('feedback')
+  rating = request.form.get('rating', '5')
+  if feedback_text:
+    USER_FEEDBACKS.append({
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': session.get('username', 'Client'),
+        'feedback': feedback_text,
+        'rating': int(rating) if str(rating).isdigit() else 5,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    })
+    flash('Feedback submitted successfully!', 'success')
+  return redirect(url_for('user_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
 def admin_login():
+<<<<<<< HEAD
     if request.method == 'POST':
         mobile_input = request.form.get('mobile')
         password_input = request.form.get('password')
@@ -1115,18 +1534,38 @@ def admin_login():
         else:
             flash('Invalid Admin Credentials', 'danger')
     return render_template('admin_login.html')
+=======
+  if request.method == 'POST':
+    mobile_input = request.form.get('mobile')
+    password_input = request.form.get('password')
+    if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
+      session.permanent = True
+      session['is_admin'] = True
+      ADMIN_ACTIVITY['last_active'] = datetime.now()
+      return redirect(url_for('admin_dashboard'))
+    else:
+      flash('Invalid Admin Credentials', 'danger')
+  return render_template('admin_login.html')
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/admin')
 def admin_redirect():
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if session.get('is_admin'):
         return redirect(url_for('admin_dashboard'))
     return redirect(url_for('admin_login'))
+=======
+  if session.get('is_admin'):
+    return redirect(url_for('admin_dashboard'))
+  return redirect(url_for('admin_login'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
+<<<<<<< HEAD
     validate_and_restore_auto_session()
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
@@ -1161,10 +1600,40 @@ def admin_dashboard():
         festival_greeting=festival_greeting,
         user_filter=user_filter,
     )
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    check_user_validity(user)
+
+  market_info, market_trend_data = get_live_market_data()
+  festival_greeting = get_festival_greeting()
+  user_filter = request.args.get('user_filter', 'all')
+
+  return render_template(
+      'admin_dashboard.html',
+      market=market_info,
+      market_trend=market_trend_data,
+      users=REGISTERED_USERS,
+      feedbacks=USER_FEEDBACKS,
+      download_requests=DOWNLOAD_REQUESTS,
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
+      auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
+      current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
+      festival_greeting=festival_greeting,
+      user_filter=user_filter,
+  )
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
 def approve_download(req_id):
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     for req in DOWNLOAD_REQUESTS:
@@ -1173,10 +1642,21 @@ def approve_download(req_id):
             flash("Download request approved!", 'success')
             break
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Approved'
+      flash(f"Download request for {req['filename']} approved!", 'success')
+      break
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
 def reject_download(req_id):
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     for req in DOWNLOAD_REQUESTS:
@@ -1185,20 +1665,40 @@ def reject_download(req_id):
             flash("Download request rejected.", 'danger')
             break
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Rejected'
+      flash(f"Download request for {req['filename']} rejected.", 'danger')
+      break
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/toggle-auto-approval', methods=['POST'])
 def toggle_auto_approval():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
     status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
     flash(f'Auto-approval has been {status_text} successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
+  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  flash(f'Auto-approval has been {status_text} successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1216,10 +1716,26 @@ def update_user_status(user_id, status):
                     if entry.get('mobile') == user.get('mobile'):
                         entry['revoked'] = True
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    if user['id'] == user_id:
+      user['status'] = status.capitalize()
+      if status.capitalize() == 'Approved':
+        user['approved_at'] = datetime.now().isoformat()
+      else:
+        user['approved_at'] = None
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/approve-all-users', methods=['POST'])
 def approve_all_users():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1232,10 +1748,24 @@ def approve_all_users():
             user['session_started_at'] = now_dt
     flash('All pending users approved successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  now_iso = datetime.now().isoformat()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Approved'
+      user['approved_at'] = now_iso
+  flash('All pending users approved successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/decline-all-users', methods=['POST'])
 def decline_all_users():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1244,10 +1774,23 @@ def decline_all_users():
             user['status'] = 'Pending'
     flash('All pending users declined successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+  flash('All pending users declined successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1263,10 +1806,35 @@ def upload_master_category():
         except Exception as e:
             flash(f'Error updating category: {e}', 'danger')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      category = request.form.get('category')
+      file_key = f'{category}_file'
+      if file_key in request.files:
+        file = request.files[file_key]
+        if file and file.filename != '':
+          df = pd.read_excel(file)
+          table_name = f'{category}_funds'
+          if engine:
+            df.to_sql(table_name, engine, if_exists='replace', index=False)
+            flash(f'{category.capitalize()} funds updated permanently in Supabase database!', 'success')
+          else:
+            flash('Database connection error.', 'danger')
+    except Exception as e:
+      flash(f'Error updating category: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/upload-nav', methods=['GET', 'POST'])
 def upload_nav():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1314,10 +1882,58 @@ def upload_nav():
             print(f"Critical upload error: {e}")
             flash(f'Error uploading NAV image: {e}', 'danger')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      file = request.files.get('nav_image')
+      if file and file.filename != '':
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
+        if not filename:
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+        file_bytes = file.read()
+        
+        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        with open(file_path_upload, 'wb') as f:
+          f.write(file_bytes)
+        
+        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+        with open(latest_ref_path, 'wb') as f:
+          f.write(file_bytes)
+
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        with open(meta_path, 'w') as mf:
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
+
+        target_year, target_month = extract_date_from_filename(raw_fn)
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        with open(archive_file_path, 'wb') as f:
+          f.write(file_bytes)
+
+        flash(f'Successfully published NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
+      else:
+        flash('No file selected for NAV upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading NAV image: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/upload-archive', methods=['GET', 'POST'])
 def upload_archive():
+<<<<<<< HEAD
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1343,10 +1959,80 @@ def upload_archive():
         except Exception as e:
             flash(f'Error uploading archive files: {e}', 'danger')
     return redirect(url_for('admin_dashboard'))
+=======
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
+
+      month_map = {
+          'jan': 'January', 'feb': 'February', 'mar': 'March',
+          'apr': 'April', 'may': 'May', 'jun': 'June',
+          'jul': 'July', 'aug': 'August', 'sep': 'September',
+          'oct': 'October', 'nov': 'November', 'dec': 'December'
+      }
+      full_month_name = month_map.get(month_input[:3], 'October')
+
+      saved_count = 0
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          raw_fn = file.filename
+          filename = secure_filename(raw_fn)
+          if not filename:
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+          f_year, f_month = extract_date_from_filename(raw_fn)
+          target_year = f_year if f_year else year
+          target_month = f_month if f_month else full_month_name
+
+          target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+          os.makedirs(target_dir, exist_ok=True)
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
+          
+          upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          shutil.copy(file_path, upload_mirror_path)
+          
+          saved_count += 1
+
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} archive file(s) and synced to folders!', 'success')
+      else:
+        flash('No files selected for archive upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading archive files: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/delete-archive-file/<filename>', methods=['POST'])
+def delete_archive_file(filename):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  try:
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      flash(f'Successfully deleted: {filename}', 'success')
+    else:
+      flash('File not found.', 'danger')
+  except Exception as e:
+    flash(f'Error deleting file: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
 
 @app.route('/get-archive-files', methods=['GET'])
 def get_archive_files():
+<<<<<<< HEAD
     year = request.args.get('year', '').strip()
     month_input = request.args.get('month', '').strip().lower()
     month_map = {'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April', 'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August', 'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December'}
@@ -1366,3 +2052,36 @@ def get_archive_files():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+=======
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
+  matched_files = []
+
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March',
+      'apr': 'April', 'may': 'May', 'jun': 'June',
+      'jul': 'July', 'aug': 'August', 'sep': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  full_month = month_map.get(month_input[:3], month_input.capitalize())
+
+  target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month)
+
+  if os.path.exists(target_dir):
+    try:
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          matched_files.append(f)
+    except Exception as e:
+      print(f'Error reading archive directory: {e}')
+
+  sorted_files = sorted(list(set(matched_files)), reverse=True)
+  return jsonify({'success': True, 'files': sorted_files})
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)

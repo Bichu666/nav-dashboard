@@ -17,7 +17,11 @@
             --accent-gold: #fbbf24;
             --accent-orange: #f59e0b;
             --green: #00FF00;
+<<<<<<< HEAD
             --red: #FF0800; /* Apple Red */
+=======
+            --red: #FF0800;
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
         }
 
         body { 
@@ -378,6 +382,10 @@
         </header>
 
         <div class="top-grid">
+<<<<<<< HEAD
+=======
+            <!-- Market Indices Card matching reference image exactly -->
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
             <div class="panel market-indices-panel">
                 <div style="font-size: 12px; font-weight: bold; color: var(--red); margin-bottom: 8px;" id="market-status-label">{{ market.time_label }}</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 10px 0;">
@@ -400,7 +408,11 @@
             </div>
 
             <div class="panel trend-panel">
+<<<<<<< HEAD
                 <h3>BSE SENSEX PREVIOUS 5 DAYS VALUE</h3>
+=======
+                <h3>Previous 5 days Market Trend</h3>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
                 <div class="trend-boxes" style="display: flex; gap: 6px;">
                     {% for item in market_trend %}
                     <div class="t-box" style="background: var(--bg-card); padding: 6px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
@@ -427,6 +439,7 @@
             <div class="panel" style="display: flex; flex-direction: column; justify-content: space-between;">
                 <h3>Today's NAV Image View & Download</h3>
                 <span style="font-size: 13px; color: var(--text-muted);">View in Modal with Zoom (Download Requires Admin Approval)</span>
+<<<<<<< HEAD
                 
                 {% set latest_req = download_requests | selectattr('filename', 'equalto', latest_filename) | first %}
 
@@ -440,6 +453,11 @@
                     {% else %}
                         <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
                     {% endif %}
+=======
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button type="button" onclick="openNavImageModal('{{ latest_filename }}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
+                    <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
                 </div>
             </div>
         </div>
@@ -474,6 +492,7 @@
             <div style="display: flex; gap: 15px;">
                 <button type="button" id="btn-view-archive" class="btn-batch" style="background: #0d9488; color: #fff;">View NAV</button>
                 <button type="button" id="btn-request-archive" class="btn-batch">Request Download Approval</button>
+<<<<<<< HEAD
             </div>
         </div>
 
@@ -526,6 +545,8 @@
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="chat-input" placeholder="Type your message to Admin Bijoosh..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
                 <button type="button" onclick="sendMessage()" class="btn-batch" style="width: 140px;">Send Message</button>
+=======
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
             </div>
         </div>
 
@@ -547,6 +568,47 @@
                     <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
                 </div>
             </form>
+        </div>
+
+        <!-- Additional Box for Download Approvals Status -->
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>Your Download Approval Requests Status</h3>
+            <table class="approval-table" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Requested File</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Timestamp</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in download_requests %}
+                    <tr>
+                        <td>{{ req.filename }}</td>
+                        <td>{{ req.type }}</td>
+                        <td>
+                            <span style="font-weight: bold; {% if req.status == 'Approved' %}color: var(--green);{% elif req.status == 'Rejected' %}color: var(--red);{% else %}color: var(--accent-orange);{% endif %}">
+                                {{ req.status }}
+                            </span>
+                        </td>
+                        <td>{{ req.timestamp }}</td>
+                        <td>
+                            {% if req.status == 'Approved' %}
+                            <a href="/view-archive-secured/{{ req.filename }}" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;">Download File</a>
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted);">No download requests made yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="funds-stack-container">
@@ -649,7 +711,36 @@
         </footer>
     </div>
 
+<<<<<<< HEAD
     <!-- Modal for Viewing NAV Image Securely with Zoom -->
+    <div id="navImageModal" class="modal-overlay">
+        <div class="modal-content" style="width: 95vw; max-width: 1400px; height: 92vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                <h2 id="nav-modal-title" style="color: var(--accent-gold); margin: 0; font-size: 18px;">NAV Viewer (High Definition & Zoom)</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" class="btn-batch" onclick="zoomInNav()" style="padding: 6px 12px; font-size: 14px;">Zoom In (+)</button>
+                    <button type="button" class="btn-batch" onclick="zoomOutNav()" style="padding: 6px 12px; font-size: 14px;">Zoom Out (-)</button>
+                    <button type="button" class="btn-batch" onclick="resetZoomNav()" style="padding: 6px 12px; font-size: 14px; background: #374151; color: #fff;">Reset</button>
+                    <span class="modal-close" style="position: static; font-size: 28px; margin-left: 15px;" onclick="closeNavImageModal()">&times;</span>
+                </div>
+            </div>
+            <div id="nav-image-container" style="flex: 1; overflow: auto; text-align: center; background: #000; border-radius: 6px; padding: 10px; position: relative;">
+                <img id="nav-modal-img" src="" alt="NAV Image" style="width: 100%; height: auto; transform-origin: top center; transition: transform 0.2s ease; border-radius: 4px;" oncontextmenu="return false;" />
+=======
+    <!-- Modal for Funds Performance -->
+    <div id="fundModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-fund-name" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">Fund Name</h2>
+            <div class="modal-info-grid" style="font-size: 14px; margin-bottom: 15px; display: flex; gap: 20px; color: var(--text-muted);">
+                <div><strong>Inception Date:</strong> <span id="modal-inception" style="color:#fff;"></span></div>
+                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark" style="color:#fff;"></span></div>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Viewing NAV Image Securely with Zoom & High Resolution -->
     <div id="navImageModal" class="modal-overlay">
         <div class="modal-content" style="width: 95vw; max-width: 1400px; height: 92vh; display: flex; flex-direction: column;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
@@ -679,6 +770,7 @@
             }
         }
 
+<<<<<<< HEAD
         // Real-Time 145px Apple Red Analog Clock & Date Badge Script
         function updateAnalogClock() {
             const now = new Date();
@@ -827,6 +919,73 @@
                     }
                 })
                 .catch(err => console.error('Error opening NAV modal:', err));
+=======
+        // 10-Second Market Indices Auto-Refresh Script matching reference image
+        setInterval(() => {
+            fetch('/api/market-live')
+                .then(response => response.json())
+                .then(data => {
+                    const statusLabel = document.getElementById('market-status-label');
+                    if (statusLabel) statusLabel.innerText = data.time_label;
+
+                    const nifty50Val = document.getElementById('nifty50-val');
+                    const nifty50Chg = document.getElementById('nifty50-chg');
+                    if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
+                    if (nifty50Chg) {
+                        nifty50Chg.innerText = data.nifty50.change;
+                        nifty50Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
+                    }
+
+                    const sensexVal = document.getElementById('sensex-val');
+                    const sensexChg = document.getElementById('sensex-chg');
+                    if (sensexVal) sensexVal.innerText = data.sensex.value;
+                    if (sensexChg) {
+                        sensexChg.innerText = data.sensex.change;
+                        sensexChg.className = data.sensex.is_positive ? 'market-pos' : 'market-neg';
+                    }
+
+                    const nifty500Val = document.getElementById('nifty500-val');
+                    const nifty500Chg = document.getElementById('nifty500-chg');
+                    if (nifty500Val) nifty500Val.innerText = data.nifty500.value;
+                    if (nifty500Chg) {
+                        nifty500Chg.innerText = data.nifty500.change;
+                        nifty500Chg.className = data.nifty500.is_positive ? 'market-pos' : 'market-neg';
+                    }
+                })
+                .catch(err => console.error('Market live refresh error:', err));
+        }, 10000);
+
+        function openModal(data) {
+            document.getElementById('modal-fund-name').innerText = data.fund;
+            document.getElementById('modal-inception').innerText = data.inception;
+            document.getElementById('modal-benchmark').innerText = data.benchmark;
+
+            const percentageFields = [
+                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
+            ];
+
+            percentageFields.forEach(f => {
+                let cell = document.getElementById(f.id);
+                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
+                let num = parseFloat(String(rawVal).replace('%', ''));
+                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
+                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
+            });
+
+            let highCell = document.getElementById('m-high');
+            highCell.innerText = data.high;
+            highCell.className = "nav-green";
+
+            let latestCell = document.getElementById('m-latest');
+            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
+            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
+            latestCell.innerText = latestRaw;
+            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
+
+            document.getElementById('fundModal').style.display = 'flex';
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
         }
 
         function zoomInNav() {
@@ -851,6 +1010,7 @@
             document.getElementById('nav-modal-img').src = '';
         }
 
+<<<<<<< HEAD
         window.onclick = function(event) {
             let navModal = document.getElementById('navImageModal');
             if (event.target == navModal) { closeNavImageModal(); }
@@ -894,6 +1054,62 @@
                 btn.style.cursor = "not-allowed";
                 btn.disabled = true;
             });
+=======
+        let currentZoom = 1;
+        function openNavImageModal(filename) {
+            document.getElementById('nav-modal-title').innerText = "NAV Viewer: " + filename;
+            currentZoom = 1;
+            document.getElementById('nav-modal-img').style.transform = `scale(${currentZoom})`;
+            
+            fetch('/get-nav-image-base64/' + filename)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('nav-modal-img').src = data.image_data;
+                        document.getElementById('navImageModal').style.display = 'flex';
+                    } else {
+                        alert('Error loading NAV image.');
+                    }
+                })
+                .catch(err => console.error('Error opening NAV modal:', err));
+        }
+
+        function zoomInNav() {
+            currentZoom += 0.25;
+            if (currentZoom > 3.0) currentZoom = 3.0;
+            document.getElementById('nav-modal-img').style.transform = `scale(${currentZoom})`;
+        }
+
+        function zoomOutNav() {
+            currentZoom -= 0.25;
+            if (currentZoom < 0.75) currentZoom = 0.75;
+            document.getElementById('nav-modal-img').style.transform = `scale(${currentZoom})`;
+        }
+
+        function resetZoomNav() {
+            currentZoom = 1;
+            document.getElementById('nav-modal-img').style.transform = `scale(${currentZoom})`;
+        }
+
+        function closeNavImageModal() {
+            document.getElementById('navImageModal').style.display = 'none';
+            document.getElementById('nav-modal-img').src = '';
+        }
+
+        window.onclick = function(event) {
+            let fundModal = document.getElementById('fundModal');
+            let navModal = document.getElementById('navImageModal');
+            if (event.target == fundModal) { closeModal(); }
+            if (event.target == navModal) { closeNavImageModal(); }
+        }
+
+        document.getElementById('btn-request-latest').addEventListener('click', () => {
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: '{{ latest_filename }}', type: 'download'})
+            }).then(r => r.json()).then(d => alert(d.message));
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
         });
 
         function loadArchiveFiles() {
@@ -929,6 +1145,7 @@
             openNavImageModal(filename);
         });
 
+<<<<<<< HEAD
         loadArchiveFiles();
 
         // Chat Polling & Sending
@@ -952,6 +1169,23 @@
         }
         setInterval(loadMessages, 5000);
         loadMessages();
+=======
+        document.getElementById('btn-request-archive').addEventListener('click', function() {
+            const filename = document.getElementById('archive-file-select').value;
+            if (!filename) {
+                alert('Please select a specific date/file first for download approval request.');
+                return;
+            }
+            fetch('/request-download', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({filename: filename, type: 'download'})
+            }).then(r => r.json()).then(d => alert(d.message));
+        });
+
+        // Automatically load archive files on page load
+        loadArchiveFiles();
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
     </script>
 </body>
 </html>
