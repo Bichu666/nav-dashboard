@@ -205,6 +205,83 @@ def get_festival_greeting():
   return festivals_by_date.get((y, m, d), recurring_festivals.get((m, d), None))
 
 
+
+WHATSAPP_LOGS = []
+
+
+def send_whatsapp_notification(message, to_phone=None):
+  target_phone = (to_phone or os.getenv('WHATSAPP_TO') or ADMIN_MOBILE).strip()
+  clean_digits = re.sub(r'\D', '', target_phone)
+  if len(clean_digits) == 10:
+    clean_digits = '91' + clean_digits
+
+  now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
+
+  # 1. CallMeBot free WhatsApp API
+  callmebot_key = os.getenv('CALLMEBOT_APIKEY', '').strip()
+  callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE', clean_digits))
+  if callmebot_key and callmebot_phone:
+    try:
+      resp = requests.get(
+          'https://api.callmebot.com/whatsapp.php',
+          params={'phone': callmebot_phone, 'text': message, 'apikey': callmebot_key},
+          timeout=10,
+      )
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': resp.status_code, 'message': message})
+      return resp.status_code in (200, 201)
+    except Exception as e:
+      print(f'CallMeBot WhatsApp error: {e}')
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': f'error: {e}', 'message': message})
+
+  # 2. Meta WhatsApp Cloud API
+  wa_token = os.getenv('WHATSAPP_TOKEN', '').strip()
+  wa_phone_id = os.getenv('WHATSAPP_PHONE_ID', '').strip()
+  if wa_token and wa_phone_id and clean_digits:
+    try:
+      resp = requests.post(
+          f'https://graph.facebook.com/v20.0/{wa_phone_id}/messages',
+          headers={
+              'Authorization': f'Bearer {wa_token}',
+              'Content-Type': 'application/json',
+          },
+          json={
+              'messaging_product': 'whatsapp',
+              'to': clean_digits,
+              'type': 'text',
+              'text': {'body': message},
+          },
+          timeout=10,
+      )
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': resp.status_code, 'message': message})
+      return resp.status_code in (200, 201)
+    except Exception as e:
+      print(f'Meta WhatsApp error: {e}')
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': f'error: {e}', 'message': message})
+
+  # 3. Twilio WhatsApp API
+  tw_sid = os.getenv('TWILIO_ACCOUNT_SID', '').strip()
+  tw_token = os.getenv('TWILIO_AUTH_TOKEN', '').strip()
+  tw_from = os.getenv('TWILIO_WHATSAPP_FROM', '').strip()
+  tw_to = os.getenv('TWILIO_WHATSAPP_TO', f'whatsapp:+{clean_digits}').strip()
+  if tw_sid and tw_token and tw_from and tw_to:
+    try:
+      resp = requests.post(
+          f'https://api.twilio.com/2010-04-01/Accounts/{tw_sid}/Messages.json',
+          auth=(tw_sid, tw_token),
+          data={'From': tw_from, 'To': tw_to, 'Body': message},
+          timeout=10,
+      )
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': resp.status_code, 'message': message})
+      return resp.status_code in (200, 201)
+    except Exception as e:
+      print(f'Twilio WhatsApp error: {e}')
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': f'error: {e}', 'message': message})
+
+  print(f'WhatsApp notification skipped (no WhatsApp API env vars configured): {message}')
+  WHATSAPP_LOGS.append({'time': now_str, 'provider': 'unconfigured', 'status': 'skipped', 'message': message})
+  return False
+
+
 def send_email_notification(subject, body):
   sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
   sender_password = os.getenv("MAIL_PASSWORD", "")
@@ -238,6 +315,7 @@ def daily_scheduler():
       if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
         body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
         send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
+        send_whatsapp_notification("Reminder: Upload Today's Latest NAV Data on the Admin Portal.")
         last_8am_sent = current_date
 
       if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
@@ -245,6 +323,7 @@ def daily_scheduler():
         for u in REGISTERED_USERS:
           user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
         send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
+        send_whatsapp_notification(user_summary)
         last_10pm_sent = current_date
     except Exception as e:
       print(f"Scheduler error: {e}")
@@ -529,6 +608,7 @@ def login():
               'approved_at': None,
           }
           REGISTERED_USERS.append(user_record)
+          send_whatsapp_notification(f"New User Login/Approval Request: {username} ({mobile})")
         else:
           check_user_validity(user_record)
         if user_record['status'] == 'Pending':
@@ -629,6 +709,7 @@ def request_download():
       'status': 'Pending',
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
   })
+  send_whatsapp_notification(f"Download Request from {session.get('username', 'Client')}: {file_name} ({download_type})")
   return jsonify({
       'success': True,
       'message': 'Approval request sent to Admin successfully.',
@@ -1050,6 +1131,7 @@ def upload_master_category():
           if not debt_df.empty:
             debt_df.to_sql(f'{category}_debt_metrics', engine, if_exists='replace', index=False)
 
+          send_whatsapp_notification(f'{category.capitalize()} Master Excel updated in Supabase!')
           flash(f'{category.capitalize()} funds, sectors & holdings updated permanently in Supabase!', 'success')
     except Exception as e:
       flash(f'Error updating category: {e}', 'danger')
@@ -1105,6 +1187,7 @@ def upload_nav():
         if os.path.exists(file_path_upload):
           shutil.copy(file_path_upload, archive_file_path)
 
+        send_whatsapp_notification(f'NAV Published: {filename} (Archived to {target_year}/{target_month})')
         flash(f'Successfully published & optimized NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
       else:
         flash('No file selected for NAV upload.', 'warning')
