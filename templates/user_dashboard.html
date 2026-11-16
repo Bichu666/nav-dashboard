@@ -262,6 +262,7 @@
             flex-direction: column; 
             gap: 8px; 
         }
+<<<<<<< HEAD
 
         /* Upgraded 145px Apple Red Analog Clock Styling */
         .analog-clock-wrapper {
@@ -317,6 +318,8 @@
             z-index: 6;
             box-shadow: 0 0 4px rgba(0,0,0,0.6);
         }
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
     </style>
 </head>
 <body>
@@ -383,9 +386,12 @@
 
         <div class="top-grid">
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
             <!-- Market Indices Card matching reference image exactly -->
 >>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
             <div class="panel market-indices-panel">
                 <div style="font-size: 12px; font-weight: bold; color: var(--red); margin-bottom: 8px;" id="market-status-label">{{ market.time_label }}</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 10px 0;">
@@ -409,10 +415,14 @@
 
             <div class="panel trend-panel">
 <<<<<<< HEAD
+<<<<<<< HEAD
                 <h3>BSE SENSEX PREVIOUS 5 DAYS VALUE</h3>
 =======
                 <h3>Previous 5 days Market Trend</h3>
 >>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+                <h3>BSE SENSEX PREVIOUS 5 DAYS VALUE</h3>
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <div class="trend-boxes" style="display: flex; gap: 6px;">
                     {% for item in market_trend %}
                     <div class="t-box" style="background: var(--bg-card); padding: 6px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
@@ -440,6 +450,7 @@
                 <h3>Today's NAV Image View & Download</h3>
                 <span style="font-size: 13px; color: var(--text-muted);">View in Modal with Zoom (Download Requires Admin Approval)</span>
 <<<<<<< HEAD
+<<<<<<< HEAD
                 
                 {% set latest_req = download_requests | selectattr('filename', 'equalto', latest_filename) | first %}
 
@@ -458,6 +469,21 @@
                     <button type="button" onclick="openNavImageModal('{{ latest_filename }}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
                     <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
 >>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+                
+                {% set latest_req = download_requests | selectattr('filename', 'equalto', latest_filename) | first %}
+
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button type="button" onclick="openNavImageModal('{{ latest_filename }}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
+                    
+                    {% if latest_req and latest_req.status == 'Approved' %}
+                        <a href="/view-archive-secured/{{ latest_filename }}" class="btn-batch" style="background: var(--green); color: #000; text-decoration: none; flex: 1; text-align: center;" download>Download Now</a>
+                    {% elif latest_req and latest_req.status == 'Pending' %}
+                        <button type="button" class="btn-batch" style="background: #374151; color: var(--text-muted); cursor: not-allowed; flex: 1;" disabled>Request Pending</button>
+                    {% else %}
+                        <button type="button" id="btn-request-latest" class="btn-batch" style="flex: 1;">Request Download</button>
+                    {% endif %}
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 </div>
             </div>
         </div>
@@ -551,6 +577,7 @@
         </div>
 
         <div class="panel" style="margin-bottom: 24px;">
+<<<<<<< HEAD
             <h3>User Feedback and Suggestion / Rating</h3>
             <form action="{{ url_for('submit_feedback') }}" method="POST">
                 <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
@@ -572,6 +599,8 @@
 
         <!-- Additional Box for Download Approvals Status -->
         <div class="panel" style="margin-bottom: 24px;">
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
             <h3>Your Download Approval Requests Status</h3>
             <table class="approval-table" style="width: 100%; border-collapse: collapse;">
                 <thead>
@@ -596,7 +625,7 @@
                         <td>{{ req.timestamp }}</td>
                         <td>
                             {% if req.status == 'Approved' %}
-                            <a href="/view-archive-secured/{{ req.filename }}" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;">Download File</a>
+                            <a href="/view-archive-secured/{{ req.filename }}" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;" download>Download File</a>
                             {% else %}
                             <span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>
                             {% endif %}
@@ -609,6 +638,38 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+
+        <!-- Chat / Message Option Placed Just Above User Feedback -->
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>Chat / Message Admin</h3>
+            <div class="chat-box" id="chat-messages-container">
+                <div style="color: var(--text-muted);">Loading chat history...</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="chat-input" placeholder="Type your message to Admin Bijoosh..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px; color: #fff; border-radius: 6px; font-size: 14px;">
+                <button type="button" onclick="sendMessage()" class="btn-batch" style="width: 140px;">Send Message</button>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-bottom: 24px;">
+            <h3>User Feedback and Suggestion / Rating</h3>
+            <form action="{{ url_for('submit_feedback') }}" method="POST">
+                <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
+                    <span style="font-size: 13px; color: var(--text-muted);">Rate Application:</span>
+                    <div class="star-rating">
+                        <input type="radio" id="star5" name="rating" value="5" checked /><label for="star5" title="5 stars">★</label>
+                        <input type="radio" id="star4" name="rating" value="4" /><label for="star4" title="4 stars">★</label>
+                        <input type="radio" id="star3" name="rating" value="3" /><label for="star3" title="3 stars">★</label>
+                        <input type="radio" id="star2" name="rating" value="2" /><label for="star2" title="2 stars">★</label>
+                        <input type="radio" id="star1" name="rating" value="1" /><label for="star1" title="1 star">★</label>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
+                    <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
+                </div>
+            </form>
         </div>
 
         <div class="funds-stack-container">
@@ -740,7 +801,7 @@
         </div>
     </div>
 
-    <!-- Modal for Viewing NAV Image Securely with Zoom & High Resolution -->
+    <!-- Modal for Viewing NAV Image Securely with Zoom -->
     <div id="navImageModal" class="modal-overlay">
         <div class="modal-content" style="width: 95vw; max-width: 1400px; height: 92vh; display: flex; flex-direction: column;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
@@ -770,6 +831,7 @@
             }
         }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
         // Real-Time 145px Apple Red Analog Clock & Date Badge Script
         function updateAnalogClock() {
@@ -921,6 +983,8 @@
                 .catch(err => console.error('Error opening NAV modal:', err));
 =======
         // 10-Second Market Indices Auto-Refresh Script matching reference image
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
         setInterval(() => {
             fetch('/api/market-live')
                 .then(response => response.json())
@@ -1103,13 +1167,50 @@
             if (event.target == navModal) { closeNavImageModal(); }
         }
 
-        document.getElementById('btn-request-latest').addEventListener('click', () => {
+        const latestBtn = document.getElementById('btn-request-latest');
+        if(latestBtn) {
+            latestBtn.addEventListener('click', () => {
+                fetch('/request-download', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({filename: '{{ latest_filename }}', type: 'download'})
+                }).then(r => r.json()).then(d => {
+                    alert(d.message);
+                    latestBtn.innerText = "Request Pending";
+                    latestBtn.style.background = "#374151";
+                    latestBtn.style.color = "#9ca3af";
+                    latestBtn.style.cursor = "not-allowed";
+                    latestBtn.disabled = true;
+                    location.reload();
+                });
+            });
+        }
+
+        document.getElementById('btn-request-archive').addEventListener('click', function() {
+            const filename = document.getElementById('archive-file-select').value;
+            if (!filename) {
+                alert('Please select a specific date/file first for download approval request.');
+                return;
+            }
             fetch('/request-download', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
+<<<<<<< HEAD
                 body: JSON.stringify({filename: '{{ latest_filename }}', type: 'download'})
             }).then(r => r.json()).then(d => alert(d.message));
 >>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+                body: JSON.stringify({filename: filename, type: 'download'})
+            }).then(r => r.json()).then(d => {
+                alert(d.message);
+                const btn = document.getElementById('btn-request-archive');
+                btn.innerText = "Request Pending";
+                btn.style.background = "#374151";
+                btn.style.color = "#9ca3af";
+                btn.style.cursor = "not-allowed";
+                btn.disabled = true;
+            });
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
         });
 
         function loadArchiveFiles() {
@@ -1146,6 +1247,9 @@
         });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
         loadArchiveFiles();
 
         // Chat Polling & Sending
@@ -1153,7 +1257,11 @@
             fetch('/api/get-messages').then(r => r.json()).then(data => {
                 if (data.success) {
                     const c = document.getElementById('chat-messages-container');
+<<<<<<< HEAD
                     c.innerHTML = data.messages.map(m => `<div><b>${m.username}:</b> ${m.message} <span style="font-size:10px; color:#888;">(${m.timestamp})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
+=======
+                    c.innerHTML = data.messages.map(m => `<div><b>${m.sender}:</b> ${m.message} <span style="font-size:10px; color:#888;">(${m.timestamp})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                     c.scrollTop = c.scrollHeight;
                 }
             });
@@ -1162,6 +1270,7 @@
             const input = document.getElementById('chat-input');
             if(!input.value.trim()) return;
             fetch('/api/send-message', {
+<<<<<<< HEAD
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({message: input.value, recipient: 'Admin'})
@@ -1186,6 +1295,15 @@
         // Automatically load archive files on page load
         loadArchiveFiles();
 >>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: input.value, recipient: 'Admin'})
+            }).then(r => r.json()).then(d => { if(d.success) { input.value=''; loadMessages(); } });
+        }
+        setInterval(loadMessages, 5000);
+        loadMessages();
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
     </script>
 </body>
 </html>
