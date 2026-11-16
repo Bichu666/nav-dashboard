@@ -296,7 +296,7 @@ def get_live_market_data():
   cache = load_market_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-
+  
   is_weekend = ist_now.weekday() >= 5
   is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
 
@@ -305,7 +305,7 @@ def get_live_market_data():
       'sensex': '^BSESN',
       'nifty500': '^CRSLDX'
   }
-
+  
   result = {}
   for key, ticker in indices.items():
     try:
@@ -375,4 +375,845 @@ def get_live_market_data():
 @limiter.exempt
 def market_live():
   market_info, _ = get_live_market_data()
-  return
+  return jsonify(market_info)
+
+
+def format_pct(val):
+  try:
+    return round(float(val) * 100, 2)
+  except:
+    return val
+
+
+def parse_fund_excel_from_db(table_name):
+  fund_list = []
+  if not engine:
+    return fund_list
+  try:
+    df = pd.read_sql(f'SELECT * FROM {table_name}', engine)
+    if not df.empty:
+      df = df.dropna(subset=[df.columns[0]])
+      for _, row in df.iterrows():
+        val = str(row.iloc[0]).strip()
+        if val and val.lower() not in ['nan', 'funds']:
+          fund_list.append({
+              'fund': val,
+              'inception': str(row.iloc[1]) if len(row) > 1 else '',
+              'benchmark': str(row.iloc[2]) if len(row) > 2 else '',
+              'since': format_pct(row.iloc[3]) if len(row) > 3 else '0',
+              'm1': format_pct(row.iloc[4]) if len(row) > 4 else '0',
+              'm6': format_pct(row.iloc[5]) if len(row) > 5 else '0',
+              'y1': format_pct(row.iloc[6]) if len(row) > 6 else '0',
+              'y2': format_pct(row.iloc[7]) if len(row) > 7 else '0',
+              'y3': format_pct(row.iloc[8]) if len(row) > 8 else '0',
+              'y4': format_pct(row.iloc[9]) if len(row) > 9 else '0',
+              'y5': format_pct(row.iloc[10]) if len(row) > 10 else '0',
+              'y7': format_pct(row.iloc[11]) if len(row) > 11 else '0',
+              'y10': format_pct(row.iloc[12]) if len(row) > 12 else '0',
+              'high': str(row.iloc[13]) if len(row) > 13 else '0',
+              'latest': str(row.iloc[14]) if len(row) > 14 else '0',
+          })
+  except Exception as e:
+    print(f'Error reading table {table_name} from Supabase: {e}')
+  return fund_list
+
+
+def is_today_filename(filename, upload_timestamp=None):
+  now_utc = datetime.now(timezone.utc)
+  ist_now = now_utc + timedelta(hours=5, minutes=30)
+  
+  today_patterns = [
+      ist_now.strftime('%d-%m-%Y'),
+      ist_now.strftime('%d_%m_%Y'),
+      ist_now.strftime('%d.%m.%Y'),
+      ist_now.strftime('%Y-%m-%d'),
+      ist_now.strftime('%Y_%m_%d'),
+  ]
+  
+  fn = filename.lower()
+  for pattern in today_patterns:
+    if pattern in fn:
+      return True
+
+  if upload_timestamp:
+    try:
+      dt = datetime.fromisoformat(upload_timestamp)
+      if dt.date() == ist_now.date():
+        return True
+    except Exception:
+      pass
+
+  return False
+
+
+def extract_date_from_filename(filename):
+  fn = filename.lower()
+  clean_name = os.path.splitext(filename)[0]
+  
+  for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
+    try:
+      dt = datetime.strptime(clean_name, fmt)
+      return dt.strftime('%Y'), dt.strftime('%B')
+    except ValueError:
+      continue
+
+  year = datetime.now().strftime('%Y')
+  match_year = re.search(r'(20\d{2})', fn)
+  if match_year:
+    year = match_year.group(1)
+
+  month = datetime.now().strftime('%B')
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+      'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+      'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  for k, v in month_map.items():
+    if k in fn:
+      month = v
+      break
+  return year, month
+
+
+@app.route('/')
+def home():
+  return redirect(url_for('login'))
+
+
+@app.route('/health')
+def health_check():
+  return 'OK', 200
+
+
+@app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def login():
+  if request.method == 'POST':
+    step = request.form.get('step', 'request_code')
+    username = request.form.get('username', '').strip()
+    mobile = request.form.get('mobile', '').strip()
+
+    name_is_valid = bool(re.match(r'^[A-Za-z\s]+$', username))
+    clean_mobile = re.sub(r'\D', '', mobile)
+    mobile_is_valid = 10 <= len(clean_mobile) <= 12
+
+    if not name_is_valid or not mobile_is_valid:
+      flash('Use correct name (letters only) and valid mobile number.', 'danger')
+      return render_template('login.html', step='request_code', display_code='')
+
+    if step == 'request_code':
+      display_code = str(random.randint(1000, 9999))
+      PENDING_OTPS[mobile] = display_code
+      return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
+
+    elif step == 'verify_code':
+      entered_code = request.form.get('code', '').strip()
+      display_code = request.form.get('display_code', '').strip()
+      if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_code:
+        del PENDING_OTPS[mobile]
+        session.permanent = True
+        session.pop('is_admin', None)
+        session['username'] = username
+        session['mobile'] = mobile
+        user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+        if not user_record:
+          user_record = {
+              'id': len(REGISTERED_USERS) + 1,
+              'name': username,
+              'mobile': mobile,
+              'status': 'Pending',
+              'registered_at': datetime.now(),
+              'approved_at': None,
+          }
+          REGISTERED_USERS.append(user_record)
+        else:
+          check_user_validity(user_record)
+        if user_record['status'] == 'Pending':
+          return redirect(url_for('pending_approval'))
+        return redirect(url_for('user_dashboard'))
+      else:
+        flash('Invalid code entered. Please type the correct displayed code.', 'danger')
+        return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
+
+  return render_template('login.html', step='request_code', display_code='')
+
+
+@app.route('/pending-approval')
+def pending_approval():
+  mobile = session.get('mobile', '')
+  user_record = next(
+      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+  )
+  if user_record:
+    check_user_validity(user_record)
+    if user_record['status'] == 'Approved':
+      return redirect(url_for('user_dashboard'))
+  return render_template(
+      'pending_approval.html', username=session.get('username', 'User')
+  )
+
+
+@app.route('/user-dashboard')
+def user_dashboard():
+  try:
+    mobile = session.get('mobile', '')
+    user_record = next(
+        (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+    )
+    if user_record:
+      check_user_validity(user_record)
+      if user_record['status'] == 'Pending':
+        return redirect(url_for('pending_approval'))
+    if not user_record:
+      return redirect(url_for('login'))
+
+    market_info, market_trend_data = get_live_market_data()
+    admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    festival_greeting = get_festival_greeting()
+
+    latest_data_updated = False
+    latest_filename = 'latest_nav.jpg'
+    try:
+      meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+      if os.path.exists(meta_path):
+        with open(meta_path, 'r') as mf:
+          meta = json.load(mf)
+          latest_filename = meta.get('filename', 'latest_nav.jpg')
+          last_time = meta.get('upload_time', '')
+          if is_today_filename(latest_filename, last_time):
+            latest_data_updated = True
+    except Exception as e:
+      print(f"Error checking upload status: {e}")
+
+    user_requests = [r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username')]
+
+    return render_template(
+        'user_dashboard.html',
+        username=session.get('username', 'Client'),
+        mobile=mobile,
+        market=market_info,
+        market_trend=market_trend_data,
+        equity_data=parse_fund_excel_from_db('equity_funds'),
+        balancer_data=parse_fund_excel_from_db('balancer_funds'),
+        debt_data=parse_fund_excel_from_db('debt_funds'),
+        latest_data_updated=latest_data_updated,
+        admin_online=admin_online,
+        admin_mobile=ADMIN_MOBILE,
+        festival_greeting=festival_greeting,
+        download_requests=user_requests,
+        feedbacks=USER_FEEDBACKS,
+        latest_filename=latest_filename,
+    )
+  except Exception as e:
+    print(f"Error in user dashboard: {e}")
+    return render_template('login.html')
+
+
+@app.route('/request-download', methods=['POST'])
+def request_download():
+  if 'username' not in session:
+    return jsonify({'success': False, 'message': 'Not logged in'})
+  data = request.get_json() or {}
+  file_name = data.get('filename', 'latest_nav.jpg')
+  download_type = data.get('type', 'download')
+
+  req_id = len(DOWNLOAD_REQUESTS) + 1
+  DOWNLOAD_REQUESTS.append({
+      'id': req_id,
+      'username': session.get('username', 'Client'),
+      'filename': file_name,
+      'type': download_type,
+      'status': 'Pending',
+      'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+  })
+  return jsonify({
+      'success': True,
+      'message': 'Approval request sent to Admin successfully.',
+  })
+
+
+@app.route('/get-nav-image-base64/<path:filename>')
+def get_nav_image_base64(filename):
+  if 'username' not in session and not session.get('is_admin'):
+    return jsonify({'success': False, 'message': 'Unauthorized'})
+  
+  target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+  if not os.path.exists(target_path):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        target_path = os.path.join(root, filename)
+        break
+
+  if os.path.exists(target_path):
+    import base64
+    with open(target_path, 'rb') as img_f:
+      b64_data = base64.b64encode(img_f.read()).decode('utf-8')
+    return jsonify({'success': True, 'image_data': f"data:image/jpeg;base64,{b64_data}"})
+  
+  return jsonify({'success': False, 'message': 'Image not found'})
+
+
+@app.route('/view-archive-secured/<path:filename>')
+def view_archive_secured(filename):
+  if 'username' not in session and not session.get('is_admin'):
+    return redirect(url_for('login'))
+  
+  if session.get('is_admin'):
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+  approved_req = next((r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username') and r['filename'] == filename and r['status'] == 'Approved' and r['type'] == 'download'), None)
+  if approved_req:
+    archive_base = ARCHIVE_FOLDER
+    for root, dirs, files in os.walk(archive_base):
+      if filename in files:
+        return send_from_directory(root, filename)
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+  
+  flash('Download requires Admin Approval. Request submitted.', 'warning')
+  return redirect(url_for('user_dashboard'))
+
+
+@app.route('/submit-feedback', methods=['POST'])
+def submit_feedback():
+  if 'username' not in session:
+    return redirect(url_for('login'))
+  feedback_text = request.form.get('feedback')
+  rating = request.form.get('rating', '5')
+  if feedback_text:
+    USER_FEEDBACKS.append({
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': session.get('username', 'Client'),
+        'feedback': feedback_text,
+        'rating': int(rating) if str(rating).isdigit() else 5,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    })
+    flash('Feedback submitted successfully!', 'success')
+  return redirect(url_for('user_dashboard'))
+
+
+@app.route('/admin-login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def admin_login():
+  if request.method == 'POST':
+    mobile_input = request.form.get('mobile')
+    password_input = request.form.get('password')
+    if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
+      session.permanent = True
+      session.pop('username', None)
+      session.pop('mobile', None)
+      session['is_admin'] = True
+      ADMIN_ACTIVITY['last_active'] = datetime.now()
+      return redirect(url_for('admin_dashboard'))
+    else:
+      flash('Invalid Admin Credentials', 'danger')
+  return render_template('admin_login.html')
+
+
+@app.route('/admin')
+def admin_redirect():
+  if session.get('is_admin'):
+    return redirect(url_for('admin_dashboard'))
+  return redirect(url_for('admin_login'))
+
+
+@app.route('/admin-dashboard', methods=['GET', 'POST'])
+def admin_dashboard():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    check_user_validity(user)
+
+  market_info, market_trend_data = get_live_market_data()
+  festival_greeting = get_festival_greeting()
+  user_filter = request.args.get('user_filter', 'all')
+
+  return render_template(
+      'admin_dashboard.html',
+      market=market_info,
+      market_trend=market_trend_data,
+      users=REGISTERED_USERS,
+      feedbacks=USER_FEEDBACKS,
+      download_requests=DOWNLOAD_REQUESTS,
+      equity_data=parse_fund_excel_from_db('equity_funds'),
+      balancer_data=parse_fund_excel_from_db('balancer_funds'),
+      debt_data=parse_fund_excel_from_db('debt_funds'),
+      auto_approval_enabled=ADMIN_SETTINGS['auto_approval_enabled'],
+      current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
+      festival_greeting=festival_greeting,
+      user_filter=user_filter,
+  )
+
+
+@app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
+def approve_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Approved'
+      flash(f"Download request for {req['filename']} approved!", 'success')
+      break
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
+def reject_download(req_id):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  for req in DOWNLOAD_REQUESTS:
+    if req['id'] == req_id:
+      req['status'] = 'Rejected'
+      flash(f"Download request for {req['filename']} rejected.", 'danger')
+      break
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/toggle-auto-approval', methods=['POST'])
+def toggle_auto_approval():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
+  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  flash(f'Auto-approval has been {status_text} successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
+def update_user_status(user_id, status):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  for user in REGISTERED_USERS:
+    if user['id'] == user_id:
+      user['status'] = status.capitalize()
+      if status.capitalize() == 'Approved':
+        user['approved_at'] = datetime.now().isoformat()
+      else:
+        user['approved_at'] = None
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/approve-all-users', methods=['POST'])
+def approve_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  now_iso = datetime.now().isoformat()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Approved'
+      user['approved_at'] = now_iso
+  flash('All pending users approved successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/decline-all-users', methods=['POST'])
+def decline_all_users():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+  for user in REGISTERED_USERS:
+    if user['status'] == 'Pending':
+      user['status'] = 'Pending'
+      user['approved_at'] = None
+  flash('All pending users declined successfully!', 'success')
+  return redirect(url_for('admin_dashboard'))
+
+
+def format_alloc(val):
+  try:
+    return f"{round(float(val) * 100, 2)}%"
+  except Exception:
+    return str(val).strip()
+
+
+def match_fund_name(sheet_name, fund_names):
+  s_clean = sheet_name.strip().lower()
+  for fn in fund_names:
+    if fn.lower() == s_clean:
+      return fn
+  s_norm = ''.join(ch for ch in s_clean if ch.isalnum())
+  for fn in fund_names:
+    if ''.join(ch for ch in fn.lower() if ch.isalnum()) == s_norm:
+      return fn
+  if len(s_clean) >= 28:
+    for fn in fund_names:
+      if fn.lower().startswith(s_clean[:28]):
+        return fn
+  return sheet_name.strip()
+
+
+def parse_workbook(excel_source):
+  xl = pd.ExcelFile(excel_source)
+  summary_df = xl.parse(xl.sheet_names[0])
+  summary_df = summary_df.dropna(subset=[summary_df.columns[0]])
+  fund_names = [
+      str(x).strip()
+      for x in summary_df.iloc[:, 0]
+      if str(x).strip() and str(x).strip().lower() not in ('nan', 'funds')
+  ]
+
+  sectors_rows, holdings_rows, debt_rows = [], [], []
+
+  for sheet_name in xl.sheet_names[1:]:
+    df = xl.parse(sheet_name)
+    if df.empty or df.shape[1] < 2:
+      continue
+
+    matched_name = match_fund_name(sheet_name, fund_names)
+    current_section = None
+
+    for _, row in df.iterrows():
+      col0 = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ''
+      col1 = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ''
+      if not col0:
+        continue
+
+      col0_low = col0.lower()
+      if col0_low.startswith('top 10 sectors'):
+        current_section = 'sectors'
+        continue
+      if col0_low == 'equity':
+        current_section = 'equity'
+        continue
+      if col0_low == 'corporate securities':
+        current_section = 'corp_debt'
+        continue
+      if col0_low.startswith('government securities'):
+        current_section = 'gov_debt'
+        continue
+      if col0_low == 'debt portfolio by maturity':
+        current_section = 'maturity'
+        continue
+      if col0_low == 'rating profile':
+        current_section = 'rating'
+        continue
+      if col0_low.startswith('holdings as on'):
+        current_section = None
+        continue
+      if col0_low in ('total', 'grand total', 'others: debt, money-market, current assets and cash'):
+        continue
+
+      if current_section == 'sectors' and col1 and col1.lower() not in ('% of assets invested', 'nan'):
+        sectors_rows.append({
+            'fund': matched_name,
+            'sector': col0,
+            'allocation': format_alloc(row.iloc[1]),
+        })
+      elif current_section == 'equity' and col1 and col1.lower() not in ('% of assets invested', 'nan'):
+        holdings_rows.append({
+            'fund': matched_name,
+            'asset_type': 'Equity',
+            'holding': col0,
+            'rating': '',
+            'allocation': format_alloc(row.iloc[1]),
+        })
+      elif current_section == 'corp_debt' and col1 and col1.lower() not in ('rating', 'nan'):
+        alloc_raw = row.iloc[2] if df.shape[1] > 2 and pd.notna(row.iloc[2]) else row.iloc[1]
+        holdings_rows.append({
+            'fund': matched_name,
+            'asset_type': 'Corporate Debt',
+            'holding': col0,
+            'rating': col1,
+            'allocation': format_alloc(alloc_raw),
+        })
+      elif current_section == 'gov_debt' and col1 and col1.lower() not in ('rating', 'nan'):
+        alloc_raw = row.iloc[2] if df.shape[1] > 2 and pd.notna(row.iloc[2]) else row.iloc[1]
+        holdings_rows.append({
+            'fund': matched_name,
+            'asset_type': 'Government Securities',
+            'holding': col0,
+            'rating': col1,
+            'allocation': format_alloc(alloc_raw),
+        })
+      elif current_section in ('maturity', 'rating') and col1 and col1.lower() not in ('allocation as a %', '% of assets invested', 'nan'):
+        debt_rows.append({
+            'fund': matched_name,
+            'metric_type': current_section,
+            'label': col0,
+            'allocation': format_alloc(row.iloc[1]),
+        })
+
+  return (
+      summary_df,
+      pd.DataFrame(sectors_rows),
+      pd.DataFrame(holdings_rows),
+      pd.DataFrame(debt_rows),
+  )
+
+
+def get_fund_portfolio_details(category, fund_name):
+  sectors, holdings, debt_metrics = [], [], []
+  if not engine:
+    return sectors, holdings, debt_metrics
+  target = fund_name.strip().lower()
+  try:
+    df_s = pd.read_sql(f'SELECT * FROM {category}_sectors', engine)
+    if not df_s.empty and 'fund' in df_s.columns:
+      matched = df_s[df_s['fund'].astype(str).str.strip().str.lower() == target]
+      sectors = matched.to_dict('records')
+  except Exception as e:
+    print(f'Error reading {category}_sectors: {e}')
+
+  try:
+    df_h = pd.read_sql(f'SELECT * FROM {category}_holdings', engine)
+    if not df_h.empty and 'fund' in df_h.columns:
+      matched = df_h[df_h['fund'].astype(str).str.strip().str.lower() == target]
+      holdings = matched.to_dict('records')
+  except Exception as e:
+    print(f'Error reading {category}_holdings: {e}')
+
+  try:
+    df_d = pd.read_sql(f'SELECT * FROM {category}_debt_metrics', engine)
+    if not df_d.empty and 'fund' in df_d.columns:
+      matched = df_d[df_d['fund'].astype(str).str.strip().str.lower() == target]
+      debt_metrics = matched.to_dict('records')
+  except Exception as e:
+    print(f'Error reading {category}_debt_metrics: {e}')
+
+  return sectors, holdings, debt_metrics
+
+
+@app.route('/fund/<category>/<path:fund_name>')
+def fund_detail(category, fund_name):
+  if 'username' not in session and not session.get('is_admin'):
+    return redirect(url_for('login'))
+
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    flash('Invalid fund category.', 'danger')
+    return redirect(url_for('admin_dashboard' if session.get('is_admin') else 'user_dashboard'))
+
+  funds = parse_fund_excel_from_db(f'{cat}_funds')
+  matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
+  if not matched_fund:
+    flash('Fund details not found.', 'warning')
+    return redirect(url_for('admin_dashboard' if session.get('is_admin') else 'user_dashboard'))
+
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
+  is_admin = bool(session.get('is_admin')) and ('username' not in session)
+  viewer_label = 'Admin - Bijoosh Padmakumar' if is_admin else session.get('username', 'Client')
+  back_url = url_for('admin_dashboard') if is_admin else url_for('user_dashboard')
+
+  return render_template(
+      'fund_detail.html',
+      category=cat,
+      fund_data=matched_fund,
+      sectors=sectors,
+      holdings=holdings,
+      debt_metrics=debt_metrics,
+      viewer_label=viewer_label,
+      username=session.get('username', 'Client'),
+      back_url=back_url,
+  )
+
+
+@app.route('/upload-master-category', methods=['GET', 'POST'])
+def upload_master_category():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      category = request.form.get('category')
+      file_key = f'{category}_file'
+      if file_key in request.files:
+        file = request.files[file_key]
+        if file and file.filename != '':
+          if not engine:
+            flash('Database connection error.', 'danger')
+            return redirect(url_for('admin_dashboard'))
+
+          summary_df, sec_df, hold_df, debt_df = parse_workbook(file)
+          summary_df.to_sql(f'{category}_funds', engine, if_exists='replace', index=False)
+          if not sec_df.empty:
+            sec_df.to_sql(f'{category}_sectors', engine, if_exists='replace', index=False)
+          if not hold_df.empty:
+            hold_df.to_sql(f'{category}_holdings', engine, if_exists='replace', index=False)
+          if not debt_df.empty:
+            debt_df.to_sql(f'{category}_debt_metrics', engine, if_exists='replace', index=False)
+
+          flash(f'{category.capitalize()} funds, sectors & holdings updated permanently in Supabase!', 'success')
+    except Exception as e:
+      flash(f'Error updating category: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-nav', methods=['GET', 'POST'])
+def upload_nav():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      file = request.files.get('nav_image')
+      if file and file.filename != '':
+        raw_fn = file.filename
+        filename = secure_filename(raw_fn)
+        if not filename:
+          filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+        # Optimize and compress image using Pillow to guarantee fast uploads and rendering
+        file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
+
+        try:
+          img = Image.open(file)
+          img.thumbnail((1600, 1600))
+          img.save(file_path_upload, optimize=True, quality=85)
+          img.save(latest_ref_path, optimize=True, quality=85)
+        except Exception:
+          file.seek(0)
+          file_bytes = file.read()
+          with open(file_path_upload, 'wb') as f:
+            f.write(file_bytes)
+          with open(latest_ref_path, 'wb') as f:
+            f.write(file_bytes)
+
+        # Instantly update metadata so user dashboard switches to latest data immediately without lag
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        with open(meta_path, 'w') as mf:
+          json.dump({
+              'filename': filename,
+              'original_filename': raw_fn,
+              'upload_time': datetime.now().isoformat()
+          }, mf)
+
+        target_year, target_month = extract_date_from_filename(raw_fn)
+        archive_target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+        os.makedirs(archive_target_dir, exist_ok=True)
+        archive_file_path = os.path.join(archive_target_dir, filename)
+        if os.path.exists(file_path_upload):
+          shutil.copy(file_path_upload, archive_file_path)
+
+        flash(f'Successfully published & optimized NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
+      else:
+        flash('No file selected for NAV upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading NAV image: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/upload-archive', methods=['GET', 'POST'])
+def upload_archive():
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  if request.method == 'POST':
+    try:
+      year = request.form.get('archive_year', datetime.now().strftime('%Y'))
+      month_input = request.form.get('archive_month', 'Oct').strip().lower()
+
+      month_map = {
+          'jan': 'January', 'feb': 'February', 'mar': 'March',
+          'apr': 'April', 'may': 'May', 'jun': 'June',
+          'jul': 'July', 'aug': 'August', 'sep': 'September',
+          'oct': 'October', 'nov': 'November', 'dec': 'December'
+      }
+      full_month_name = month_map.get(month_input[:3], 'October')
+
+      saved_count = 0
+      files = request.files.getlist('archive_files')
+      for file in files:
+        if file and file.filename != '':
+          raw_fn = file.filename
+          filename = secure_filename(raw_fn)
+          if not filename:
+            filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
+
+          f_year, f_month = extract_date_from_filename(raw_fn)
+          target_year = f_year if f_year else year
+          target_month = f_month if f_month else full_month_name
+
+          target_dir = os.path.join(ARCHIVE_FOLDER, target_year, target_month)
+          os.makedirs(target_dir, exist_ok=True)
+          file_path = os.path.join(target_dir, filename)
+          file.save(file_path)
+          
+          upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+          shutil.copy(file_path, upload_mirror_path)
+          
+          saved_count += 1
+
+      if saved_count > 0:
+        flash(f'Successfully uploaded {saved_count} archive file(s) and synced to folders!', 'success')
+      else:
+        flash('No files selected for archive upload.', 'warning')
+    except Exception as e:
+      flash(f'Error uploading archive files: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/delete-archive-file/<filename>', methods=['POST'])
+def delete_archive_file(filename):
+  if not session.get('is_admin'):
+    return redirect(url_for('admin_login'))
+  
+  ADMIN_ACTIVITY['last_active'] = datetime.now()
+
+  try:
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    if os.path.exists(file_path):
+      os.remove(file_path)
+      flash(f'Successfully deleted: {filename}', 'success')
+    else:
+      flash('File not found.', 'danger')
+  except Exception as e:
+    flash(f'Error deleting file: {e}', 'danger')
+  return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/get-archive-files', methods=['GET'])
+def get_archive_files():
+  year = request.args.get('year', '').strip()
+  month_input = request.args.get('month', '').strip().lower()
+  matched_files = []
+
+  month_map = {
+      'jan': 'January', 'feb': 'February', 'mar': 'March',
+      'apr': 'April', 'may': 'May', 'jun': 'June',
+      'jul': 'July', 'aug': 'August', 'sep': 'September',
+      'oct': 'October', 'nov': 'November', 'dec': 'December',
+      'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
+      'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
+      'october': 'October', 'november': 'November', 'december': 'December'
+  }
+  full_month = month_map.get(month_input[:3], month_input.capitalize())
+
+  target_dir = os.path.join(ARCHIVE_FOLDER, year, full_month)
+
+  if os.path.exists(target_dir):
+    try:
+      for f in os.listdir(target_dir):
+        if f.lower().endswith(('.png', '.jpg', '.jpeg', '.pdf')):
+          matched_files.append(f)
+    except Exception as e:
+      print(f'Error reading archive directory: {e}')
+
+  sorted_files = sorted(list(set(matched_files)), reverse=True)
+  return jsonify({'success': True, 'files': sorted_files})
+
+
+if __name__ == '__main__':
+  app.run(debug=True)
