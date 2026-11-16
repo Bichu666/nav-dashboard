@@ -167,23 +167,6 @@
             transform: translateY(-1px);
         }
 
-        .login-footer {
-            margin-top: 22px;
-            text-align: center;
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        .login-footer a {
-            color: var(--accent-gold);
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .login-footer a:hover {
-            text-decoration: underline;
-        }
-
         .validity-note {
             margin-top: 12px;
             font-size: 12px;
@@ -256,10 +239,6 @@
                 <button type="submit" class="btn-submit">Get Verification Code</button>
             {% endif %}
         </form>
-
-        <div class="login-footer">
-            <a href="{{ url_for('admin_login') }}">Admin Login</a>
-        </div>
     </div>
 </body>
 </html>
