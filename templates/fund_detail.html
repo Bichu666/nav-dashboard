@@ -204,7 +204,7 @@
                 <span class="category-pill">{{ category }} Fund</span>
                 <h1>{{ fund_data.fund }}</h1>
                 <div style="font-size: 13px; color: var(--text-muted); margin-top: 6px;">
-                    Viewer: <strong style="color: var(--accent-gold);">{{ username }}</strong> &bull; Admin - Bijoosh Padmakumar
+                    Viewer: <strong style="color: var(--accent-gold);">{{ viewer_label }}</strong>
                 </div>
             </div>
             <div>
@@ -306,6 +306,7 @@
                         <tr>
                             <th>#</th>
                             <th>Holding / Security</th>
+                            <th>Type / Rating</th>
                             <th>Allocation</th>
                         </tr>
                     </thead>
@@ -314,11 +315,12 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ item.holding }}</td>
+                            <td>{{ item.asset_type }}{% if item.rating %} ({{ item.rating }}){% endif %}</td>
                             <td>{{ item.allocation }}</td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="3" style="text-align: center; color: var(--text-muted);">
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">
                                 No asset holdings uploaded for this fund yet.
                             </td>
                         </tr>
@@ -327,6 +329,30 @@
                 </table>
             </div>
         </div>
+
+        {% if debt_metrics %}
+        <div class="panel">
+            <h3>Debt Portfolio Maturity & Rating Profile</h3>
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Bracket / Rating</th>
+                        <th>Allocation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in debt_metrics %}
+                    <tr>
+                        <td>{{ item.metric_type | capitalize }}</td>
+                        <td>{{ item.label }}</td>
+                        <td>{{ item.allocation }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
 
         <footer class="portal-footer" style="font-size: 14px; padding: 24px 0; text-align: center; color: var(--text-muted);">
             <p>NAV Updates Portal &bull; Full Fund & Portfolio View</p>
