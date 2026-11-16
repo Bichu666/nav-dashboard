@@ -102,6 +102,58 @@
 
         .nav-red-alert, .market-neg { color: var(--red) !important; font-weight: 600; }
         .nav-green, .market-pos { color: var(--green) !important; font-weight: 600; }
+<<<<<<< HEAD
+=======
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            padding: 30px;
+            border-radius: 12px;
+            width: 850px;
+            max-width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 26px;
+            font-weight: bold;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+
+        .modal-returns-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .modal-returns-table th, .modal-returns-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            font-size: 14px;
+        }
+        .modal-returns-table th { background: var(--bg-card); color: var(--accent-gold); }
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
 
         .top-grid {
             display: grid;
@@ -432,6 +484,13 @@
             </div>
         </div>
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+        <!-- Moved User Feedback & Download Approvals Just Below Upload Excels -->
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
         <div class="panel" style="margin-bottom: 24px;">
             <h3>Show User Feedback, Suggestion and Rating</h3>
             <table class="approval-table">
@@ -458,6 +517,7 @@
             </table>
         </div>
 
+<<<<<<< HEAD
         <!-- Live User Messages & Chat Center Placed Just Below Feedback Panel -->
         <div class="panel" style="margin-bottom: 24px;">
             <h3>Live User Messages & Chat Center</h3>
@@ -490,6 +550,8 @@
             </div>
         </div>
 
+=======
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
         <div class="panel" style="margin-bottom: 24px;">
             <h3>NAV Image Download Approval Requests</h3>
             <table class="approval-table">
@@ -556,8 +618,16 @@
                     <tr>
                         <th>Registered User Accounts</th>
                         <th>Mobile number</th>
+<<<<<<< HEAD
+<<<<<<< HEAD
                         <th>Presence Status</th>
                         <th>Last Login Date & Time</th>
+=======
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+                        <th>Presence Status</th>
+                        <th>Last Login Date & Time</th>
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -568,6 +638,10 @@
                         <tr>
                             <td>{{ user.name }} (ID: {{ user.id }})</td>
                             <td>{{ user.mobile }}</td>
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                             <td>
                                 {% if user.is_online %}
                                     <span style="color: var(--green); font-weight: bold;">● Online</span>
@@ -576,6 +650,11 @@
                                 {% endif %}
                             </td>
                             <td>{{ user.last_login | default('N/A') }}</td>
+<<<<<<< HEAD
+=======
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                             <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                             <td>
                                 <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
@@ -593,8 +672,18 @@
         </div>
 
         <div class="funds-stack-container">
+<<<<<<< HEAD
+<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
+=======
+            <div class="fund-section-box">
+                <div class="section-title-bar">Equity Funds</div>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Equity Funds (Click any fund for full performance details)</div>
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -608,7 +697,11 @@
                     </thead>
                     <tbody>
                         {% for row in equity_data %}
+<<<<<<< HEAD
                         <tr class="fund-clickable-row" onclick="window.location.href='/fund/equity/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
+=======
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -623,8 +716,18 @@
                 </table>
             </div>
 
+<<<<<<< HEAD
+<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
+=======
+            <div class="fund-section-box">
+                <div class="section-title-bar">Balancer Funds</div>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Balancer Funds (Click any fund for full performance details)</div>
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -638,7 +741,11 @@
                     </thead>
                     <tbody>
                         {% for row in balancer_data %}
+<<<<<<< HEAD
                         <tr class="fund-clickable-row" onclick="window.location.href='/fund/balancer/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
+=======
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -653,8 +760,18 @@
                 </table>
             </div>
 
+<<<<<<< HEAD
+<<<<<<< HEAD
             <div class="fund-section-box" style="margin-bottom: 20px;">
                 <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
+=======
+            <div class="fund-section-box">
+                <div class="section-title-bar">Debt Funds</div>
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+            <div class="fund-section-box" style="margin-bottom: 20px;">
+                <div class="section-title-bar">Debt Funds (Click any fund for full performance details)</div>
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
                 <table class="fund-table-full">
                     <thead>
                         <tr>
@@ -668,7 +785,11 @@
                     </thead>
                     <tbody>
                         {% for row in debt_data %}
+<<<<<<< HEAD
                         <tr class="fund-clickable-row" onclick="window.location.href='/fund/debt/' + encodeURIComponent({{ row.fund | tojson | safe }})" style="cursor: pointer;">
+=======
+                        <tr class="fund-clickable-row" onclick='openModal({{ row | tojson | safe }})' style="cursor: pointer;">
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
                             <td><b style="color: var(--accent-gold); text-decoration: underline;">{{ row.fund }}</b></td>
                             <td>{{ row.inception }}</td>
                             <td>{{ row.benchmark }}</td>
@@ -689,6 +810,7 @@
         </footer>
     </div>
 
+<<<<<<< HEAD
     <script>
         // Generate crisp 12 hour ticks around the 145px Admin clock face
         const adminClockFace = document.getElementById('admin-clock-face');
@@ -875,6 +997,136 @@
         setInterval(() => {
             fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
         }, 30000);
+=======
+    <div id="fundModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 id="modal-fund-name" style="color: var(--accent-gold); margin-top: 0; font-size: 20px;">Fund Name</h2>
+            <div class="modal-info-grid" style="font-size: 14px; margin-bottom: 15px; display: flex; gap: 20px; color: var(--text-muted);">
+                <div><strong>Inception Date:</strong> <span id="modal-inception" style="color:#fff;"></span></div>
+                <div><strong>Benchmark Name:</strong> <span id="modal-benchmark" style="color:#fff;"></span></div>
+            </div>
+            
+            <table class="modal-returns-table">
+                <thead>
+                    <tr>
+                        <th>Metric / Period</th>
+                        <th>Value / Return</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Since Inception</td><td id="m-since"></td></tr>
+                    <tr><td>1 Month</td><td id="m-1m"></td></tr>
+                    <tr><td>6 Month</td><td id="m-6m"></td></tr>
+                    <tr><td>1 Year</td><td id="m-1y"></td></tr>
+                    <tr><td>2 Year</td><td id="m-2y"></td></tr>
+                    <tr><td>3 Year</td><td id="m-3y"></td></tr>
+                    <tr><td>4 Year</td><td id="m-4y"></td></tr>
+                    <tr><td>5 Year</td><td id="m-5y"></td></tr>
+                    <tr><td>7 Year</td><td id="m-7y"></td></tr>
+                    <tr><td>10 Year</td><td id="m-10y"></td></tr>
+                    <tr><td>Highest NAV</td><td id="m-high"></td></tr>
+                    <tr><td>Latest NAV</td><td id="m-latest"></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            const timeString = now.toLocaleString('en-US', options);
+            document.getElementById('live-clock').innerText = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function openModal(data) {
+            document.getElementById('modal-fund-name').innerText = data.fund;
+            document.getElementById('modal-inception').innerText = data.inception;
+            document.getElementById('modal-benchmark').innerText = data.benchmark;
+
+            const percentageFields = [
+                {id: 'm-since', val: data.since}, {id: 'm-1m', val: data.m1}, {id: 'm-6m', val: data.m6},
+                {id: 'm-1y', val: data.y1}, {id: 'm-2y', val: data.y2}, {id: 'm-3y', val: data.y3},
+                {id: 'm-4y', val: data.y4}, {id: 'm-5y', val: data.y5}, {id: 'm-7y', val: data.y7}, {id: 'm-10y', val: data.y10}
+            ];
+
+            percentageFields.forEach(f => {
+                let cell = document.getElementById(f.id);
+                let rawVal = f.val !== undefined && f.val !== null ? f.val : "0";
+                let num = parseFloat(String(rawVal).replace('%', ''));
+                cell.innerText = rawVal + (String(rawVal).includes('%') ? '' : '%');
+                cell.className = (isNaN(num) || num <= 0) ? "nav-red-alert" : "nav-green";
+            });
+
+            let highCell = document.getElementById('m-high');
+            highCell.innerText = data.high;
+            highCell.className = "nav-green";
+
+            let latestCell = document.getElementById('m-latest');
+            let latestRaw = data.latest !== undefined && data.latest !== null ? data.latest : "10";
+            let latestNum = parseFloat(String(latestRaw).replace(',', ''));
+            latestCell.innerText = latestRaw;
+            latestCell.className = (isNaN(latestNum) || latestNum < 10) ? "nav-red-alert" : "nav-green";
+
+            document.getElementById('fundModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('fundModal').style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            let fundModal = document.getElementById('fundModal');
+            if (event.target == fundModal) { closeModal(); }
+        }
+
+        setInterval(() => {
+            fetch('/api/market-live')
+                .then(response => response.json())
+                .then(data => {
+                    const statusLabel = document.getElementById('market-status-label');
+                    if (statusLabel) statusLabel.innerText = data.time_label;
+
+                    const nifty50Val = document.getElementById('nifty50-val');
+                    const nifty50Chg = document.getElementById('nifty50-chg');
+                    if (nifty50Val) nifty50Val.innerText = data.nifty50.value;
+                    if (nifty50Chg) {
+                        nifty50Chg.innerText = data.nifty50.change;
+                        nifty500Chg.className = data.nifty50.is_positive ? 'market-pos' : 'market-neg';
+                    }
+
+                    const sensexVal = document.getElementById('sensex-val');
+                    const sensexChg = document.getElementById('sensex-chg');
+                    if (sensexVal) sensexVal.innerText = data.sensex.value;
+                    if (sensexChg) {
+                        sensexChg.innerText = data.sensex.change;
+                        sensexChg.className = data.sensex.is_positive ? 'market-pos' : 'market-neg';
+                    }
+
+                    const nifty500Val = document.getElementById('nifty500-val');
+                    const nifty500Chg = document.getElementById('nifty500-chg');
+                    if (nifty500Val) nifty500Val.innerText = data.nifty500.value;
+                    if (nifty500Chg) {
+                        nifty500Chg.innerText = data.nifty500.change;
+                        nifty500Chg.className = data.nifty500.is_positive ? 'market-pos' : 'market-neg';
+                    }
+                })
+                .catch(err => console.error('Market live refresh error:', err));
+        }, 10000);
+
+<<<<<<< HEAD
+        setTimeout(function() {
+            location.reload();
+        }, 120000);
+>>>>>>> 45aef26 (Update indices, zoom modal, and login security)
+=======
+        setInterval(() => {
+            fetch('/api/heartbeat', {method: 'POST'}).catch(e => {});
+        }, 30000);
+>>>>>>> 3e15637 (Update app.py with live market data and image compression)
     </script>
 </body>
 </html>
