@@ -25,6 +25,7 @@ from flask import (
 )
 import smtplib
 from sqlalchemy import create_engine
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -53,6 +54,42 @@ ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
+
+ADMIN_COOKIE_NAME = 'nav_admin_session'
+admin_serializer = URLSafeTimedSerializer(app.secret_key)
+
+
+def set_admin_cookie(response):
+  token = admin_serializer.dumps({'is_admin': True, 'ts': datetime.now().isoformat()})
+  response.set_cookie(
+      ADMIN_COOKIE_NAME,
+      token,
+      max_age=30 * 24 * 3600,
+      httponly=True,
+      samesite='Lax',
+  )
+  return response
+
+
+def clear_admin_cookie(response):
+  response.delete_cookie(ADMIN_COOKIE_NAME)
+  return response
+
+
+def is_admin_authenticated():
+  token = request.cookies.get(ADMIN_COOKIE_NAME)
+  if token:
+    try:
+      data = admin_serializer.loads(token, max_age=30 * 24 * 3600)
+      if data.get('is_admin'):
+        return True
+    except (BadSignature, SignatureExpired, Exception):
+      pass
+  # Also allow pure admin session if no regular user session is active
+  if session.get('is_admin') and 'username' not in session:
+    return True
+  return False
+
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
 ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
 ADMIN_MOBILE = "+918078535666"
@@ -65,6 +102,8 @@ REGISTERED_USERS = [
         'status': 'Pending',
         'registered_at': datetime.now() - timedelta(minutes=3),
         'approved_at': None,
+        'last_seen': None,
+        'is_online': False,
     },
     {
         'id': 2,
@@ -73,6 +112,8 @@ REGISTERED_USERS = [
         'status': 'Approved',
         'registered_at': datetime.now() - timedelta(days=5),
         'approved_at': datetime.now().isoformat(),
+        'last_seen': None,
+        'is_online': False,
     },
     {
         'id': 3,
@@ -81,8 +122,39 @@ REGISTERED_USERS = [
         'status': 'Approved',
         'registered_at': datetime.now() - timedelta(days=10),
         'approved_at': datetime.now().isoformat(),
+        'last_seen': None,
+        'is_online': False,
     },
 ]
+
+
+def touch_user_online(mobile_or_name=None):
+  now = datetime.now()
+  target_mobile = re.sub(r'\D', '', str(mobile_or_name or session.get('mobile', '')))
+  target_name = str(mobile_or_name or session.get('username', '')).strip().lower()
+  for u in REGISTERED_USERS:
+    u_mob = re.sub(r'\D', '', str(u.get('mobile', '')))
+    u_name = str(u.get('name', '')).strip().lower()
+    if (target_mobile and u_mob == target_mobile) or (target_name and u_name == target_name):
+      u['last_seen'] = now
+      u['is_online'] = True
+      u['online_status'] = 'Online'
+    else:
+      last_seen = u.get('last_seen')
+      is_on = bool(last_seen and (now - last_seen) < timedelta(minutes=5))
+      u['is_online'] = is_on
+      u['online_status'] = 'Online' if is_on else 'Offline'
+  return REGISTERED_USERS
+
+
+def refresh_all_users_online_status():
+  now = datetime.now()
+  for u in REGISTERED_USERS:
+    last_seen = u.get('last_seen')
+    is_on = bool(last_seen and (now - last_seen) < timedelta(minutes=5))
+    u['is_online'] = is_on
+    u['online_status'] = 'Online' if is_on else 'Offline'
+  return REGISTERED_USERS
 
 USER_FEEDBACKS = [
     {
@@ -209,8 +281,8 @@ def get_festival_greeting():
 WHATSAPP_LOGS = []
 
 
-def send_whatsapp_notification(message, to_phone=None):
-  target_phone = (to_phone or os.getenv('WHATSAPP_TO') or ADMIN_MOBILE).strip()
+def _dispatch_whatsapp_sync(message, to_phone=None):
+  target_phone = (to_phone or os.getenv('WHATSAPP_TO') or os.getenv('ADMIN_WHATSAPP') or ADMIN_MOBILE).strip()
   clean_digits = re.sub(r'\D', '', target_phone)
   if len(clean_digits) == 10:
     clean_digits = '91' + clean_digits
@@ -218,15 +290,16 @@ def send_whatsapp_notification(message, to_phone=None):
   now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
 
   # 1. CallMeBot free WhatsApp API
-  callmebot_key = os.getenv('CALLMEBOT_APIKEY', '').strip()
-  callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE', clean_digits))
+  callmebot_key = (os.getenv('CALLMEBOT_APIKEY') or os.getenv('WHATSAPP_API_KEY') or '').strip()
+  callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE') or clean_digits)
   if callmebot_key and callmebot_phone:
     try:
       resp = requests.get(
           'https://api.callmebot.com/whatsapp.php',
           params={'phone': callmebot_phone, 'text': message, 'apikey': callmebot_key},
-          timeout=10,
+          timeout=12,
       )
+      print(f'CallMeBot WhatsApp response: {resp.status_code} {resp.text[:120]}')
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
@@ -250,8 +323,9 @@ def send_whatsapp_notification(message, to_phone=None):
               'type': 'text',
               'text': {'body': message},
           },
-          timeout=10,
+          timeout=12,
       )
+      print(f'Meta WhatsApp response: {resp.status_code} {resp.text[:120]}')
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
@@ -262,15 +336,16 @@ def send_whatsapp_notification(message, to_phone=None):
   tw_sid = os.getenv('TWILIO_ACCOUNT_SID', '').strip()
   tw_token = os.getenv('TWILIO_AUTH_TOKEN', '').strip()
   tw_from = os.getenv('TWILIO_WHATSAPP_FROM', '').strip()
-  tw_to = os.getenv('TWILIO_WHATSAPP_TO', f'whatsapp:+{clean_digits}').strip()
+  tw_to = (os.getenv('TWILIO_WHATSAPP_TO') or f'whatsapp:+{clean_digits}').strip()
   if tw_sid and tw_token and tw_from and tw_to:
     try:
       resp = requests.post(
           f'https://api.twilio.com/2010-04-01/Accounts/{tw_sid}/Messages.json',
           auth=(tw_sid, tw_token),
           data={'From': tw_from, 'To': tw_to, 'Body': message},
-          timeout=10,
+          timeout=12,
       )
+      print(f'Twilio WhatsApp response: {resp.status_code} {resp.text[:120]}')
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
@@ -280,6 +355,11 @@ def send_whatsapp_notification(message, to_phone=None):
   print(f'WhatsApp notification skipped (no WhatsApp API env vars configured): {message}')
   WHATSAPP_LOGS.append({'time': now_str, 'provider': 'unconfigured', 'status': 'skipped', 'message': message})
   return False
+
+
+def send_whatsapp_notification(message, to_phone=None):
+  threading.Thread(target=_dispatch_whatsapp_sync, args=(message, to_phone), daemon=True).start()
+  return True
 
 
 def send_email_notification(subject, body):
@@ -597,7 +677,7 @@ def login():
         session.pop('is_admin', None)
         session['username'] = username
         session['mobile'] = mobile
-        user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
+        user_record = next((u for u in REGISTERED_USERS if re.sub(r'\D', '', u['mobile']) == re.sub(r'\D', '', mobile)), None)
         if not user_record:
           user_record = {
               'id': len(REGISTERED_USERS) + 1,
@@ -606,14 +686,16 @@ def login():
               'status': 'Pending',
               'registered_at': datetime.now(),
               'approved_at': None,
+              'last_seen': datetime.now(),
+              'is_online': True,
           }
           REGISTERED_USERS.append(user_record)
           send_whatsapp_notification(f"New User Login/Approval Request: {username} ({mobile})")
         else:
           check_user_validity(user_record)
-        if user_record['status'] == 'Pending':
-          return redirect(url_for('pending_approval'))
-        return redirect(url_for('user_dashboard'))
+        touch_user_online(mobile)
+        resp = redirect(url_for('pending_approval') if user_record['status'] == 'Pending' else url_for('user_dashboard'))
+        return clear_admin_cookie(resp)
       else:
         flash('Invalid code entered. Please type the correct displayed code.', 'danger')
         return render_template('login.html', step='verify_code', username=username, mobile=mobile, display_code=display_code)
@@ -640,8 +722,10 @@ def pending_approval():
 def user_dashboard():
   try:
     mobile = session.get('mobile', '')
+    touch_user_online(mobile)
+    refresh_all_users_online_status()
     user_record = next(
-        (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
+        (u for u in REGISTERED_USERS if re.sub(r'\D', '', u['mobile']) == re.sub(r'\D', '', mobile)), None
     )
     if user_record:
       check_user_validity(user_record)
@@ -743,7 +827,7 @@ def view_archive_secured(filename):
   if 'username' not in session and not session.get('is_admin'):
     return redirect(url_for('login'))
   
-  if session.get('is_admin'):
+  if is_admin_authenticated():
     archive_base = ARCHIVE_FOLDER
     for root, dirs, files in os.walk(archive_base):
       if filename in files:
@@ -788,11 +872,10 @@ def admin_login():
     password_input = request.form.get('password')
     if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
       session.permanent = True
-      session.pop('username', None)
-      session.pop('mobile', None)
       session['is_admin'] = True
       ADMIN_ACTIVITY['last_active'] = datetime.now()
-      return redirect(url_for('admin_dashboard'))
+      resp = redirect(url_for('admin_dashboard'))
+      return set_admin_cookie(resp)
     else:
       flash('Invalid Admin Credentials', 'danger')
   return render_template('admin_login.html')
@@ -800,14 +883,14 @@ def admin_login():
 
 @app.route('/admin')
 def admin_redirect():
-  if session.get('is_admin'):
+  if is_admin_authenticated():
     return redirect(url_for('admin_dashboard'))
   return redirect(url_for('admin_login'))
 
 
 @app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -838,7 +921,7 @@ def admin_dashboard():
 
 @app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
 def approve_download(req_id):
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   for req in DOWNLOAD_REQUESTS:
     if req['id'] == req_id:
@@ -850,7 +933,7 @@ def approve_download(req_id):
 
 @app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
 def reject_download(req_id):
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   for req in DOWNLOAD_REQUESTS:
     if req['id'] == req_id:
@@ -862,7 +945,7 @@ def reject_download(req_id):
 
 @app.route('/toggle-auto-approval', methods=['POST'])
 def toggle_auto_approval():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
   status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
@@ -872,7 +955,7 @@ def toggle_auto_approval():
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -889,7 +972,7 @@ def update_user_status(user_id, status):
 
 @app.route('/approve-all-users', methods=['POST'])
 def approve_all_users():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -904,7 +987,7 @@ def approve_all_users():
 
 @app.route('/decline-all-users', methods=['POST'])
 def decline_all_users():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1072,24 +1155,28 @@ def get_fund_portfolio_details(category, fund_name):
 
 @app.route('/fund/<category>/<path:fund_name>')
 def fund_detail(category, fund_name):
-  if 'username' not in session and not session.get('is_admin'):
+  has_user = bool(session.get('username'))
+  has_admin = is_admin_authenticated() and not has_user
+  if not has_user and not has_admin:
     return redirect(url_for('login'))
+
+  if has_user:
+    touch_user_online(session.get('mobile'))
 
   cat = category.strip().lower()
   if cat not in ('equity', 'balancer', 'debt'):
     flash('Invalid fund category.', 'danger')
-    return redirect(url_for('admin_dashboard' if session.get('is_admin') else 'user_dashboard'))
+    return redirect(url_for('admin_dashboard' if has_admin else 'user_dashboard'))
 
   funds = parse_fund_excel_from_db(f'{cat}_funds')
   matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
   if not matched_fund:
     flash('Fund details not found.', 'warning')
-    return redirect(url_for('admin_dashboard' if session.get('is_admin') else 'user_dashboard'))
+    return redirect(url_for('admin_dashboard' if has_admin else 'user_dashboard'))
 
   sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
-  is_admin = bool(session.get('is_admin')) and ('username' not in session)
-  viewer_label = 'Admin - Bijoosh Padmakumar' if is_admin else session.get('username', 'Client')
-  back_url = url_for('admin_dashboard') if is_admin else url_for('user_dashboard')
+  viewer_label = 'Admin - Bijoosh Padmakumar' if has_admin else session.get('username', 'Client')
+  back_url = url_for('admin_dashboard') if has_admin else url_for('user_dashboard')
 
   return render_template(
       'fund_detail.html',
@@ -1106,7 +1193,7 @@ def fund_detail(category, fund_name):
 
 @app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1140,7 +1227,7 @@ def upload_master_category():
 
 @app.route('/upload-nav', methods=['GET', 'POST'])
 def upload_nav():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1198,7 +1285,7 @@ def upload_nav():
 
 @app.route('/upload-archive', methods=['GET', 'POST'])
 def upload_archive():
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1250,7 +1337,7 @@ def upload_archive():
 
 @app.route('/delete-archive-file/<filename>', methods=['POST'])
 def delete_archive_file(filename):
-  if not session.get('is_admin'):
+  if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   
   ADMIN_ACTIVITY['last_active'] = datetime.now()
