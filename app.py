@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -54,7 +55,6 @@ ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 
 CHAT_FILE = 'chat_messages.json'
-WHATSAPP_LOG_FILE = 'whatsapp_logs.json'
 
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
@@ -191,13 +191,46 @@ DOWNLOAD_REQUESTS = [
 PENDING_OTPS = {}
 
 
+def _normalize_chat_message(msg):
+  if not isinstance(msg, dict):
+    return {
+        'id': 0,
+        'username': 'biju',
+        'user': 'biju',
+        'sender': 'biju',
+        'role': 'user',
+        'mobile': '',
+        'message': str(msg),
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    }
+  name = (
+      msg.get('username')
+      or msg.get('user')
+      or msg.get('sender')
+      or ('Admin - Bijoosh Padmakumar' if msg.get('role') == 'admin' else 'biju')
+  )
+  name = str(name).strip() or 'biju'
+  text = str(msg.get('message') or msg.get('text') or '').strip()
+  ts = str(msg.get('timestamp') or datetime.now().strftime('%b %d, %Y, %I:%M %p')).strip()
+  return {
+      'id': msg.get('id', 0),
+      'username': name,
+      'user': name,
+      'sender': name,
+      'role': msg.get('role', 'user'),
+      'mobile': str(msg.get('mobile') or ''),
+      'message': text,
+      'timestamp': ts,
+  }
+
+
 def load_chat_messages():
   try:
     if os.path.exists(CHAT_FILE):
       with open(CHAT_FILE, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        if isinstance(data, list):
-          return data
+        raw = json.load(f)
+        if isinstance(raw, list):
+          return [_normalize_chat_message(m) for m in raw]
   except Exception as e:
     print(f'Error loading chat messages: {e}')
   return []
@@ -205,8 +238,9 @@ def load_chat_messages():
 
 def save_chat_messages(messages):
   try:
+    normalized = [_normalize_chat_message(m) for m in messages[-500:]]
     with open(CHAT_FILE, 'w', encoding='utf-8') as f:
-      json.dump(messages[-500:], f, indent=2)
+      json.dump(normalized, f, indent=2)
   except Exception as e:
     print(f'Error saving chat messages: {e}')
 
@@ -306,17 +340,6 @@ def get_festival_greeting():
 WHATSAPP_LOGS = []
 
 
-def _record_whatsapp_log(provider, status, message):
-  now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
-  entry = {'time': now_str, 'provider': provider, 'status': str(status), 'message': message}
-  WHATSAPP_LOGS.append(entry)
-  try:
-    with open(WHATSAPP_LOG_FILE, 'w', encoding='utf-8') as f:
-      json.dump(WHATSAPP_LOGS[-200:], f, indent=2)
-  except Exception:
-    pass
-
-
 def _dispatch_whatsapp_sync(message, to_phone=None):
   target_phone = (
       to_phone
@@ -328,7 +351,8 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
   if len(clean_digits) == 10:
     clean_digits = '91' + clean_digits
 
-  # 1. CallMeBot WhatsApp API
+  now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
+
   callmebot_key = (os.getenv('CALLMEBOT_APIKEY') or os.getenv('WHATSAPP_API_KEY') or '').strip()
   callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE') or clean_digits)
   if callmebot_key and callmebot_phone:
@@ -338,12 +362,11 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           params={'phone': callmebot_phone, 'text': message, 'apikey': callmebot_key},
           timeout=12,
       )
-      _record_whatsapp_log('callmebot', resp.status_code, message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
-      _record_whatsapp_log('callmebot', f'error: {e}', message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': f'error: {e}', 'message': message})
 
-  # 2. Meta WhatsApp Cloud API
   wa_token = os.getenv('WHATSAPP_TOKEN', '').strip()
   wa_phone_id = os.getenv('WHATSAPP_PHONE_ID', '').strip()
   if wa_token and wa_phone_id and clean_digits:
@@ -362,12 +385,11 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           },
           timeout=12,
       )
-      _record_whatsapp_log('meta_cloud', resp.status_code, message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
-      _record_whatsapp_log('meta_cloud', f'error: {e}', message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': f'error: {e}', 'message': message})
 
-  # 3. Twilio WhatsApp API
   tw_sid = os.getenv('TWILIO_ACCOUNT_SID', '').strip()
   tw_token = os.getenv('TWILIO_AUTH_TOKEN', '').strip()
   tw_from = os.getenv('TWILIO_WHATSAPP_FROM', '').strip()
@@ -380,26 +402,12 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           data={'From': tw_from, 'To': tw_to, 'Body': message},
           timeout=12,
       )
-      _record_whatsapp_log('twilio', resp.status_code, message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': resp.status_code, 'message': message})
       return resp.status_code in (200, 201)
     except Exception as e:
-      _record_whatsapp_log('twilio', f'error: {e}', message)
+      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': f'error: {e}', 'message': message})
 
-  # 4. Custom Webhook URL if configured
-  webhook_url = os.getenv('WHATSAPP_WEBHOOK_URL', '').strip()
-  if webhook_url:
-    try:
-      resp = requests.post(
-          webhook_url,
-          json={'to': clean_digits, 'phone': ADMIN_MOBILE, 'message': message},
-          timeout=12,
-      )
-      _record_whatsapp_log('webhook', resp.status_code, message)
-      return resp.status_code in (200, 201, 202)
-    except Exception as e:
-      _record_whatsapp_log('webhook', f'error: {e}', message)
-
-  _record_whatsapp_log('unconfigured', 'skipped_no_env_key', message)
+  WHATSAPP_LOGS.append({'time': now_str, 'provider': 'unconfigured', 'status': 'skipped', 'message': message})
   return False
 
 
@@ -465,7 +473,21 @@ DEFAULT_MARKET_CACHE = {
     'nifty50': {'value': '25,389.40', 'change': '+134.35 pts (+0.53%)', 'is_positive': True},
     'sensex': {'value': '82,461.49', 'change': '+356.70 pts (+0.43%)', 'is_positive': True},
     'nifty500': {'value': '23,868.75', 'change': '+88.45 pts (+0.38%)', 'is_positive': True},
-    'trend_data': [],
+    'trend_data': [
+        {'date': '10 Nov', 'sensex': '81,106.65', 'change': 0.0},
+        {'date': '11 Nov', 'sensex': '81,879.40', 'change': 772.75},
+        {'date': '12 Nov', 'sensex': '81,911.01', 'change': 31.61},
+        {'date': '13 Nov', 'sensex': '81,592.45', 'change': -318.56},
+        {'date': '16 Nov', 'sensex': '82,104.79', 'change': 512.34},
+    ],
+}
+
+CHART_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/json',
 }
 
 
@@ -473,10 +495,12 @@ def load_market_cache():
   try:
     if os.path.exists(CACHE_FILE):
       with open(CACHE_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = json.load(f)
+        if isinstance(data, dict):
+          return data
   except Exception:
     pass
-  return DEFAULT_MARKET_CACHE.copy()
+  return json.loads(json.dumps(DEFAULT_MARKET_CACHE))
 
 
 def save_market_cache(cache_data):
@@ -491,23 +515,39 @@ if not os.path.exists(CACHE_FILE):
   save_market_cache(DEFAULT_MARKET_CACHE)
 
 
-def fetch_index_history(yf_symbol):
+def fetch_yahoo_chart_series(symbol, range_str='15d'):
   ist_tz = timezone(timedelta(hours=5, minutes=30))
-  try:
-    ticker = yf.Ticker(yf_symbol)
-    hist = ticker.history(period='10d', interval='1d')
-    if hist is not None and not hist.empty:
-      points = []
-      for idx, row in hist.iterrows():
-        close_val = row.get('Close')
-        if pd.notna(close_val):
-          dt_ist = idx.to_pydatetime().astimezone(ist_tz)
-          points.append((dt_ist, float(close_val)))
-      if points:
-        return points
-  except Exception as e:
-    print(f'yfinance history failed for {yf_symbol}: {e}')
-  return []
+  for host in ('query1.finance.yahoo.com', 'query2.finance.yahoo.com'):
+    try:
+      url = f'https://{host}/v8/finance/chart/{symbol}'
+      resp = requests.get(
+          url,
+          params={'interval': '1d', 'range': range_str},
+          headers=CHART_HEADERS,
+          timeout=8,
+      )
+      if resp.status_code == 200:
+        payload = resp.json()
+        res_list = payload.get('chart', {}).get('result') or []
+        if res_list:
+          res = res_list[0]
+          meta = res.get('meta', {})
+          timestamps = res.get('timestamp') or []
+          closes = (
+              res.get('indicators', {})
+              .get('quote', [{}])[0]
+              .get('close', [])
+          )
+          points = []
+          for ts, cl in zip(timestamps, closes):
+            if cl is not None:
+              dt = datetime.fromtimestamp(ts, tz=ist_tz)
+              points.append((dt, float(cl)))
+          if points:
+            return meta, points
+    except Exception as e:
+      print(f'Yahoo chart fetch failed for {symbol} on {host}: {e}')
+  return None, []
 
 
 def get_live_market_data():
@@ -521,37 +561,55 @@ def get_live_market_data():
       9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0)
   )
 
-  symbols = {
-      'nifty50': '^NSEI',
-      'sensex': '^BSESN',
-      'nifty500': '^CRSLDX',
+  indices = {
+      'nifty50': '%5ENSEI',
+      'sensex': '%5EBSESN',
+      'nifty500': '%5ECRSLDX',
   }
 
   result = {}
   sensex_points = []
 
-  for key, sym in symbols.items():
-    points = fetch_index_history(sym)
+  for key, symbol in indices.items():
+    meta, points = fetch_yahoo_chart_series(symbol, '15d')
+    if not points:
+      try:
+        yf_sym = symbol.replace('%5E', '^')
+        t_obj = yf.Ticker(yf_sym)
+        hist = t_obj.history(period='15d', interval='1d')
+        if hist is not None and not hist.empty:
+          ist_tz = timezone(timedelta(hours=5, minutes=30))
+          points = [
+              (idx.to_pydatetime().astimezone(ist_tz), float(row['Close']))
+              for idx, row in hist.iterrows()
+              if pd.notna(row.get('Close'))
+          ]
+      except Exception as e:
+        print(f'yfinance fallback error for {key}: {e}')
+
     if key == 'sensex' and points:
       sensex_points = points
 
-    if points and len(points) >= 2:
+    if points:
       completed = [p for p in points if p[0].date() < today_date]
-      prev_close = completed[-1][1] if completed else points[-2][1]
-      ltp = points[-1][1]
+      ltp = meta.get('regularMarketPrice') if meta else None
+      if ltp is None:
+        ltp = points[-1][1]
+      ltp = float(ltp)
+
+      if completed:
+        prev_close = completed[-1][1]
+      elif len(points) >= 2:
+        prev_close = points[-2][1]
+      else:
+        prev_close = ltp
+
       change = ltp - prev_close
       pct_change = (change / prev_close) * 100 if prev_close else 0.0
       result[key] = {
           'value': f'{ltp:,.2f}',
           'change': f'{change:+,.2f} pts ({pct_change:+.2f}%)',
           'is_positive': change >= 0,
-      }
-    elif points and len(points) == 1:
-      ltp = points[0][1]
-      result[key] = {
-          'value': f'{ltp:,.2f}',
-          'change': '+0.00 pts (0.00%)',
-          'is_positive': True,
       }
     else:
       cached_item = cache.get(key, DEFAULT_MARKET_CACHE[key])
@@ -565,7 +623,7 @@ def get_live_market_data():
   if sensex_points and len(sensex_points) >= 2:
     completed = [p for p in sensex_points if p[0].date() < today_date]
     if len(completed) < 5:
-      completed = sensex_points[:-1]
+      completed = sensex_points[:-1] if len(sensex_points) > 1 else sensex_points
     last5 = completed[-5:]
     prev_val = None
     for dt_obj, close_val in last5:
@@ -579,7 +637,7 @@ def get_live_market_data():
       })
 
   if not trend_data:
-    trend_data = cache.get('trend_data', [])
+    trend_data = cache.get('trend_data') or DEFAULT_MARKET_CACHE['trend_data']
 
   if result.get('sensex', {}).get('value') not in (None, '0.00'):
     save_market_cache({
@@ -606,15 +664,16 @@ def get_live_market_data():
 @app.route('/api/market-live')
 @limiter.exempt
 def market_live():
-  market_info, _ = get_live_market_data()
-  return jsonify(market_info)
+  market_info, market_trend = get_live_market_data()
+  payload = dict(market_info)
+  payload['trend_data'] = market_trend
+  return jsonify(payload)
 
 
 @app.route('/api/get-messages', methods=['GET'])
 def get_messages():
-  if not is_admin_authenticated() and 'username' not in session:
-    return jsonify({'success': False, 'messages': []}), 401
-  return jsonify({'success': True, 'messages': CHAT_MESSAGES})
+  normalized = [_normalize_chat_message(m) for m in CHAT_MESSAGES]
+  return jsonify({'success': True, 'messages': normalized})
 
 
 @app.route('/api/send-message', methods=['POST'])
@@ -625,47 +684,45 @@ def send_message():
     return jsonify({'success': False, 'message': 'Message cannot be empty.'}), 400
 
   if is_admin_authenticated() and session.get('role') == 'admin':
-    sender = 'Admin - Bijoosh Padmakumar'
-    sender_role = 'admin'
+    sender_name = 'Admin - Bijoosh Padmakumar'
+    role = 'admin'
     mobile = ADMIN_MOBILE
-  elif 'username' in session:
-    sender = session.get('username', 'Client')
-    sender_role = 'user'
-    mobile = session.get('mobile', '')
-    touch_user_online(mobile)
   else:
-    return jsonify({'success': False, 'message': 'Not logged in.'}), 401
+    sender_name = (
+        str(
+            data.get('username')
+            or data.get('user')
+            or data.get('sender')
+            or session.get('username')
+            or ''
+        ).strip()
+        or 'biju'
+    )
+    role = 'user'
+    mobile = str(session.get('mobile') or data.get('mobile') or '+917034788666').strip()
+    touch_user_online(mobile)
 
-  msg_entry = {
+  entry = _normalize_chat_message({
       'id': len(CHAT_MESSAGES) + 1,
-      'sender': sender,
-      'role': sender_role,
+      'username': sender_name,
+      'user': sender_name,
+      'sender': sender_name,
+      'role': role,
       'mobile': mobile,
       'message': text,
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
-  }
-  CHAT_MESSAGES.append(msg_entry)
+  })
+  CHAT_MESSAGES.append(entry)
   save_chat_messages(CHAT_MESSAGES)
 
-  if sender_role == 'user':
-    send_whatsapp_notification(f'User Message from {sender} ({mobile}): {text}')
+  if role == 'user':
+    send_whatsapp_notification(f'User Message from {sender_name} ({mobile}): {text}')
 
-  return jsonify({'success': True, 'message': 'Message sent.', 'data': msg_entry, 'messages': CHAT_MESSAGES})
-
-
-@app.route('/api/whatsapp-status', methods=['GET'])
-def whatsapp_status():
-  configured = bool(
-      os.getenv('CALLMEBOT_APIKEY')
-      or os.getenv('WHATSAPP_API_KEY')
-      or (os.getenv('WHATSAPP_TOKEN') and os.getenv('WHATSAPP_PHONE_ID'))
-      or (os.getenv('TWILIO_ACCOUNT_SID') and os.getenv('TWILIO_AUTH_TOKEN'))
-      or os.getenv('WHATSAPP_WEBHOOK_URL')
-  )
   return jsonify({
-      'configured': configured,
-      'admin_mobile': ADMIN_MOBILE,
-      'recent_logs': WHATSAPP_LOGS[-20:],
+      'success': True,
+      'message': 'Message sent.',
+      'data': entry,
+      'messages': CHAT_MESSAGES,
   })
 
 
@@ -823,14 +880,9 @@ def login():
               'is_online': True,
           }
           REGISTERED_USERS.append(user_record)
-          send_whatsapp_notification(
-              f"User Login Alert\nName: {username}\nMobile: {mobile}\nStatus: {user_record['status']}"
-          )
+          send_whatsapp_notification(f'New User Login/Approval Request: {username} ({mobile})')
         else:
           check_user_validity(user_record)
-          send_whatsapp_notification(
-              f"User Login Alert\nName: {user_record['name']}\nMobile: {mobile}\nStatus: {user_record['status']}"
-          )
         touch_user_online(mobile)
         resp = redirect(url_for('pending_approval') if user_record['status'] == 'Pending' else url_for('user_dashboard'))
         return clear_admin_cookie(resp)
@@ -928,9 +980,7 @@ def request_download():
       'status': 'Pending',
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
   })
-  send_whatsapp_notification(
-      f"NAV Download Request\nUser: {session.get('username', 'Client')}\nFile: {file_name}\nType: {download_type}"
-  )
+  send_whatsapp_notification(f"Download Request from {session.get('username', 'Client')}: {file_name} ({download_type})")
   return jsonify({
       'success': True,
       'message': 'Approval request sent to Admin successfully.',
@@ -939,7 +989,7 @@ def request_download():
 
 @app.route('/get-nav-image-base64/<path:filename>')
 def get_nav_image_base64(filename):
-  if 'username' not in session and not session.get('is_admin'):
+  if 'username' not in session and not session.get('is_admin') and not is_admin_authenticated():
     return jsonify({'success': False, 'message': 'Unauthorized'})
 
   target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -950,7 +1000,6 @@ def get_nav_image_base64(filename):
         break
 
   if os.path.exists(target_path):
-    import base64
     with open(target_path, 'rb') as img_f:
       b64_data = base64.b64encode(img_f.read()).decode('utf-8')
     return jsonify({'success': True, 'image_data': f'data:image/jpeg;base64,{b64_data}'})
@@ -960,7 +1009,7 @@ def get_nav_image_base64(filename):
 
 @app.route('/view-archive-secured/<path:filename>')
 def view_archive_secured(filename):
-  if 'username' not in session and not session.get('is_admin'):
+  if 'username' not in session and not session.get('is_admin') and not is_admin_authenticated():
     return redirect(url_for('login'))
 
   if is_admin_authenticated():
@@ -1003,9 +1052,6 @@ def submit_feedback():
         'rating': int(rating) if str(rating).isdigit() else 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     })
-    send_whatsapp_notification(
-        f"User Feedback from {session.get('username', 'Client')} ({rating}/5): {feedback_text}"
-    )
     flash('Feedback submitted successfully!', 'success')
   return redirect(url_for('user_dashboard'))
 
@@ -1065,7 +1111,7 @@ def admin_dashboard():
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
       festival_greeting=festival_greeting,
       user_filter=user_filter,
-      messages=CHAT_MESSAGES,
+      messages=[_normalize_chat_message(m) for m in CHAT_MESSAGES],
   )
 
 
@@ -1306,6 +1352,7 @@ def get_fund_portfolio_details(category, fund_name):
 @app.route('/fund/<category>/<path:fund_name>')
 def fund_detail(category, fund_name):
   requested_role = request.args.get('role', '').strip().lower()
+  ref = request.headers.get('Referer', '')
   admin_authed = is_admin_authenticated()
   user_authed = bool(session.get('username')) and session.get('role') != 'admin'
 
@@ -1315,12 +1362,10 @@ def fund_detail(category, fund_name):
   if user_authed:
     touch_user_online(session.get('mobile'))
 
-  if requested_role == 'admin' and admin_authed:
+  if requested_role == 'admin' or '/admin-dashboard' in ref or admin_authed:
     active_admin = True
-  elif requested_role == 'user' and user_authed:
-    active_admin = False
   else:
-    active_admin = admin_authed and not user_authed
+    active_admin = False
 
   cat = category.strip().lower()
   if cat not in ('equity', 'balancer', 'debt'):
@@ -1345,7 +1390,7 @@ def fund_detail(category, fund_name):
       holdings=holdings,
       debt_metrics=debt_metrics,
       viewer_label=viewer_label,
-      username=session.get('username', 'Client'),
+      username=viewer_label if active_admin else session.get('username', 'Client'),
       back_url=back_url,
   )
 
