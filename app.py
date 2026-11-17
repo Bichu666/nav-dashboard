@@ -416,16 +416,18 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '23,960.60', 'change': '+519.80 pts (+2.22%)', 'is_positive': True},
-    'sensex': {'value': '77,301.40', 'change': '+383.55 pts (+0.50%)', 'is_positive': True},
-    'nifty500': {'value': '22,769.20', 'change': '+527.80 pts (+2.37%)', 'is_positive': True},
-    'trend_data': [
-        {'date': '29 Oct', 'nifty50': '22,936.75', 'sensex': '74,151.04', 'nifty500': '21,790.30', 'change': 905.01},
-        {'date': '30 Oct', 'nifty50': '23,053.10', 'sensex': '74,459.53', 'nifty500': '21,895.90', 'change': 308.49},
-        {'date': '02 Nov', 'nifty50': '23,440.80', 'sensex': '75,692.78', 'nifty500': '22,241.40', 'change': 1233.25},
-        {'date': '03 Nov', 'nifty50': '23,810.85', 'sensex': '76,917.85', 'nifty500': '22,520.35', 'change': 1225.07},
-        {'date': '04 Nov', 'nifty50': '23,960.60', 'sensex': '77,301.40', 'nifty500': '22,769.20', 'change': 383.55},
-    ]
+    'nifty50': {'value': '25,400.00', 'change': '+0.00 pts (0.00%)', 'is_positive': True},
+    'sensex': {'value': '82,405.61', 'change': '+300.82 pts (+0.37%)', 'is_positive': True},
+    'nifty500': {'value': '23,800.00', 'change': '+0.00 pts (0.00%)', 'is_positive': True},
+    'trend_data': []
+}
+
+CHART_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/json',
 }
 
 
@@ -451,70 +453,140 @@ if not os.path.exists(CACHE_FILE):
   save_market_cache(DEFAULT_MARKET_CACHE)
 
 
+def fetch_yahoo_chart_series(symbol, range_str='10d'):
+  ist_tz = timezone(timedelta(hours=5, minutes=30))
+  for host in ('query1.finance.yahoo.com', 'query2.finance.yahoo.com'):
+    try:
+      url = f'https://{host}/v8/finance/chart/{symbol}'
+      resp = requests.get(
+          url,
+          params={'interval': '1d', 'range': range_str},
+          headers=CHART_HEADERS,
+          timeout=8,
+      )
+      if resp.status_code == 200:
+        payload = resp.json()
+        res_list = payload.get('chart', {}).get('result') or []
+        if res_list:
+          res = res_list[0]
+          meta = res.get('meta', {})
+          timestamps = res.get('timestamp') or []
+          closes = (
+              res.get('indicators', {})
+              .get('quote', [{}])[0]
+              .get('close', [])
+          )
+          points = []
+          for ts, cl in zip(timestamps, closes):
+            if cl is not None:
+              dt = datetime.fromtimestamp(ts, tz=ist_tz)
+              points.append((dt, float(cl)))
+          if points:
+            return meta, points
+    except Exception as e:
+      print(f'Yahoo chart fetch failed for {symbol} on {host}: {e}')
+  return None, []
+
+
 def get_live_market_data():
   cache = load_market_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  
+
   is_weekend = ist_now.weekday() >= 5
-  is_market_hours = (not is_weekend) and (9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0))
+  is_market_hours = (not is_weekend) and (
+      9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0)
+  )
 
   indices = {
-      'nifty50': '^NSEI',
-      'sensex': '^BSESN',
-      'nifty500': '^CRSLDX'
+      'nifty50': '%5ENSEI',
+      'sensex': '%5EBSESN',
+      'nifty500': '%5ECRSLDX',
   }
-  
+
   result = {}
-  for key, ticker in indices.items():
-    try:
-      t_obj = yf.Ticker(ticker)
-      todays_data = t_obj.history(period="2d")
-      if not todays_data.empty:
-        ltp = float(todays_data['Close'].iloc[-1])
-        prev_close = float(todays_data['Close'].iloc[-2]) if len(todays_data) > 1 else ltp
-        change = ltp - prev_close
-        pct_change = (change / prev_close) * 100 if prev_close else 0
-        result[key] = {
-            'value': f"{ltp:,.2f}",
-            'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-            'is_positive': change >= 0
-        }
-    except Exception as e:
-      print(f"yfinance fetch error for {key}: {e}")
+  sensex_points = []
+
+  for key, symbol in indices.items():
+    meta, points = fetch_yahoo_chart_series(symbol, '10d')
+    if key == 'sensex' and points:
+      sensex_points = points
+
+    if meta and points:
+      ltp = meta.get('regularMarketPrice')
+      if ltp is None:
+        ltp = points[-1][1]
+      ltp = float(ltp)
+      prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
+      if prev_close is None and len(points) >= 2:
+        prev_close = points[-2][1]
+      prev_close = float(prev_close) if prev_close else ltp
+      change = ltp - prev_close
+      pct_change = (change / prev_close) * 100 if prev_close else 0.0
+      result[key] = {
+          'value': f"{ltp:,.2f}",
+          'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+          'is_positive': change >= 0,
+      }
+    else:
+      # Fallback to yfinance
+      try:
+        yf_sym = symbol.replace('%5E', '^')
+        t_obj = yf.Ticker(yf_sym)
+        todays_data = t_obj.history(period='5d')
+        if not todays_data.empty:
+          if key == 'sensex':
+            sensex_points = [(idx.to_pydatetime(), float(row['Close'])) for idx, row in todays_data.iterrows()]
+          ltp = float(todays_data['Close'].iloc[-1])
+          prev_close = float(todays_data['Close'].iloc[-2]) if len(todays_data) > 1 else ltp
+          change = ltp - prev_close
+          pct_change = (change / prev_close) * 100 if prev_close else 0.0
+          result[key] = {
+              'value': f"{ltp:,.2f}",
+              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+              'is_positive': change >= 0,
+          }
+      except Exception as e:
+        print(f'yfinance fallback error for {key}: {e}')
 
     if key not in result:
       cached_item = cache.get(key, {})
       result[key] = {
           'value': cached_item.get('value', '0.00'),
           'change': cached_item.get('change', '+0.00 pts (0.00%)'),
-          'is_positive': cached_item.get('is_positive', True)
+          'is_positive': cached_item.get('is_positive', True),
       }
 
   trend_data = []
-  try:
-    sensex_hist = yf.Ticker('^BSESN').history(period="6d")
-    if not sensex_hist.empty and len(sensex_hist) >= 2:
-      sensex_hist = sensex_hist.tail(5)
-      prev_val = None
-      for idx, row in sensex_hist.iterrows():
-        dt_str = idx.strftime('%d %b')
-        close_val = float(row['Close'])
-        if prev_val is not None:
-          chg = round(close_val - prev_val, 2)
-        else:
-          chg = 0.0
-        prev_val = close_val
-        trend_data.append({
-            'date': dt_str,
-            'sensex': f"{close_val:,.2f}",
-            'change': chg
-        })
-  except Exception as e:
-    print(f"yfinance trend fetch error: {e}")
+  if sensex_points and len(sensex_points) >= 2:
+    # Previous 5 completed trading days (exclude today if today is already in sensex_points)
+    today_date = ist_now.date()
+    completed = [p for p in sensex_points if p[0].date() < today_date]
+    if len(completed) < 5:
+      completed = sensex_points[:-1] if len(sensex_points) > 5 else sensex_points
+    last5 = completed[-5:]
+    prev_val = None
+    for dt_obj, close_val in last5:
+      dt_str = dt_obj.strftime('%d %b')
+      chg = round(close_val - prev_val, 2) if prev_val is not None else 0.0
+      prev_val = close_val
+      trend_data.append({
+          'date': dt_str,
+          'sensex': f"{close_val:,.2f}",
+          'change': chg,
+      })
 
   if not trend_data:
     trend_data = cache.get('trend_data', [])
+
+  # Persist live fetched values to market_cache.json
+  if result.get('sensex', {}).get('value') not in (None, '0.00'):
+    save_market_cache({
+        'nifty50': result['nifty50'],
+        'sensex': result['sensex'],
+        'nifty500': result['nifty500'],
+        'trend_data': trend_data,
+    })
 
   if not is_market_hours:
     time_label = f"CLOSED | As on 04:00 PM | {ist_now.strftime('%d %b %Y')}"
@@ -526,7 +598,7 @@ def get_live_market_data():
       'sensex': result['sensex'],
       'nifty500': result['nifty500'],
       'time_label': time_label,
-      'is_market_open': is_market_hours
+      'is_market_open': is_market_hours,
   }, trend_data
 
 
@@ -673,8 +745,9 @@ def login():
       display_code = request.form.get('display_code', '').strip()
       if mobile in PENDING_OTPS and PENDING_OTPS[mobile] == entered_code:
         del PENDING_OTPS[mobile]
+        session.clear()
         session.permanent = True
-        session.pop('is_admin', None)
+        session['role'] = 'user'
         session['username'] = username
         session['mobile'] = mobile
         user_record = next((u for u in REGISTERED_USERS if re.sub(r'\D', '', u['mobile']) == re.sub(r'\D', '', mobile)), None)
@@ -871,7 +944,9 @@ def admin_login():
     mobile_input = request.form.get('mobile')
     password_input = request.form.get('password')
     if mobile_input == '+918078535666' and password_input == 'Bichu@5419':
+      session.clear()
       session.permanent = True
+      session['role'] = 'admin'
       session['is_admin'] = True
       ADMIN_ACTIVITY['last_active'] = datetime.now()
       resp = redirect(url_for('admin_dashboard'))
@@ -1155,28 +1230,37 @@ def get_fund_portfolio_details(category, fund_name):
 
 @app.route('/fund/<category>/<path:fund_name>')
 def fund_detail(category, fund_name):
-  has_user = bool(session.get('username'))
-  has_admin = is_admin_authenticated() and not has_user
-  if not has_user and not has_admin:
+  requested_role = request.args.get('role', '').strip().lower()
+  admin_authed = is_admin_authenticated()
+  user_authed = bool(session.get('username')) and session.get('role') != 'admin'
+
+  if not admin_authed and not user_authed:
     return redirect(url_for('login'))
 
-  if has_user:
+  if user_authed:
     touch_user_online(session.get('mobile'))
+
+  if requested_role == 'admin' and admin_authed:
+    active_admin = True
+  elif requested_role == 'user' and user_authed:
+    active_admin = False
+  else:
+    active_admin = admin_authed and not user_authed
 
   cat = category.strip().lower()
   if cat not in ('equity', 'balancer', 'debt'):
     flash('Invalid fund category.', 'danger')
-    return redirect(url_for('admin_dashboard' if has_admin else 'user_dashboard'))
+    return redirect(url_for('admin_dashboard' if active_admin else 'user_dashboard'))
 
   funds = parse_fund_excel_from_db(f'{cat}_funds')
   matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
   if not matched_fund:
     flash('Fund details not found.', 'warning')
-    return redirect(url_for('admin_dashboard' if has_admin else 'user_dashboard'))
+    return redirect(url_for('admin_dashboard' if active_admin else 'user_dashboard'))
 
   sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
-  viewer_label = 'Admin - Bijoosh Padmakumar' if has_admin else session.get('username', 'Client')
-  back_url = url_for('admin_dashboard') if has_admin else url_for('user_dashboard')
+  viewer_label = 'Admin - Bijoosh Padmakumar' if active_admin else session.get('username', 'Client')
+  back_url = url_for('admin_dashboard') if active_admin else url_for('user_dashboard')
 
   return render_template(
       'fund_detail.html',
