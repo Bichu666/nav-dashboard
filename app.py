@@ -80,6 +80,11 @@ def clear_admin_cookie(response):
 
 
 def is_admin_authenticated():
+  # Strict separation: never treat an active user session as admin
+  if session.get('role') == 'user' or (session.get('username') and session.get('role') != 'admin'):
+    return False
+  if session.get('role') == 'admin' and session.get('is_admin'):
+    return True
   token = request.cookies.get(ADMIN_COOKIE_NAME)
   if token:
     try:
@@ -88,8 +93,6 @@ def is_admin_authenticated():
         return True
     except (BadSignature, SignatureExpired, Exception):
       pass
-  if session.get('is_admin') and 'username' not in session:
-    return True
   return False
 
 
@@ -294,37 +297,6 @@ def get_festival_greeting():
       (2026, 11, 8): 'Happy Diwali',
       (2026, 11, 24): 'Happy Guru Nanak Jayanti',
       (2026, 12, 25): 'Merry Christmas',
-      (2027, 1, 1): 'Happy New Year',
-      (2027, 1, 15): 'Happy Makar Sankranti / Pongal',
-      (2027, 1, 26): 'Happy Republic Day',
-      (2027, 2, 11): 'Happy Vasant Panchami',
-      (2027, 2, 19): 'Happy Shivaji Maharaj Jayanti',
-      (2027, 3, 6): 'Happy Maha Shivaratri',
-      (2027, 3, 10): 'Happy Eid al-Fitr',
-      (2027, 3, 22): 'Happy Holi',
-      (2027, 3, 26): 'Happy Good Friday',
-      (2027, 4, 7): 'Happy Ugadi / Gudi Padwa',
-      (2027, 4, 14): 'Happy Baisakhi / Ambedkar Jayanti',
-      (2027, 4, 15): 'Happy Rama Navami',
-      (2027, 4, 19): 'Happy Mahavir Jayanti',
-      (2027, 5, 1): 'Happy Labour Day',
-      (2027, 5, 17): 'Happy Eid al-Adha',
-      (2027, 5, 20): 'Happy Buddha Purnima',
-      (2027, 6, 16): 'Happy Muharram',
-      (2027, 7, 5): 'Happy Rathyatra',
-      (2027, 8, 15): 'Happy Independence Day',
-      (2027, 8, 17): 'Happy Raksha Bandhan',
-      (2027, 8, 25): 'Happy Janmashtami',
-      (2027, 9, 4): 'Happy Ganesh Chaturthi',
-      (2027, 9, 12): 'Happy Onam',
-      (2027, 10, 2): 'Happy Mahatma Gandhi Jayanti',
-      (2027, 10, 9): 'Happy Dussehra',
-      (2027, 10, 18): 'Happy Karwa Chauth',
-      (2027, 10, 29): 'Happy Diwali',
-      (2027, 10, 31): 'Happy Bhaiya Dooj',
-      (2027, 11, 4): 'Happy Chhath Puja',
-      (2027, 11, 14): 'Happy Guru Nanak Jayanti',
-      (2027, 12, 25): 'Merry Christmas',
   }
 
   recurring_festivals = {
@@ -470,11 +442,11 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '25,389.40', 'change': '+134.35 pts (+0.53%)', 'is_positive': True},
-    'sensex': {'value': '82,461.49', 'change': '+356.70 pts (+0.43%)', 'is_positive': True},
-    'nifty500': {'value': '23,868.75', 'change': '+88.45 pts (+0.38%)', 'is_positive': True},
+    'nifty50': {'value': '25,387.40', 'change': '+132.35 pts (+0.52%)', 'is_positive': True},
+    'sensex': {'value': '82,532.19', 'change': '+427.40 pts (+0.52%)', 'is_positive': True},
+    'nifty500': {'value': '23,822.30', 'change': '+42.00 pts (+0.18%)', 'is_positive': True},
     'trend_data': [
-        {'date': '10 Nov', 'sensex': '81,106.65', 'change': 0.0},
+        {'date': '09 Nov', 'sensex': '81,106.65', 'change': 0.0},
         {'date': '11 Nov', 'sensex': '81,879.40', 'change': 772.75},
         {'date': '12 Nov', 'sensex': '81,911.01', 'change': 31.61},
         {'date': '13 Nov', 'sensex': '81,592.45', 'change': -318.56},
@@ -515,7 +487,7 @@ if not os.path.exists(CACHE_FILE):
   save_market_cache(DEFAULT_MARKET_CACHE)
 
 
-def fetch_yahoo_chart_series(symbol, range_str='15d'):
+def fetch_yahoo_chart_series(symbol, range_str='20d'):
   ist_tz = timezone(timedelta(hours=5, minutes=30))
   for host in ('query1.finance.yahoo.com', 'query2.finance.yahoo.com'):
     try:
@@ -571,12 +543,12 @@ def get_live_market_data():
   sensex_points = []
 
   for key, symbol in indices.items():
-    meta, points = fetch_yahoo_chart_series(symbol, '15d')
+    meta, points = fetch_yahoo_chart_series(symbol, '20d')
     if not points:
       try:
         yf_sym = symbol.replace('%5E', '^')
         t_obj = yf.Ticker(yf_sym)
-        hist = t_obj.history(period='15d', interval='1d')
+        hist = t_obj.history(period='20d', interval='1d')
         if hist is not None and not hist.empty:
           ist_tz = timezone(timedelta(hours=5, minutes=30))
           points = [
@@ -626,9 +598,9 @@ def get_live_market_data():
       completed = sensex_points[:-1] if len(sensex_points) > 1 else sensex_points
     last5 = completed[-5:]
     prev_val = None
-    for dt_obj, close_val in last5:
+    for idx_i, (dt_obj, close_val) in enumerate(last5):
       dt_str = dt_obj.strftime('%d %b')
-      chg = round(close_val - prev_val, 2) if prev_val is not None else 0.0
+      chg = round(close_val - prev_val, 2) if (prev_val is not None and idx_i > 0) else 0.0
       prev_val = close_val
       trend_data.append({
           'date': dt_str,
@@ -683,7 +655,7 @@ def send_message():
   if not text:
     return jsonify({'success': False, 'message': 'Message cannot be empty.'}), 400
 
-  if is_admin_authenticated() and session.get('role') == 'admin':
+  if session.get('role') == 'admin' and is_admin_authenticated():
     sender_name = 'Admin - Bijoosh Padmakumar'
     role = 'admin'
     mobile = ADMIN_MOBILE
@@ -989,7 +961,7 @@ def request_download():
 
 @app.route('/get-nav-image-base64/<path:filename>')
 def get_nav_image_base64(filename):
-  if 'username' not in session and not session.get('is_admin') and not is_admin_authenticated():
+  if 'username' not in session and not is_admin_authenticated():
     return jsonify({'success': False, 'message': 'Unauthorized'})
 
   target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -1009,10 +981,10 @@ def get_nav_image_base64(filename):
 
 @app.route('/view-archive-secured/<path:filename>')
 def view_archive_secured(filename):
-  if 'username' not in session and not session.get('is_admin') and not is_admin_authenticated():
+  if 'username' not in session and not is_admin_authenticated():
     return redirect(url_for('login'))
 
-  if is_admin_authenticated():
+  if session.get('role') == 'admin' and is_admin_authenticated():
     for root, _, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         return send_from_directory(root, filename)
@@ -1077,13 +1049,15 @@ def admin_login():
 
 @app.route('/admin')
 def admin_redirect():
-  if is_admin_authenticated():
+  if session.get('role') == 'admin' and is_admin_authenticated():
     return redirect(url_for('admin_dashboard'))
   return redirect(url_for('admin_login'))
 
 
 @app.route('/admin-dashboard', methods=['GET', 'POST'])
 def admin_dashboard():
+  if session.get('role') == 'user':
+    return redirect(url_for('user_dashboard'))
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
 
@@ -1117,7 +1091,7 @@ def admin_dashboard():
 
 @app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
 def approve_download(req_id):
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
   for req in DOWNLOAD_REQUESTS:
     if req['id'] == req_id:
@@ -1129,7 +1103,7 @@ def approve_download(req_id):
 
 @app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
 def reject_download(req_id):
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
   for req in DOWNLOAD_REQUESTS:
     if req['id'] == req_id:
@@ -1141,7 +1115,7 @@ def reject_download(req_id):
 
 @app.route('/toggle-auto-approval', methods=['POST'])
 def toggle_auto_approval():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
   ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
   status_text = 'Enabled' if ADMIN_SETTINGS['auto_approval_enabled'] else 'Disabled'
@@ -1151,7 +1125,7 @@ def toggle_auto_approval():
 
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1168,7 +1142,7 @@ def update_user_status(user_id, status):
 
 @app.route('/approve-all-users', methods=['POST'])
 def approve_all_users():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1183,7 +1157,7 @@ def approve_all_users():
 
 @app.route('/decline-all-users', methods=['POST'])
 def decline_all_users():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1349,38 +1323,52 @@ def get_fund_portfolio_details(category, fund_name):
   return sectors, holdings, debt_metrics
 
 
+@app.route('/api/fund-portfolio/<category>/<path:fund_name>')
+def api_fund_portfolio(category, fund_name):
+  if not session.get('username') and not is_admin_authenticated():
+    return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    return jsonify({'success': False, 'message': 'Invalid category'}), 400
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, fund_name)
+  return jsonify({
+      'success': True,
+      'category': cat,
+      'fund': fund_name,
+      'sectors': sectors,
+      'holdings': holdings,
+      'debt_metrics': debt_metrics,
+  })
+
+
+def _resolve_fund_viewer_and_back():
+  # Strict role separation: if user session is active, ALWAYS return to user_dashboard
+  if session.get('role') == 'user' or (session.get('username') and session.get('role') != 'admin'):
+    touch_user_online(session.get('mobile'))
+    return False, session.get('username', 'Client'), url_for('user_dashboard')
+  if session.get('role') == 'admin' and is_admin_authenticated():
+    return True, 'Admin - Bijoosh Padmakumar', url_for('admin_dashboard')
+  return None, None, url_for('login')
+
+
 @app.route('/fund/<category>/<path:fund_name>')
 def fund_detail(category, fund_name):
-  requested_role = request.args.get('role', '').strip().lower()
-  ref = request.headers.get('Referer', '')
-  admin_authed = is_admin_authenticated()
-  user_authed = bool(session.get('username')) and session.get('role') != 'admin'
-
-  if not admin_authed and not user_authed:
+  active_admin, viewer_label, back_url = _resolve_fund_viewer_and_back()
+  if active_admin is None:
     return redirect(url_for('login'))
-
-  if user_authed:
-    touch_user_online(session.get('mobile'))
-
-  if requested_role == 'admin' or '/admin-dashboard' in ref or admin_authed:
-    active_admin = True
-  else:
-    active_admin = False
 
   cat = category.strip().lower()
   if cat not in ('equity', 'balancer', 'debt'):
     flash('Invalid fund category.', 'danger')
-    return redirect(url_for('admin_dashboard' if active_admin else 'user_dashboard'))
+    return redirect(back_url)
 
   funds = parse_fund_excel_from_db(f'{cat}_funds')
   matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
   if not matched_fund:
     flash('Fund details not found.', 'warning')
-    return redirect(url_for('admin_dashboard' if active_admin else 'user_dashboard'))
+    return redirect(back_url)
 
   sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
-  viewer_label = 'Admin - Bijoosh Padmakumar' if active_admin else session.get('username', 'Client')
-  back_url = url_for('admin_dashboard') if active_admin else url_for('user_dashboard')
 
   return render_template(
       'fund_detail.html',
@@ -1390,14 +1378,16 @@ def fund_detail(category, fund_name):
       holdings=holdings,
       debt_metrics=debt_metrics,
       viewer_label=viewer_label,
-      username=viewer_label if active_admin else session.get('username', 'Client'),
+      username=viewer_label,
       back_url=back_url,
   )
 
 
 @app.route('/admin/fund/<category>/<path:fund_name>')
 def admin_fund_detail(category, fund_name):
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
+    if session.get('username'):
+      return redirect(url_for('user_fund_detail', category=category, fund_name=fund_name))
     return redirect(url_for('admin_login'))
   cat = category.strip().lower()
   if cat not in ('equity', 'balancer', 'debt'):
@@ -1456,7 +1446,7 @@ def lock_dashboard_fund_links(response):
   try:
     if response.content_type and 'text/html' in response.content_type and response.status_code == 200:
       html = response.get_data(as_text=True)
-      if request.path == '/admin-dashboard' and '/fund/' in html:
+      if request.path == '/admin-dashboard' and session.get('role') == 'admin' and '/fund/' in html:
         html = html.replace('href="/fund/', 'href="/admin/fund/')
         html = html.replace("href='/fund/", "href='/admin/fund/")
         response.set_data(html)
@@ -1471,7 +1461,7 @@ def lock_dashboard_fund_links(response):
 
 @app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1505,7 +1495,7 @@ def upload_master_category():
 
 @app.route('/upload-nav', methods=['GET', 'POST'])
 def upload_nav():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1561,7 +1551,7 @@ def upload_nav():
 
 @app.route('/upload-archive', methods=['GET', 'POST'])
 def upload_archive():
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1613,7 +1603,7 @@ def upload_archive():
 
 @app.route('/delete-archive-file/<filename>', methods=['POST'])
 def delete_archive_file(filename):
-  if not is_admin_authenticated():
+  if not (session.get('role') == 'admin' and is_admin_authenticated()):
     return redirect(url_for('admin_login'))
 
   ADMIN_ACTIVITY['last_active'] = datetime.now()
