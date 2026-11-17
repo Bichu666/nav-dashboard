@@ -1469,5 +1469,94 @@ def get_archive_files():
   return jsonify({'success': True, 'files': sorted_files})
 
 
+
+@app.route('/admin/fund/<category>/<path:fund_name>')
+def admin_fund_detail(category, fund_name):
+  if not is_admin_authenticated():
+    return redirect(url_for('admin_login'))
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    flash('Invalid fund category.', 'danger')
+    return redirect(url_for('admin_dashboard'))
+  funds = parse_fund_excel_from_db(f'{cat}_funds')
+  matched_fund = next(
+      (f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()),
+      None,
+  )
+  if not matched_fund:
+    flash('Fund details not found.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(
+      cat, matched_fund['fund']
+  )
+  return render_template(
+      'fund_detail.html',
+      category=cat,
+      fund_data=matched_fund,
+      sectors=sectors,
+      holdings=holdings,
+      debt_metrics=debt_metrics,
+      viewer_label='Admin - Bijoosh Padmakumar',
+      username='Admin - Bijoosh Padmakumar',
+      back_url=url_for('admin_dashboard'),
+  )
+
+
+@app.route('/user/fund/<category>/<path:fund_name>')
+def user_fund_detail(category, fund_name):
+  if not session.get('username'):
+    return redirect(url_for('login'))
+  touch_user_online(session.get('mobile'))
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    flash('Invalid fund category.', 'danger')
+    return redirect(url_for('user_dashboard'))
+  funds = parse_fund_excel_from_db(f'{cat}_funds')
+  matched_fund = next(
+      (f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()),
+      None,
+  )
+  if not matched_fund:
+    flash('Fund details not found.', 'warning')
+    return redirect(url_for('user_dashboard'))
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(
+      cat, matched_fund['fund']
+  )
+  viewer_name = session.get('username', 'Client')
+  return render_template(
+      'fund_detail.html',
+      category=cat,
+      fund_data=matched_fund,
+      sectors=sectors,
+      holdings=holdings,
+      debt_metrics=debt_metrics,
+      viewer_label=viewer_name,
+      username=viewer_name,
+      back_url=url_for('user_dashboard'),
+  )
+
+
+@app.after_request
+def lock_dashboard_fund_links(response):
+  try:
+    if (
+        response.content_type
+        and 'text/html' in response.content_type
+        and response.status_code == 200
+    ):
+      html = response.get_data(as_text=True)
+      if request.path == '/admin-dashboard' and '/fund/' in html:
+        html = html.replace('href="/fund/', 'href="/admin/fund/')
+        html = html.replace("href='/fund/", "href='/admin/fund/")
+        response.set_data(html)
+      elif request.path == '/user-dashboard' and '/fund/' in html:
+        html = html.replace('href="/fund/', 'href="/user/fund/')
+        html = html.replace("href='/fund/", "href='/user/fund/")
+        response.set_data(html)
+  except Exception:
+    pass
+  return response
+
+
 if __name__ == '__main__':
   app.run(debug=True)
