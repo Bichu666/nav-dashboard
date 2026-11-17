@@ -1,17 +1,14 @@
 from datetime import datetime, timedelta, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import json
 import os
 import random
 import re
 import shutil
+import smtplib
 import threading
 import time
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import pandas as pd
-import requests
-import yfinance as yf
-from PIL import Image
 from flask import (
     Flask,
     flash,
@@ -23,12 +20,15 @@ from flask import (
     session,
     url_for,
 )
-import smtplib
-from sqlalchemy import create_engine
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from werkzeug.utils import secure_filename
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+import pandas as pd
+from PIL import Image
+import requests
+from sqlalchemy import create_engine
+from werkzeug.utils import secure_filename
+import yfinance as yf
 
 app = Flask(__name__)
 app.secret_key = 'nav_updates_secret_key'
@@ -39,11 +39,11 @@ app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,
-    default_limits=["10000 per day", "1000 per hour"],
-    storage_uri="memory://"
+    default_limits=['10000 per day', '1000 per hour'],
+    storage_uri='memory://',
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv('DATABASE_URL')
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
 UPLOAD_FOLDER = 'uploads'
@@ -52,6 +52,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 ARCHIVE_FOLDER = 'archive_nav'
 os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
+
+CHAT_FILE = 'chat_messages.json'
+WHATSAPP_LOG_FILE = 'whatsapp_logs.json'
 
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
@@ -85,14 +88,14 @@ def is_admin_authenticated():
         return True
     except (BadSignature, SignatureExpired, Exception):
       pass
-  # Also allow pure admin session if no regular user session is active
   if session.get('is_admin') and 'username' not in session:
     return True
   return False
 
+
 ADMIN_SETTINGS = {'auto_approval_enabled': True}
-ADMIN_EMAIL = "bijooshpadmakumar522@gmail.com"
-ADMIN_MOBILE = "+918078535666"
+ADMIN_EMAIL = 'bijooshpadmakumar522@gmail.com'
+ADMIN_MOBILE = '+918078535666'
 
 REGISTERED_USERS = [
     {
@@ -156,6 +159,7 @@ def refresh_all_users_online_status():
     u['online_status'] = 'Online' if is_on else 'Offline'
   return REGISTERED_USERS
 
+
 USER_FEEDBACKS = [
     {
         'id': 1,
@@ -180,11 +184,34 @@ DOWNLOAD_REQUESTS = [
         'filename': 'latest_nav.jpg',
         'type': 'download',
         'status': 'Pending',
-        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p')
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     }
 ]
 
 PENDING_OTPS = {}
+
+
+def load_chat_messages():
+  try:
+    if os.path.exists(CHAT_FILE):
+      with open(CHAT_FILE, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        if isinstance(data, list):
+          return data
+  except Exception as e:
+    print(f'Error loading chat messages: {e}')
+  return []
+
+
+def save_chat_messages(messages):
+  try:
+    with open(CHAT_FILE, 'w', encoding='utf-8') as f:
+      json.dump(messages[-500:], f, indent=2)
+  except Exception as e:
+    print(f'Error saving chat messages: {e}')
+
+
+CHAT_MESSAGES = load_chat_messages()
 
 
 def check_user_validity(user):
@@ -213,83 +240,95 @@ def get_festival_greeting():
   y = ist_now.year
 
   festivals_by_date = {
-      (2026, 1, 1): "Happy New Year",
-      (2026, 1, 14): "Happy Makar Sankranti / Pongal",
-      (2026, 1, 26): "Happy Republic Day",
-      (2026, 2, 15): "Happy Maha Shivaratri",
-      (2026, 3, 4): "Happy Holi",
-      (2026, 3, 19): "Happy Ugadi / Gudi Padwa",
-      (2026, 3, 26): "Happy Rama Navami",
-      (2026, 3, 31): "Happy Mahavir Jayanti",
-      (2026, 4, 3): "Happy Good Friday",
-      (2026, 4, 14): "Happy Vishu",
-      (2026, 5, 1): "Happy Buddha Purnima",
-      (2026, 8, 15): "Happy Independence Day",
-      (2026, 8, 28): "Happy Raksha Bandhan",
-      (2026, 9, 4): "Happy Krishna Janmashtami",
-      (2026, 9, 14): "Happy Ganesh Chaturthi",
-      (2026, 10, 2): "Happy Mahatma Gandhi Jayanti",
-      (2026, 10, 20): "Happy Dussehra",
-      (2026, 11, 8): "Happy Diwali",
-      (2026, 11, 24): "Happy Guru Nanak Jayanti",
-      (2026, 12, 25): "Merry Christmas",
-
-      (2027, 1, 1): "Happy New Year",
-      (2027, 1, 15): "Happy Makar Sankranti / Pongal",
-      (2027, 1, 26): "Happy Republic Day",
-      (2027, 2, 11): "Happy Vasant Panchami",
-      (2027, 2, 19): "Happy Shivaji Maharaj Jayanti",
-      (2027, 3, 6): "Happy Maha Shivaratri",
-      (2027, 3, 10): "Happy Eid al-Fitr",
-      (2027, 3, 22): "Happy Holi",
-      (2027, 3, 26): "Happy Good Friday",
-      (2027, 4, 7): "Happy Ugadi / Gudi Padwa",
-      (2027, 4, 14): "Happy Baisakhi / Ambedkar Jayanti",
-      (2027, 4, 15): "Happy Rama Navami",
-      (2027, 4, 19): "Happy Mahavir Jayanti",
-      (2027, 5, 1): "Happy Labour Day",
-      (2027, 5, 17): "Happy Eid al-Adha",
-      (2027, 5, 20): "Happy Buddha Purnima",
-      (2027, 6, 16): "Happy Muharram",
-      (2027, 7, 5): "Happy Rathyatra",
-      (2027, 8, 15): "Happy Independence Day",
-      (2027, 8, 17): "Happy Raksha Bandhan",
-      (2027, 8, 25): "Happy Janmashtami",
-      (2027, 9, 4): "Happy Ganesh Chaturthi",
-      (2027, 9, 12): "Happy Onam",
-      (2027, 10, 2): "Happy Mahatma Gandhi Jayanti",
-      (2027, 10, 9): "Happy Dussehra",
-      (2027, 10, 18): "Happy Karwa Chauth",
-      (2027, 10, 29): "Happy Diwali",
-      (2027, 10, 31): "Happy Bhaiya Dooj",
-      (2027, 11, 4): "Happy Chhath Puja",
-      (2027, 11, 14): "Happy Guru Nanak Jayanti",
-      (2027, 12, 25): "Merry Christmas",
+      (2026, 1, 1): 'Happy New Year',
+      (2026, 1, 14): 'Happy Makar Sankranti / Pongal',
+      (2026, 1, 26): 'Happy Republic Day',
+      (2026, 2, 15): 'Happy Maha Shivaratri',
+      (2026, 3, 4): 'Happy Holi',
+      (2026, 3, 19): 'Happy Ugadi / Gudi Padwa',
+      (2026, 3, 26): 'Happy Rama Navami',
+      (2026, 3, 31): 'Happy Mahavir Jayanti',
+      (2026, 4, 3): 'Happy Good Friday',
+      (2026, 4, 14): 'Happy Vishu',
+      (2026, 5, 1): 'Happy Buddha Purnima',
+      (2026, 8, 15): 'Happy Independence Day',
+      (2026, 8, 28): 'Happy Raksha Bandhan',
+      (2026, 9, 4): 'Happy Krishna Janmashtami',
+      (2026, 9, 14): 'Happy Ganesh Chaturthi',
+      (2026, 10, 2): 'Happy Mahatma Gandhi Jayanti',
+      (2026, 10, 20): 'Happy Dussehra',
+      (2026, 11, 8): 'Happy Diwali',
+      (2026, 11, 24): 'Happy Guru Nanak Jayanti',
+      (2026, 12, 25): 'Merry Christmas',
+      (2027, 1, 1): 'Happy New Year',
+      (2027, 1, 15): 'Happy Makar Sankranti / Pongal',
+      (2027, 1, 26): 'Happy Republic Day',
+      (2027, 2, 11): 'Happy Vasant Panchami',
+      (2027, 2, 19): 'Happy Shivaji Maharaj Jayanti',
+      (2027, 3, 6): 'Happy Maha Shivaratri',
+      (2027, 3, 10): 'Happy Eid al-Fitr',
+      (2027, 3, 22): 'Happy Holi',
+      (2027, 3, 26): 'Happy Good Friday',
+      (2027, 4, 7): 'Happy Ugadi / Gudi Padwa',
+      (2027, 4, 14): 'Happy Baisakhi / Ambedkar Jayanti',
+      (2027, 4, 15): 'Happy Rama Navami',
+      (2027, 4, 19): 'Happy Mahavir Jayanti',
+      (2027, 5, 1): 'Happy Labour Day',
+      (2027, 5, 17): 'Happy Eid al-Adha',
+      (2027, 5, 20): 'Happy Buddha Purnima',
+      (2027, 6, 16): 'Happy Muharram',
+      (2027, 7, 5): 'Happy Rathyatra',
+      (2027, 8, 15): 'Happy Independence Day',
+      (2027, 8, 17): 'Happy Raksha Bandhan',
+      (2027, 8, 25): 'Happy Janmashtami',
+      (2027, 9, 4): 'Happy Ganesh Chaturthi',
+      (2027, 9, 12): 'Happy Onam',
+      (2027, 10, 2): 'Happy Mahatma Gandhi Jayanti',
+      (2027, 10, 9): 'Happy Dussehra',
+      (2027, 10, 18): 'Happy Karwa Chauth',
+      (2027, 10, 29): 'Happy Diwali',
+      (2027, 10, 31): 'Happy Bhaiya Dooj',
+      (2027, 11, 4): 'Happy Chhath Puja',
+      (2027, 11, 14): 'Happy Guru Nanak Jayanti',
+      (2027, 12, 25): 'Merry Christmas',
   }
 
   recurring_festivals = {
-      (1, 1): "Happy New Year",
-      (1, 26): "Happy Republic Day",
-      (8, 15): "Happy Independence Day",
-      (12, 25): "Merry Christmas",
+      (1, 1): 'Happy New Year',
+      (1, 26): 'Happy Republic Day',
+      (8, 15): 'Happy Independence Day',
+      (12, 25): 'Merry Christmas',
   }
 
   return festivals_by_date.get((y, m, d), recurring_festivals.get((m, d), None))
 
 
-
 WHATSAPP_LOGS = []
 
 
+def _record_whatsapp_log(provider, status, message):
+  now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
+  entry = {'time': now_str, 'provider': provider, 'status': str(status), 'message': message}
+  WHATSAPP_LOGS.append(entry)
+  try:
+    with open(WHATSAPP_LOG_FILE, 'w', encoding='utf-8') as f:
+      json.dump(WHATSAPP_LOGS[-200:], f, indent=2)
+  except Exception:
+    pass
+
+
 def _dispatch_whatsapp_sync(message, to_phone=None):
-  target_phone = (to_phone or os.getenv('WHATSAPP_TO') or os.getenv('ADMIN_WHATSAPP') or ADMIN_MOBILE).strip()
+  target_phone = (
+      to_phone
+      or os.getenv('WHATSAPP_TO')
+      or os.getenv('ADMIN_WHATSAPP')
+      or ADMIN_MOBILE
+  ).strip()
   clean_digits = re.sub(r'\D', '', target_phone)
   if len(clean_digits) == 10:
     clean_digits = '91' + clean_digits
 
-  now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
-
-  # 1. CallMeBot free WhatsApp API
+  # 1. CallMeBot WhatsApp API
   callmebot_key = (os.getenv('CALLMEBOT_APIKEY') or os.getenv('WHATSAPP_API_KEY') or '').strip()
   callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE') or clean_digits)
   if callmebot_key and callmebot_phone:
@@ -299,12 +338,10 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           params={'phone': callmebot_phone, 'text': message, 'apikey': callmebot_key},
           timeout=12,
       )
-      print(f'CallMeBot WhatsApp response: {resp.status_code} {resp.text[:120]}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': resp.status_code, 'message': message})
+      _record_whatsapp_log('callmebot', resp.status_code, message)
       return resp.status_code in (200, 201)
     except Exception as e:
-      print(f'CallMeBot WhatsApp error: {e}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': f'error: {e}', 'message': message})
+      _record_whatsapp_log('callmebot', f'error: {e}', message)
 
   # 2. Meta WhatsApp Cloud API
   wa_token = os.getenv('WHATSAPP_TOKEN', '').strip()
@@ -325,12 +362,10 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           },
           timeout=12,
       )
-      print(f'Meta WhatsApp response: {resp.status_code} {resp.text[:120]}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': resp.status_code, 'message': message})
+      _record_whatsapp_log('meta_cloud', resp.status_code, message)
       return resp.status_code in (200, 201)
     except Exception as e:
-      print(f'Meta WhatsApp error: {e}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': f'error: {e}', 'message': message})
+      _record_whatsapp_log('meta_cloud', f'error: {e}', message)
 
   # 3. Twilio WhatsApp API
   tw_sid = os.getenv('TWILIO_ACCOUNT_SID', '').strip()
@@ -345,15 +380,26 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           data={'From': tw_from, 'To': tw_to, 'Body': message},
           timeout=12,
       )
-      print(f'Twilio WhatsApp response: {resp.status_code} {resp.text[:120]}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': resp.status_code, 'message': message})
+      _record_whatsapp_log('twilio', resp.status_code, message)
       return resp.status_code in (200, 201)
     except Exception as e:
-      print(f'Twilio WhatsApp error: {e}')
-      WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': f'error: {e}', 'message': message})
+      _record_whatsapp_log('twilio', f'error: {e}', message)
 
-  print(f'WhatsApp notification skipped (no WhatsApp API env vars configured): {message}')
-  WHATSAPP_LOGS.append({'time': now_str, 'provider': 'unconfigured', 'status': 'skipped', 'message': message})
+  # 4. Custom Webhook URL if configured
+  webhook_url = os.getenv('WHATSAPP_WEBHOOK_URL', '').strip()
+  if webhook_url:
+    try:
+      resp = requests.post(
+          webhook_url,
+          json={'to': clean_digits, 'phone': ADMIN_MOBILE, 'message': message},
+          timeout=12,
+      )
+      _record_whatsapp_log('webhook', resp.status_code, message)
+      return resp.status_code in (200, 201, 202)
+    except Exception as e:
+      _record_whatsapp_log('webhook', f'error: {e}', message)
+
+  _record_whatsapp_log('unconfigured', 'skipped_no_env_key', message)
   return False
 
 
@@ -363,8 +409,8 @@ def send_whatsapp_notification(message, to_phone=None):
 
 
 def send_email_notification(subject, body):
-  sender_email = os.getenv("MAIL_USERNAME", "bijooshpadmakumar522@gmail.com")
-  sender_password = os.getenv("MAIL_PASSWORD", "")
+  sender_email = os.getenv('MAIL_USERNAME', ADMIN_EMAIL)
+  sender_password = os.getenv('MAIL_PASSWORD', '')
   if not sender_password:
     return
   try:
@@ -378,7 +424,7 @@ def send_email_notification(subject, body):
       server.login(sender_email, sender_password)
       server.send_message(msg)
   except Exception as e:
-    print(f"Failed to send email: {e}")
+    print(f'Failed to send email: {e}')
 
 
 def daily_scheduler():
@@ -399,14 +445,14 @@ def daily_scheduler():
         last_8am_sent = current_date
 
       if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
-        user_summary = "Here is the daily summary of registered users and their details:\n\n"
+        user_summary = 'Here is the daily summary of registered users and their details:\n\n'
         for u in REGISTERED_USERS:
           user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
-        send_email_notification("Daily User Details Report (10:00 PM)", user_summary)
+        send_email_notification('Daily User Details Report (10:00 PM)', user_summary)
         send_whatsapp_notification(user_summary)
         last_10pm_sent = current_date
     except Exception as e:
-      print(f"Scheduler error: {e}")
+      print(f'Scheduler error: {e}')
 
     time.sleep(30)
 
@@ -416,25 +462,17 @@ threading.Thread(target=daily_scheduler, daemon=True).start()
 CACHE_FILE = 'market_cache.json'
 
 DEFAULT_MARKET_CACHE = {
-    'nifty50': {'value': '25,400.00', 'change': '+0.00 pts (0.00%)', 'is_positive': True},
-    'sensex': {'value': '82,405.61', 'change': '+300.82 pts (+0.37%)', 'is_positive': True},
-    'nifty500': {'value': '23,800.00', 'change': '+0.00 pts (0.00%)', 'is_positive': True},
-    'trend_data': []
-}
-
-CHART_HEADERS = {
-    'User-Agent': (
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    ),
-    'Accept': 'application/json',
+    'nifty50': {'value': '25,389.40', 'change': '+134.35 pts (+0.53%)', 'is_positive': True},
+    'sensex': {'value': '82,461.49', 'change': '+356.70 pts (+0.43%)', 'is_positive': True},
+    'nifty500': {'value': '23,868.75', 'change': '+88.45 pts (+0.38%)', 'is_positive': True},
+    'trend_data': [],
 }
 
 
 def load_market_cache():
   try:
     if os.path.exists(CACHE_FILE):
-      with open(CACHE_FILE, 'r') as f:
+      with open(CACHE_FILE, 'r', encoding='utf-8') as f:
         return json.load(f)
   except Exception:
     pass
@@ -443,7 +481,7 @@ def load_market_cache():
 
 def save_market_cache(cache_data):
   try:
-    with open(CACHE_FILE, 'w') as f:
+    with open(CACHE_FILE, 'w', encoding='utf-8') as f:
       json.dump(cache_data, f)
   except Exception:
     pass
@@ -453,104 +491,70 @@ if not os.path.exists(CACHE_FILE):
   save_market_cache(DEFAULT_MARKET_CACHE)
 
 
-def fetch_yahoo_chart_series(symbol, range_str='10d'):
+def fetch_index_history(yf_symbol):
   ist_tz = timezone(timedelta(hours=5, minutes=30))
-  for host in ('query1.finance.yahoo.com', 'query2.finance.yahoo.com'):
-    try:
-      url = f'https://{host}/v8/finance/chart/{symbol}'
-      resp = requests.get(
-          url,
-          params={'interval': '1d', 'range': range_str},
-          headers=CHART_HEADERS,
-          timeout=8,
-      )
-      if resp.status_code == 200:
-        payload = resp.json()
-        res_list = payload.get('chart', {}).get('result') or []
-        if res_list:
-          res = res_list[0]
-          meta = res.get('meta', {})
-          timestamps = res.get('timestamp') or []
-          closes = (
-              res.get('indicators', {})
-              .get('quote', [{}])[0]
-              .get('close', [])
-          )
-          points = []
-          for ts, cl in zip(timestamps, closes):
-            if cl is not None:
-              dt = datetime.fromtimestamp(ts, tz=ist_tz)
-              points.append((dt, float(cl)))
-          if points:
-            return meta, points
-    except Exception as e:
-      print(f'Yahoo chart fetch failed for {symbol} on {host}: {e}')
-  return None, []
+  try:
+    ticker = yf.Ticker(yf_symbol)
+    hist = ticker.history(period='10d', interval='1d')
+    if hist is not None and not hist.empty:
+      points = []
+      for idx, row in hist.iterrows():
+        close_val = row.get('Close')
+        if pd.notna(close_val):
+          dt_ist = idx.to_pydatetime().astimezone(ist_tz)
+          points.append((dt_ist, float(close_val)))
+      if points:
+        return points
+  except Exception as e:
+    print(f'yfinance history failed for {yf_symbol}: {e}')
+  return []
 
 
 def get_live_market_data():
   cache = load_market_cache()
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
+  today_date = ist_now.date()
 
   is_weekend = ist_now.weekday() >= 5
   is_market_hours = (not is_weekend) and (
       9 <= ist_now.hour < 16 or (ist_now.hour == 16 and ist_now.minute == 0)
   )
 
-  indices = {
-      'nifty50': '%5ENSEI',
-      'sensex': '%5EBSESN',
-      'nifty500': '%5ECRSLDX',
+  symbols = {
+      'nifty50': '^NSEI',
+      'sensex': '^BSESN',
+      'nifty500': '^CRSLDX',
   }
 
   result = {}
   sensex_points = []
 
-  for key, symbol in indices.items():
-    meta, points = fetch_yahoo_chart_series(symbol, '10d')
+  for key, sym in symbols.items():
+    points = fetch_index_history(sym)
     if key == 'sensex' and points:
       sensex_points = points
 
-    if meta and points:
-      ltp = meta.get('regularMarketPrice')
-      if ltp is None:
-        ltp = points[-1][1]
-      ltp = float(ltp)
-      prev_close = meta.get('chartPreviousClose') or meta.get('previousClose')
-      if prev_close is None and len(points) >= 2:
-        prev_close = points[-2][1]
-      prev_close = float(prev_close) if prev_close else ltp
+    if points and len(points) >= 2:
+      completed = [p for p in points if p[0].date() < today_date]
+      prev_close = completed[-1][1] if completed else points[-2][1]
+      ltp = points[-1][1]
       change = ltp - prev_close
       pct_change = (change / prev_close) * 100 if prev_close else 0.0
       result[key] = {
-          'value': f"{ltp:,.2f}",
-          'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
+          'value': f'{ltp:,.2f}',
+          'change': f'{change:+,.2f} pts ({pct_change:+.2f}%)',
           'is_positive': change >= 0,
       }
+    elif points and len(points) == 1:
+      ltp = points[0][1]
+      result[key] = {
+          'value': f'{ltp:,.2f}',
+          'change': '+0.00 pts (0.00%)',
+          'is_positive': True,
+      }
     else:
-      # Fallback to yfinance
-      try:
-        yf_sym = symbol.replace('%5E', '^')
-        t_obj = yf.Ticker(yf_sym)
-        todays_data = t_obj.history(period='5d')
-        if not todays_data.empty:
-          if key == 'sensex':
-            sensex_points = [(idx.to_pydatetime(), float(row['Close'])) for idx, row in todays_data.iterrows()]
-          ltp = float(todays_data['Close'].iloc[-1])
-          prev_close = float(todays_data['Close'].iloc[-2]) if len(todays_data) > 1 else ltp
-          change = ltp - prev_close
-          pct_change = (change / prev_close) * 100 if prev_close else 0.0
-          result[key] = {
-              'value': f"{ltp:,.2f}",
-              'change': f"{change:+,.2f} pts ({pct_change:+.2f}%)",
-              'is_positive': change >= 0,
-          }
-      except Exception as e:
-        print(f'yfinance fallback error for {key}: {e}')
-
-    if key not in result:
-      cached_item = cache.get(key, {})
+      cached_item = cache.get(key, DEFAULT_MARKET_CACHE[key])
       result[key] = {
           'value': cached_item.get('value', '0.00'),
           'change': cached_item.get('change', '+0.00 pts (0.00%)'),
@@ -559,11 +563,9 @@ def get_live_market_data():
 
   trend_data = []
   if sensex_points and len(sensex_points) >= 2:
-    # Previous 5 completed trading days (exclude today if today is already in sensex_points)
-    today_date = ist_now.date()
     completed = [p for p in sensex_points if p[0].date() < today_date]
     if len(completed) < 5:
-      completed = sensex_points[:-1] if len(sensex_points) > 5 else sensex_points
+      completed = sensex_points[:-1]
     last5 = completed[-5:]
     prev_val = None
     for dt_obj, close_val in last5:
@@ -572,14 +574,13 @@ def get_live_market_data():
       prev_val = close_val
       trend_data.append({
           'date': dt_str,
-          'sensex': f"{close_val:,.2f}",
+          'sensex': f'{close_val:,.2f}',
           'change': chg,
       })
 
   if not trend_data:
     trend_data = cache.get('trend_data', [])
 
-  # Persist live fetched values to market_cache.json
   if result.get('sensex', {}).get('value') not in (None, '0.00'):
     save_market_cache({
         'nifty50': result['nifty50'],
@@ -609,10 +610,69 @@ def market_live():
   return jsonify(market_info)
 
 
+@app.route('/api/get-messages', methods=['GET'])
+def get_messages():
+  if not is_admin_authenticated() and 'username' not in session:
+    return jsonify({'success': False, 'messages': []}), 401
+  return jsonify({'success': True, 'messages': CHAT_MESSAGES})
+
+
+@app.route('/api/send-message', methods=['POST'])
+def send_message():
+  data = request.get_json(silent=True) or request.form or {}
+  text = str(data.get('message') or data.get('text') or '').strip()
+  if not text:
+    return jsonify({'success': False, 'message': 'Message cannot be empty.'}), 400
+
+  if is_admin_authenticated() and session.get('role') == 'admin':
+    sender = 'Admin - Bijoosh Padmakumar'
+    sender_role = 'admin'
+    mobile = ADMIN_MOBILE
+  elif 'username' in session:
+    sender = session.get('username', 'Client')
+    sender_role = 'user'
+    mobile = session.get('mobile', '')
+    touch_user_online(mobile)
+  else:
+    return jsonify({'success': False, 'message': 'Not logged in.'}), 401
+
+  msg_entry = {
+      'id': len(CHAT_MESSAGES) + 1,
+      'sender': sender,
+      'role': sender_role,
+      'mobile': mobile,
+      'message': text,
+      'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+  }
+  CHAT_MESSAGES.append(msg_entry)
+  save_chat_messages(CHAT_MESSAGES)
+
+  if sender_role == 'user':
+    send_whatsapp_notification(f'User Message from {sender} ({mobile}): {text}')
+
+  return jsonify({'success': True, 'message': 'Message sent.', 'data': msg_entry, 'messages': CHAT_MESSAGES})
+
+
+@app.route('/api/whatsapp-status', methods=['GET'])
+def whatsapp_status():
+  configured = bool(
+      os.getenv('CALLMEBOT_APIKEY')
+      or os.getenv('WHATSAPP_API_KEY')
+      or (os.getenv('WHATSAPP_TOKEN') and os.getenv('WHATSAPP_PHONE_ID'))
+      or (os.getenv('TWILIO_ACCOUNT_SID') and os.getenv('TWILIO_AUTH_TOKEN'))
+      or os.getenv('WHATSAPP_WEBHOOK_URL')
+  )
+  return jsonify({
+      'configured': configured,
+      'admin_mobile': ADMIN_MOBILE,
+      'recent_logs': WHATSAPP_LOGS[-20:],
+  })
+
+
 def format_pct(val):
   try:
     return round(float(val) * 100, 2)
-  except:
+  except Exception:
     return val
 
 
@@ -652,7 +712,7 @@ def parse_fund_excel_from_db(table_name):
 def is_today_filename(filename, upload_timestamp=None):
   now_utc = datetime.now(timezone.utc)
   ist_now = now_utc + timedelta(hours=5, minutes=30)
-  
+
   today_patterns = [
       ist_now.strftime('%d-%m-%Y'),
       ist_now.strftime('%d_%m_%Y'),
@@ -660,7 +720,7 @@ def is_today_filename(filename, upload_timestamp=None):
       ist_now.strftime('%Y-%m-%d'),
       ist_now.strftime('%Y_%m_%d'),
   ]
-  
+
   fn = filename.lower()
   for pattern in today_patterns:
     if pattern in fn:
@@ -680,7 +740,7 @@ def is_today_filename(filename, upload_timestamp=None):
 def extract_date_from_filename(filename):
   fn = filename.lower()
   clean_name = os.path.splitext(filename)[0]
-  
+
   for fmt in ('%d-%m-%Y', '%d_%m_%Y', '%m-%d-%Y', '%m_%d_%Y', '%Y-%m-%d', '%Y_%m_%d', '%d.%m.%Y', '%d%m%Y'):
     try:
       dt = datetime.strptime(clean_name, fmt)
@@ -700,7 +760,7 @@ def extract_date_from_filename(filename):
       'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
       'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
       'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
-      'october': 'October', 'november': 'November', 'december': 'December'
+      'october': 'October', 'november': 'November', 'december': 'December',
   }
   for k, v in month_map.items():
     if k in fn:
@@ -720,7 +780,7 @@ def health_check():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
+@limiter.limit('10 per minute')
 def login():
   if request.method == 'POST':
     step = request.form.get('step', 'request_code')
@@ -763,9 +823,14 @@ def login():
               'is_online': True,
           }
           REGISTERED_USERS.append(user_record)
-          send_whatsapp_notification(f"New User Login/Approval Request: {username} ({mobile})")
+          send_whatsapp_notification(
+              f"User Login Alert\nName: {username}\nMobile: {mobile}\nStatus: {user_record['status']}"
+          )
         else:
           check_user_validity(user_record)
+          send_whatsapp_notification(
+              f"User Login Alert\nName: {user_record['name']}\nMobile: {mobile}\nStatus: {user_record['status']}"
+          )
         touch_user_online(mobile)
         resp = redirect(url_for('pending_approval') if user_record['status'] == 'Pending' else url_for('user_dashboard'))
         return clear_admin_cookie(resp)
@@ -779,16 +844,12 @@ def login():
 @app.route('/pending-approval')
 def pending_approval():
   mobile = session.get('mobile', '')
-  user_record = next(
-      (u for u in REGISTERED_USERS if u['mobile'] == mobile), None
-  )
+  user_record = next((u for u in REGISTERED_USERS if u['mobile'] == mobile), None)
   if user_record:
     check_user_validity(user_record)
     if user_record['status'] == 'Approved':
       return redirect(url_for('user_dashboard'))
-  return render_template(
-      'pending_approval.html', username=session.get('username', 'User')
-  )
+  return render_template('pending_approval.html', username=session.get('username', 'User'))
 
 
 @app.route('/user-dashboard')
@@ -816,14 +877,14 @@ def user_dashboard():
     try:
       meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
       if os.path.exists(meta_path):
-        with open(meta_path, 'r') as mf:
+        with open(meta_path, 'r', encoding='utf-8') as mf:
           meta = json.load(mf)
           latest_filename = meta.get('filename', 'latest_nav.jpg')
           last_time = meta.get('upload_time', '')
           if is_today_filename(latest_filename, last_time):
             latest_data_updated = True
     except Exception as e:
-      print(f"Error checking upload status: {e}")
+      print(f'Error checking upload status: {e}')
 
     user_requests = [r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username')]
 
@@ -843,9 +904,10 @@ def user_dashboard():
         download_requests=user_requests,
         feedbacks=USER_FEEDBACKS,
         latest_filename=latest_filename,
+        messages=CHAT_MESSAGES,
     )
   except Exception as e:
-    print(f"Error in user dashboard: {e}")
+    print(f'Error in user dashboard: {e}')
     return render_template('login.html')
 
 
@@ -853,7 +915,7 @@ def user_dashboard():
 def request_download():
   if 'username' not in session:
     return jsonify({'success': False, 'message': 'Not logged in'})
-  data = request.get_json() or {}
+  data = request.get_json(silent=True) or {}
   file_name = data.get('filename', 'latest_nav.jpg')
   download_type = data.get('type', 'download')
 
@@ -866,7 +928,9 @@ def request_download():
       'status': 'Pending',
       'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
   })
-  send_whatsapp_notification(f"Download Request from {session.get('username', 'Client')}: {file_name} ({download_type})")
+  send_whatsapp_notification(
+      f"NAV Download Request\nUser: {session.get('username', 'Client')}\nFile: {file_name}\nType: {download_type}"
+  )
   return jsonify({
       'success': True,
       'message': 'Approval request sent to Admin successfully.',
@@ -877,11 +941,10 @@ def request_download():
 def get_nav_image_base64(filename):
   if 'username' not in session and not session.get('is_admin'):
     return jsonify({'success': False, 'message': 'Unauthorized'})
-  
+
   target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
   if not os.path.exists(target_path):
-    archive_base = ARCHIVE_FOLDER
-    for root, dirs, files in os.walk(archive_base):
+    for root, _, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         target_path = os.path.join(root, filename)
         break
@@ -890,8 +953,8 @@ def get_nav_image_base64(filename):
     import base64
     with open(target_path, 'rb') as img_f:
       b64_data = base64.b64encode(img_f.read()).decode('utf-8')
-    return jsonify({'success': True, 'image_data': f"data:image/jpeg;base64,{b64_data}"})
-  
+    return jsonify({'success': True, 'image_data': f'data:image/jpeg;base64,{b64_data}'})
+
   return jsonify({'success': False, 'message': 'Image not found'})
 
 
@@ -899,22 +962,29 @@ def get_nav_image_base64(filename):
 def view_archive_secured(filename):
   if 'username' not in session and not session.get('is_admin'):
     return redirect(url_for('login'))
-  
+
   if is_admin_authenticated():
-    archive_base = ARCHIVE_FOLDER
-    for root, dirs, files in os.walk(archive_base):
+    for root, _, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         return send_from_directory(root, filename)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-  approved_req = next((r for r in DOWNLOAD_REQUESTS if r['username'] == session.get('username') and r['filename'] == filename and r['status'] == 'Approved' and r['type'] == 'download'), None)
+  approved_req = next(
+      (
+          r for r in DOWNLOAD_REQUESTS
+          if r['username'] == session.get('username')
+          and r['filename'] == filename
+          and r['status'] == 'Approved'
+          and r['type'] == 'download'
+      ),
+      None,
+  )
   if approved_req:
-    archive_base = ARCHIVE_FOLDER
-    for root, dirs, files in os.walk(archive_base):
+    for root, _, files in os.walk(ARCHIVE_FOLDER):
       if filename in files:
         return send_from_directory(root, filename)
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-  
+
   flash('Download requires Admin Approval. Request submitted.', 'warning')
   return redirect(url_for('user_dashboard'))
 
@@ -933,12 +1003,15 @@ def submit_feedback():
         'rating': int(rating) if str(rating).isdigit() else 5,
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
     })
+    send_whatsapp_notification(
+        f"User Feedback from {session.get('username', 'Client')} ({rating}/5): {feedback_text}"
+    )
     flash('Feedback submitted successfully!', 'success')
   return redirect(url_for('user_dashboard'))
 
 
 @app.route('/admin-login', methods=['GET', 'POST'])
-@limiter.limit("10 per minute")
+@limiter.limit('10 per minute')
 def admin_login():
   if request.method == 'POST':
     mobile_input = request.form.get('mobile')
@@ -967,8 +1040,9 @@ def admin_redirect():
 def admin_dashboard():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
+  refresh_all_users_online_status()
 
   for user in REGISTERED_USERS:
     check_user_validity(user)
@@ -991,6 +1065,7 @@ def admin_dashboard():
       current_time=datetime.now().strftime('%b %d, %Y, %I:%M:%S %p'),
       festival_greeting=festival_greeting,
       user_filter=user_filter,
+      messages=CHAT_MESSAGES,
   )
 
 
@@ -1023,7 +1098,7 @@ def toggle_auto_approval():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
   ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
-  status_text = "Enabled" if ADMIN_SETTINGS['auto_approval_enabled'] else "Disabled"
+  status_text = 'Enabled' if ADMIN_SETTINGS['auto_approval_enabled'] else 'Disabled'
   flash(f'Auto-approval has been {status_text} successfully!', 'success')
   return redirect(url_for('admin_dashboard'))
 
@@ -1032,7 +1107,7 @@ def toggle_auto_approval():
 def update_user_status(user_id, status):
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   for user in REGISTERED_USERS:
@@ -1049,7 +1124,7 @@ def update_user_status(user_id, status):
 def approve_all_users():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   now_iso = datetime.now().isoformat()
   for user in REGISTERED_USERS:
@@ -1064,7 +1139,7 @@ def approve_all_users():
 def decline_all_users():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
   for user in REGISTERED_USERS:
     if user['status'] == 'Pending':
@@ -1076,7 +1151,7 @@ def decline_all_users():
 
 def format_alloc(val):
   try:
-    return f"{round(float(val) * 100, 2)}%"
+    return f'{round(float(val) * 100, 2)}%'
   except Exception:
     return str(val).strip()
 
@@ -1275,11 +1350,85 @@ def fund_detail(category, fund_name):
   )
 
 
+@app.route('/admin/fund/<category>/<path:fund_name>')
+def admin_fund_detail(category, fund_name):
+  if not is_admin_authenticated():
+    return redirect(url_for('admin_login'))
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    flash('Invalid fund category.', 'danger')
+    return redirect(url_for('admin_dashboard'))
+  funds = parse_fund_excel_from_db(f'{cat}_funds')
+  matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
+  if not matched_fund:
+    flash('Fund details not found.', 'warning')
+    return redirect(url_for('admin_dashboard'))
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
+  return render_template(
+      'fund_detail.html',
+      category=cat,
+      fund_data=matched_fund,
+      sectors=sectors,
+      holdings=holdings,
+      debt_metrics=debt_metrics,
+      viewer_label='Admin - Bijoosh Padmakumar',
+      username='Admin - Bijoosh Padmakumar',
+      back_url=url_for('admin_dashboard'),
+  )
+
+
+@app.route('/user/fund/<category>/<path:fund_name>')
+def user_fund_detail(category, fund_name):
+  if not session.get('username'):
+    return redirect(url_for('login'))
+  touch_user_online(session.get('mobile'))
+  cat = category.strip().lower()
+  if cat not in ('equity', 'balancer', 'debt'):
+    flash('Invalid fund category.', 'danger')
+    return redirect(url_for('user_dashboard'))
+  funds = parse_fund_excel_from_db(f'{cat}_funds')
+  matched_fund = next((f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()), None)
+  if not matched_fund:
+    flash('Fund details not found.', 'warning')
+    return redirect(url_for('user_dashboard'))
+  sectors, holdings, debt_metrics = get_fund_portfolio_details(cat, matched_fund['fund'])
+  viewer_name = session.get('username', 'Client')
+  return render_template(
+      'fund_detail.html',
+      category=cat,
+      fund_data=matched_fund,
+      sectors=sectors,
+      holdings=holdings,
+      debt_metrics=debt_metrics,
+      viewer_label=viewer_name,
+      username=viewer_name,
+      back_url=url_for('user_dashboard'),
+  )
+
+
+@app.after_request
+def lock_dashboard_fund_links(response):
+  try:
+    if response.content_type and 'text/html' in response.content_type and response.status_code == 200:
+      html = response.get_data(as_text=True)
+      if request.path == '/admin-dashboard' and '/fund/' in html:
+        html = html.replace('href="/fund/', 'href="/admin/fund/')
+        html = html.replace("href='/fund/", "href='/admin/fund/")
+        response.set_data(html)
+      elif request.path == '/user-dashboard' and '/fund/' in html:
+        html = html.replace('href="/fund/', 'href="/user/fund/')
+        html = html.replace("href='/fund/", "href='/user/fund/")
+        response.set_data(html)
+  except Exception:
+    pass
+  return response
+
+
 @app.route('/upload-master-category', methods=['GET', 'POST'])
 def upload_master_category():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   if request.method == 'POST':
@@ -1313,7 +1462,7 @@ def upload_master_category():
 def upload_nav():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   if request.method == 'POST':
@@ -1325,7 +1474,6 @@ def upload_nav():
         if not filename:
           filename = f'{datetime.now().strftime("%d-%m-%Y")}.jpg'
 
-        # Optimize and compress image using Pillow to guarantee fast uploads and rendering
         file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
@@ -1342,13 +1490,12 @@ def upload_nav():
           with open(latest_ref_path, 'wb') as f:
             f.write(file_bytes)
 
-        # Instantly update metadata so user dashboard switches to latest data immediately without lag
         meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
-        with open(meta_path, 'w') as mf:
+        with open(meta_path, 'w', encoding='utf-8') as mf:
           json.dump({
               'filename': filename,
               'original_filename': raw_fn,
-              'upload_time': datetime.now().isoformat()
+              'upload_time': datetime.now().isoformat(),
           }, mf)
 
         target_year, target_month = extract_date_from_filename(raw_fn)
@@ -1371,7 +1518,7 @@ def upload_nav():
 def upload_archive():
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   if request.method == 'POST':
@@ -1383,7 +1530,7 @@ def upload_archive():
           'jan': 'January', 'feb': 'February', 'mar': 'March',
           'apr': 'April', 'may': 'May', 'jun': 'June',
           'jul': 'July', 'aug': 'August', 'sep': 'September',
-          'oct': 'October', 'nov': 'November', 'dec': 'December'
+          'oct': 'October', 'nov': 'November', 'dec': 'December',
       }
       full_month_name = month_map.get(month_input[:3], 'October')
 
@@ -1404,10 +1551,10 @@ def upload_archive():
           os.makedirs(target_dir, exist_ok=True)
           file_path = os.path.join(target_dir, filename)
           file.save(file_path)
-          
+
           upload_mirror_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
           shutil.copy(file_path, upload_mirror_path)
-          
+
           saved_count += 1
 
       if saved_count > 0:
@@ -1423,7 +1570,7 @@ def upload_archive():
 def delete_archive_file(filename):
   if not is_admin_authenticated():
     return redirect(url_for('admin_login'))
-  
+
   ADMIN_ACTIVITY['last_active'] = datetime.now()
 
   try:
@@ -1451,7 +1598,7 @@ def get_archive_files():
       'oct': 'October', 'nov': 'November', 'dec': 'December',
       'january': 'January', 'february': 'February', 'march': 'March', 'april': 'April',
       'june': 'June', 'july': 'July', 'august': 'August', 'september': 'September',
-      'october': 'October', 'november': 'November', 'december': 'December'
+      'october': 'October', 'november': 'November', 'december': 'December',
   }
   full_month = month_map.get(month_input[:3], month_input.capitalize())
 
@@ -1467,95 +1614,6 @@ def get_archive_files():
 
   sorted_files = sorted(list(set(matched_files)), reverse=True)
   return jsonify({'success': True, 'files': sorted_files})
-
-
-
-@app.route('/admin/fund/<category>/<path:fund_name>')
-def admin_fund_detail(category, fund_name):
-  if not is_admin_authenticated():
-    return redirect(url_for('admin_login'))
-  cat = category.strip().lower()
-  if cat not in ('equity', 'balancer', 'debt'):
-    flash('Invalid fund category.', 'danger')
-    return redirect(url_for('admin_dashboard'))
-  funds = parse_fund_excel_from_db(f'{cat}_funds')
-  matched_fund = next(
-      (f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()),
-      None,
-  )
-  if not matched_fund:
-    flash('Fund details not found.', 'warning')
-    return redirect(url_for('admin_dashboard'))
-  sectors, holdings, debt_metrics = get_fund_portfolio_details(
-      cat, matched_fund['fund']
-  )
-  return render_template(
-      'fund_detail.html',
-      category=cat,
-      fund_data=matched_fund,
-      sectors=sectors,
-      holdings=holdings,
-      debt_metrics=debt_metrics,
-      viewer_label='Admin - Bijoosh Padmakumar',
-      username='Admin - Bijoosh Padmakumar',
-      back_url=url_for('admin_dashboard'),
-  )
-
-
-@app.route('/user/fund/<category>/<path:fund_name>')
-def user_fund_detail(category, fund_name):
-  if not session.get('username'):
-    return redirect(url_for('login'))
-  touch_user_online(session.get('mobile'))
-  cat = category.strip().lower()
-  if cat not in ('equity', 'balancer', 'debt'):
-    flash('Invalid fund category.', 'danger')
-    return redirect(url_for('user_dashboard'))
-  funds = parse_fund_excel_from_db(f'{cat}_funds')
-  matched_fund = next(
-      (f for f in funds if f['fund'].strip().lower() == fund_name.strip().lower()),
-      None,
-  )
-  if not matched_fund:
-    flash('Fund details not found.', 'warning')
-    return redirect(url_for('user_dashboard'))
-  sectors, holdings, debt_metrics = get_fund_portfolio_details(
-      cat, matched_fund['fund']
-  )
-  viewer_name = session.get('username', 'Client')
-  return render_template(
-      'fund_detail.html',
-      category=cat,
-      fund_data=matched_fund,
-      sectors=sectors,
-      holdings=holdings,
-      debt_metrics=debt_metrics,
-      viewer_label=viewer_name,
-      username=viewer_name,
-      back_url=url_for('user_dashboard'),
-  )
-
-
-@app.after_request
-def lock_dashboard_fund_links(response):
-  try:
-    if (
-        response.content_type
-        and 'text/html' in response.content_type
-        and response.status_code == 200
-    ):
-      html = response.get_data(as_text=True)
-      if request.path == '/admin-dashboard' and '/fund/' in html:
-        html = html.replace('href="/fund/', 'href="/admin/fund/')
-        html = html.replace("href='/fund/", "href='/admin/fund/")
-        response.set_data(html)
-      elif request.path == '/user-dashboard' and '/fund/' in html:
-        html = html.replace('href="/fund/', 'href="/user/fund/')
-        html = html.replace("href='/fund/", "href='/user/fund/")
-        response.set_data(html)
-  except Exception:
-    pass
-  return response
 
 
 if __name__ == '__main__':
