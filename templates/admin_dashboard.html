@@ -289,6 +289,60 @@
             align-items: center;
             border: 1px solid var(--border-color);
         }
+
+        /* Matched 145px Apple Red Analog Clock Styling */
+        .analog-clock-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: rgba(31, 41, 55, 0.7);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px;
+            border-radius: 12px;
+        }
+        .clock-face {
+            width: 145px;
+            height: 145px;
+            border: 6px solid #FF0800;
+            border-radius: 50%;
+            position: relative;
+            background: radial-gradient(circle, #ff332e 0%, #cc0600 100%);
+            box-shadow: 0 0 22px rgba(255, 8, 0, 0.5), inset 0 0 12px rgba(0, 0, 0, 0.35);
+            flex-shrink: 0;
+        }
+        .clock-marker {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            top: 50%;
+            left: 50%;
+            transform-origin: 0 0;
+        }
+        .marker-hour {
+            width: 2.5px;
+            height: 12px;
+            margin-left: -1.25px;
+        }
+        .clock-hand {
+            position: absolute;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(0deg);
+            border-radius: 3px;
+        }
+        .hour-hand { width: 5px; height: 38px; background: #ffffff; z-index: 3; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .min-hand { width: 3.5px; height: 55px; background: #ffffff; z-index: 4; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        .sec-hand { width: 2px; height: 60px; background: #ffffff; z-index: 5; opacity: 0.95; }
+        .clock-center-dot {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 12px; height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 6;
+            box-shadow: 0 0 4px rgba(0,0,0,0.6);
+        }
     </style>
 </head>
 <body>
@@ -297,7 +351,7 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 2 mins)</span>
+                <span class="control-center-text">Admin Control Center (Auto-refreshes every 30 secs)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
             <div class="header-center-banner text-center">
@@ -309,14 +363,19 @@
                     <h1>NAV UPDATES</h1>
                 {% endif %}
             </div>
-            <div class="header-right" style="display: flex; align-items: center; gap: 16px; text-align: right;">
-                <svg id="admin-analog-clock" width="68" height="68" viewBox="0 0 100 100" style="border-radius: 50%; background: #1a0505; border: 3px solid #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, 0.45); flex-shrink: 0;">
-                    <circle cx="50" cy="50" r="44" fill="none" stroke="#dc2626" stroke-width="2" />
-                    <line id="clock-hour" x1="50" y1="50" x2="50" y2="28" stroke="#f8fafc" stroke-width="4" stroke-linecap="round" />
-                    <line id="clock-min" x1="50" y1="50" x2="50" y2="18" stroke="#fca5a5" stroke-width="3" stroke-linecap="round" />
-                    <line id="clock-sec" x1="50" y1="50" x2="50" y2="14" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" />
-                    <circle cx="50" cy="50" r="3.5" fill="#ef4444" />
-                </svg>
+            <div class="header-right" style="display: flex; align-items: center; gap: 18px; text-align: right;">
+                <div class="analog-clock-wrapper">
+                    <div class="clock-face" id="admin-clock-face">
+                        <div class="clock-hand hour-hand" id="admin-hour-hand"></div>
+                        <div class="clock-hand min-hand" id="admin-min-hand"></div>
+                        <div class="clock-hand sec-hand" id="admin-sec-hand"></div>
+                        <div class="clock-center-dot"></div>
+                    </div>
+                    <div style="text-align: left;">
+                        <div id="admin-date-label" style="font-size: 14px; font-weight: 700; color: var(--accent-gold);">Loading Date...</div>
+                        <div id="admin-time-label" style="font-size: 13px; color: var(--text-muted); font-weight: 500; margin-top: 4px;">00:00:00 AM</div>
+                    </div>
+                </div>
                 <div>
                     <p class="live-datetime" id="live-clock" style="margin: 0; font-weight: 600;">Loading Date & Time...</p>
                     <p class="admin-identity">Admin Portal Active</p>
@@ -726,6 +785,16 @@
     </div>
 
     <script>
+        const adminClockFace = document.getElementById('admin-clock-face');
+        if (adminClockFace) {
+            for (let i = 0; i < 12; i++) {
+                const marker = document.createElement('div');
+                marker.className = 'clock-marker marker-hour';
+                marker.style.transform = `rotate(${i * 30}deg) translateY(-60px)`;
+                adminClockFace.appendChild(marker);
+            }
+        }
+
         function updateClock() {
             const now = new Date();
             const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
@@ -736,16 +805,18 @@
             const min = now.getMinutes() + sec / 60;
             const hr = (now.getHours() % 12) + min / 60;
 
-            const setHand = (id, deg, len) => {
-                const hand = document.getElementById(id);
-                if (!hand) return;
-                const rad = (deg - 90) * Math.PI / 180;
-                hand.setAttribute('x2', (50 + len * Math.cos(rad)).toFixed(2));
-                hand.setAttribute('y2', (50 + len * Math.sin(rad)).toFixed(2));
-            };
-            setHand('clock-hour', hr * 30, 20);
-            setHand('clock-min', min * 6, 30);
-            setHand('clock-sec', sec * 6, 34);
+            const secHand = document.getElementById('admin-sec-hand');
+            const minHand = document.getElementById('admin-min-hand');
+            const hourHand = document.getElementById('admin-hour-hand');
+
+            if (secHand) secHand.style.transform = `translateX(-50%) rotate(${sec * 6}deg)`;
+            if (minHand) minHand.style.transform = `translateX(-50%) rotate(${min * 6}deg)`;
+            if (hourHand) hourHand.style.transform = `translateX(-50%) rotate(${hr * 30}deg)`;
+
+            const dateLabel = document.getElementById('admin-date-label');
+            const timeLabel = document.getElementById('admin-time-label');
+            if (dateLabel) dateLabel.innerText = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+            if (timeLabel) timeLabel.innerText = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         }
         setInterval(updateClock, 1000);
         updateClock();
@@ -927,6 +998,14 @@
 
         loadAdminChat();
         setInterval(loadAdminChat, 4000);
+
+        // Auto-refresh Admin Dashboard every 30 seconds without opening modals or switching tabs
+        setInterval(() => {
+            if (document.getElementById('fundModal').style.display === 'flex') return;
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) return;
+            window.location.reload();
+        }, 30000);
     </script>
 </body>
 </html>

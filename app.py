@@ -317,6 +317,7 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
       to_phone
       or os.getenv('WHATSAPP_TO')
       or os.getenv('ADMIN_WHATSAPP')
+      or os.getenv('CALLMEBOT_PHONE')
       or ADMIN_MOBILE
   ).strip()
   clean_digits = re.sub(r'\D', '', target_phone)
@@ -325,17 +326,26 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
 
   now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
 
-  callmebot_key = (os.getenv('CALLMEBOT_APIKEY') or os.getenv('WHATSAPP_API_KEY') or '').strip()
+  callmebot_key = (
+      os.getenv('CALLMEBOT_APIKEY')
+      or os.getenv('CALLMEBOT_API_KEY')
+      or os.getenv('WHATSAPP_API_KEY')
+      or ''
+  ).strip()
   callmebot_phone = re.sub(r'\D', '', os.getenv('CALLMEBOT_PHONE') or clean_digits)
+  if len(callmebot_phone) == 10:
+    callmebot_phone = '91' + callmebot_phone
+
   if callmebot_key and callmebot_phone:
     try:
       resp = requests.get(
           'https://api.callmebot.com/whatsapp.php',
           params={'phone': callmebot_phone, 'text': message, 'apikey': callmebot_key},
-          timeout=12,
+          timeout=15,
       )
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': resp.status_code, 'message': message})
-      return resp.status_code in (200, 201)
+      if resp.status_code in (200, 201):
+        return True
     except Exception as e:
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'callmebot', 'status': f'error: {e}', 'message': message})
 
@@ -355,10 +365,11 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
               'type': 'text',
               'text': {'body': message},
           },
-          timeout=12,
+          timeout=15,
       )
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': resp.status_code, 'message': message})
-      return resp.status_code in (200, 201)
+      if resp.status_code in (200, 201):
+        return True
     except Exception as e:
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'meta_cloud', 'status': f'error: {e}', 'message': message})
 
@@ -372,10 +383,11 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
           f'https://api.twilio.com/2010-04-01/Accounts/{tw_sid}/Messages.json',
           auth=(tw_sid, tw_token),
           data={'From': tw_from, 'To': tw_to, 'Body': message},
-          timeout=12,
+          timeout=15,
       )
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': resp.status_code, 'message': message})
-      return resp.status_code in (200, 201)
+      if resp.status_code in (200, 201):
+        return True
     except Exception as e:
       WHATSAPP_LOGS.append({'time': now_str, 'provider': 'twilio', 'status': f'error: {e}', 'message': message})
 
@@ -839,6 +851,7 @@ def login():
         session['role'] = 'user'
         session['username'] = username
         session['mobile'] = mobile
+        session['login_ts'] = datetime.now().isoformat()
         user_record = next((u for u in REGISTERED_USERS if re.sub(r'\D', '', u['mobile']) == re.sub(r'\D', '', mobile)), None)
         if not user_record:
           user_record = {
@@ -892,6 +905,16 @@ def user_dashboard():
     if not user_record:
       return redirect(url_for('login'))
 
+    remaining_days = 30
+    try:
+      login_ts_raw = session.get('login_ts')
+      if login_ts_raw:
+        login_dt = datetime.fromisoformat(login_ts_raw)
+        elapsed_days = (datetime.now() - login_dt).days
+        remaining_days = max(0, 30 - elapsed_days)
+    except Exception:
+      remaining_days = 30
+
     market_info, market_trend_data = get_live_market_data()
     admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
     festival_greeting = get_festival_greeting()
@@ -916,6 +939,7 @@ def user_dashboard():
         'user_dashboard.html',
         username=session.get('username', 'Client'),
         mobile=mobile,
+        remaining_days=remaining_days,
         market=market_info,
         market_trend=market_trend_data,
         equity_data=parse_fund_excel_from_db('equity_funds'),

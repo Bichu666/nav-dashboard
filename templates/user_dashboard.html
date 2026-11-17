@@ -672,7 +672,7 @@
             const category = rowEl.getAttribute('data-category') || 'equity';
             const fundName = rowEl.getAttribute('data-fund') || '';
             if (!fundName) return;
-            window.location.href = `/fund/${encodeURIComponent(category)}/${encodeURIComponent(fundName)}`;
+            window.location.href = `/user/fund/${encodeURIComponent(category)}/${encodeURIComponent(fundName)}`;
         }
 
         // Generate crisp 12 hour ticks automatically around the 145px clock face
@@ -857,12 +857,6 @@
                 };
 
                 applyMarketToUI(payload);
-
-                fetch('/api/market-sync', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).catch(() => {});
             } catch (err) {
                 console.error('Browser market sync error:', err);
             }
