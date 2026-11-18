@@ -1851,30 +1851,17 @@ def upload_nav():
                 latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
                 Image.MAX_IMAGE_PIXELS = None
-                saved_successfully = False
-
                 try:
                     with Image.open(file) as img:
                         if img.mode in ("RGBA", "P"):
                             img = img.convert("RGB")
-                        img.thumbnail((1600, 1600))
-                        img.save(file_path_upload, "JPEG", optimize=True, quality=85)
-                        img.save(latest_ref_path, "JPEG", optimize=True, quality=85)
-                        saved_successfully = True
+                        img.thumbnail((1200, 1200))
+                        img.save(file_path_upload, "JPEG", optimize=True, quality=80)
+                        img.save(latest_ref_path, "JPEG", optimize=True, quality=80)
                 except Exception as img_err:
-                    print(f"Pillow processing warning: {img_err}")
-
-                if not saved_successfully:
-                    file.seek(0)
-                    file_bytes = file.read()
-                    if len(file_bytes) > 25 * 1024 * 1024:
-                        flash('Uploaded image file is too large (>25MB). Please compress it first.', 'danger')
-                        return redirect(url_for('admin_dashboard'))
-
-                    with open(file_path_upload, 'wb') as f:
-                        f.write(file_bytes)
-                    with open(latest_ref_path, 'wb') as f:
-                        f.write(file_bytes)
+                    print(f"Pillow critical error: {img_err}")
+                    flash('Failed to process image format. Please upload a standard JPEG/PNG.', 'danger')
+                    return redirect(url_for('admin_dashboard'))
 
                 meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
                 with open(meta_path, 'w', encoding='utf-8') as mf:
