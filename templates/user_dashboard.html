@@ -324,7 +324,7 @@
                 <span class="control-center-text" style="display: block; margin-top: 2px; color: var(--text-muted);">Client Control Center</span>
                 <span style="display: block; font-style: italic; color: var(--accent-gold); font-size: 13px; margin-top: 4px;">Admin - Bijoosh Padmakumar</span>
                 
-                <div style="margin-top: 4px; font-size: 12px; font-weight: 600;">
+                <div style="margin-top: 4px; font-size: 12px; font-weight: 600;" id="admin-presence-wrap">
                     {% if admin_online %}
                         <span style="color: var(--green);">● Admin Online</span>
                     {% else %}
@@ -430,11 +430,11 @@
                 
                 {% set latest_req = download_requests | selectattr('filename', 'equalto', latest_filename) | first %}
 
-                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <div id="latest-nav-action-wrap" style="display: flex; gap: 8px; margin-top: 10px;">
                     <button type="button" onclick="openNavImageModal('{{ latest_filename }}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
                     
                     {% if latest_req and latest_req.status == 'Approved' %}
-                        <a href="/view-archive-secured/{{ latest_filename }}" class="btn-batch" style="background: var(--green); color: #000; text-decoration: none; flex: 1; text-align: center;" download>Download Now</a>
+                        <a href="/view-archive-secured/{{ latest_filename }}?role=user" class="btn-batch" style="background: var(--green); color: #000; text-decoration: none; flex: 1; text-align: center;" download>Download Now</a>
                     {% elif latest_req and latest_req.status == 'Pending' %}
                         <button type="button" class="btn-batch" style="background: #374151; color: var(--text-muted); cursor: not-allowed; flex: 1;" disabled>Request Pending</button>
                     {% else %}
@@ -489,7 +489,7 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="user-download-requests-body">
                     {% for req in download_requests %}
                     <tr>
                         <td>{{ req.filename }}</td>
@@ -502,7 +502,7 @@
                         <td>{{ req.timestamp }}</td>
                         <td>
                             {% if req.status == 'Approved' %}
-                            <a href="/view-archive-secured/{{ req.filename }}" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;" download>Download File</a>
+                            <a href="/view-archive-secured/{{ req.filename }}?role=user" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;" download>Download File</a>
                             {% else %}
                             <span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>
                             {% endif %}
@@ -531,7 +531,7 @@
 
         <div class="panel" style="margin-bottom: 24px;">
             <h3>User Feedback and Suggestion / Rating</h3>
-            <form action="{{ url_for('submit_feedback') }}" method="POST">
+            <form id="user-feedback-form" action="{{ url_for('submit_feedback') }}" method="POST">
                 <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 15px;">
                     <span style="font-size: 13px; color: var(--text-muted);">Rate Application:</span>
                     <div class="star-rating">
@@ -543,7 +543,7 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 15px; align-items: center;">
-                    <input type="text" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
+                    <input type="text" id="user-feedback-input" name="feedback" placeholder="Type your feedback or suggestion here..." style="flex: 1; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; color: var(--text-main); border-radius: 6px; font-size: 14px;" required>
                     <button type="submit" class="btn-batch" style="width: 200px;">Submit Feedback</button>
                 </div>
             </form>
@@ -668,11 +668,18 @@
     </div>
 
     <script>
+        const PORTAL_ROLE = 'user';
+        const LATEST_FILENAME = '{{ latest_filename }}';
+
+        function escHtml(v) {
+            return String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         function openFundDetail(rowEl) {
             const category = rowEl.getAttribute('data-category') || 'equity';
             const fundName = rowEl.getAttribute('data-fund') || '';
             if (!fundName) return;
-            window.location.href = `/user/fund/${encodeURIComponent(category)}/${encodeURIComponent(fundName)}`;
+            window.location.href = `/user/fund/${encodeURIComponent(category)}/${encodeURIComponent(fundName)}?role=user`;
         }
 
         // Generate crisp 12 hour ticks automatically around the 145px clock face
@@ -717,20 +724,6 @@
         setInterval(updateAnalogClock, 1000);
         updateAnalogClock();
 
-        // Browser-Side Market Data Sync (Live Indices + 5-Day SENSEX Trend)
-        const MARKET_SYMBOLS = {
-            nifty50: '^NSEI',
-            sensex: '^BSESN',
-            nifty500: '^CRSLDX'
-        };
-
-        function formatMarketNumber(num) {
-            return Number(num).toLocaleString('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
-        }
-
         function renderTrendBoxes(trendData) {
             const container = document.getElementById('user-trend-boxes');
             if (!container || !Array.isArray(trendData) || trendData.length === 0) return;
@@ -740,8 +733,8 @@
                 const cls = chgNum >= 0 ? 'market-pos' : 'market-neg';
                 return `
                     <div class="t-box" style="background: var(--bg-card); padding: 6px; border-radius: 6px; text-align: center; flex: 1; border: 1px solid var(--border-color);">
-                        <div class="t-date" style="font-size: 10px; color: var(--text-muted);">${item.date}</div>
-                        <div class="t-val" style="font-size: 11px; font-weight: 600; color: #fff; margin: 2px 0;">${item.sensex}</div>
+                        <div class="t-date" style="font-size: 10px; color: var(--text-muted);">${escHtml(item.date)}</div>
+                        <div class="t-val" style="font-size: 11px; font-weight: 600; color: #fff; margin: 2px 0;">${escHtml(item.sensex)}</div>
                         <div class="t-chg ${cls}" style="font-size: 10px;">${sign}${chgNum} pts</div>
                     </div>
                 `;
@@ -768,102 +761,22 @@
             }
         }
 
-        async function fetchYahooChart(symbol, range = '5d') {
-            const rawUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}`;
-            const rawUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}`;
-            const endpoints = [
-                rawUrl,
-                rawUrl2,
-                `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`
-            ];
-            for (const url of endpoints) {
-                try {
-                    const resp = await fetch(url);
-                    if (!resp.ok) continue;
-                    const json = await resp.json();
-                    const result = json?.chart?.result?.[0];
-                    if (result && result.meta && result.meta.regularMarketPrice !== undefined) {
-                        return result;
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-            return null;
-        }
-
-        function buildTrendFromResult(result) {
-            const timestamps = result?.timestamp || [];
-            const closes = result?.indicators?.quote?.[0]?.close || [];
-            const points = [];
-            for (let i = 0; i < timestamps.length; i++) {
-                const c = closes[i];
-                if (c === null || c === undefined || Number.isNaN(Number(c))) continue;
-                const dt = new Date(timestamps[i] * 1000);
-                const dateStr = dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-                points.push({ date: dateStr, close: Number(c) });
-            }
-            const last5 = points.slice(-5);
-            return last5.map((pt, idx) => {
-                const prevClose = idx > 0 ? last5[idx - 1].close : pt.close;
-                const diff = Number((pt.close - prevClose).toFixed(2));
-                return {
-                    date: pt.date,
-                    sensex: formatMarketNumber(pt.close),
-                    change: diff
-                };
-            });
-        }
-
-        async function syncMarketBrowserSide() {
+        async function refreshMarketLive() {
             try {
-                const [niftyRes, sensexRes, nifty500Res] = await Promise.all([
-                    fetchYahooChart(MARKET_SYMBOLS.nifty50, '5d'),
-                    fetchYahooChart(MARKET_SYMBOLS.sensex, '10d'),
-                    fetchYahooChart(MARKET_SYMBOLS.nifty500, '5d')
-                ]);
-
-                if (!niftyRes && !sensexRes && !nifty500Res) {
-                    const fallback = await fetch('/api/market-live').then(r => r.json());
-                    applyMarketToUI(fallback);
-                    return;
-                }
-
-                const parseMeta = (res) => {
-                    const meta = res?.meta;
-                    if (!meta || meta.regularMarketPrice === undefined) return null;
-                    const price = Number(meta.regularMarketPrice);
-                    const prevClose = Number(meta.chartPreviousClose ?? meta.previousClose ?? price);
-                    const diff = price - prevClose;
-                    const pct = prevClose ? (diff / prevClose) * 100 : 0;
-                    const isPos = diff >= 0;
-                    const sign = isPos ? '+' : '';
-                    return {
-                        value: formatMarketNumber(price),
-                        change: `${sign}${diff.toFixed(2)} pts (${sign}${pct.toFixed(2)}%)`,
-                        is_positive: isPos
-                    };
-                };
-
-                const trendData = sensexRes ? buildTrendFromResult(sensexRes) : null;
-                const now = new Date();
-                const payload = {
-                    nifty50: parseMeta(niftyRes),
-                    sensex: parseMeta(sensexRes),
-                    nifty500: parseMeta(nifty500Res),
-                    trend_data: trendData,
-                    time_label: `Live as of: ${now.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}`
-                };
-
-                applyMarketToUI(payload);
+                const res = await fetch('/api/market-live', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Portal-Role': PORTAL_ROLE }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                applyMarketToUI(data);
             } catch (err) {
-                console.error('Browser market sync error:', err);
+                console.error('Market refresh error:', err);
             }
         }
 
-        syncMarketBrowserSide();
-        setInterval(syncMarketBrowserSide, 15000);
+        refreshMarketLive();
+        setInterval(refreshMarketLive, 15000);
 
         let currentZoom = 1;
         function openNavImageModal(filename) {
@@ -871,7 +784,10 @@
             currentZoom = 1;
             document.getElementById('nav-modal-img').style.transform = `scale(${currentZoom})`;
             
-            fetch('/get-nav-image-base64/' + filename)
+            fetch('/get-nav-image-base64/' + encodeURIComponent(filename), {
+                credentials: 'same-origin',
+                headers: { 'X-Portal-Role': PORTAL_ROLE }
+            })
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
@@ -911,21 +827,96 @@
             if (event.target == navModal) { closeNavImageModal(); }
         }
 
+        function appendDownloadRequestRow(filename, type) {
+            const tbody = document.getElementById('user-download-requests-body');
+            if (!tbody) return;
+            if (tbody.innerHTML.includes('No download requests made yet.')) {
+                tbody.innerHTML = '';
+            }
+            const nowStr = new Date().toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${escHtml(filename)}</td><td>${escHtml(type)}</td><td><span style="font-weight: bold; color: var(--accent-orange);">Pending</span></td><td>${nowStr}</td><td><span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span></td>`;
+            tbody.appendChild(tr);
+        }
+
+        function renderUserRequestsTable(requests) {
+            const tbody = document.getElementById('user-download-requests-body');
+            if (!tbody || !Array.isArray(requests)) return;
+            if (!requests.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No download requests made yet.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = requests.map(req => {
+                const statusColor = req.status === 'Approved' ? 'var(--green)' : (req.status === 'Rejected' ? 'var(--red)' : 'var(--accent-orange)');
+                const actionHtml = req.status === 'Approved'
+                    ? `<a href="/view-archive-secured/${encodeURIComponent(req.filename)}?role=user" class="btn-batch" style="padding: 5px 12px; font-size: 12px; text-decoration: none; display: inline-block;" download>Download File</a>`
+                    : `<span style="color: var(--text-muted); font-size: 13px;">Awaiting Admin</span>`;
+                return `<tr>
+                    <td>${escHtml(req.filename)}</td>
+                    <td>${escHtml(req.type)}</td>
+                    <td><span style="font-weight: bold; color: ${statusColor};">${escHtml(req.status)}</span></td>
+                    <td>${escHtml(req.timestamp)}</td>
+                    <td>${actionHtml}</td>
+                </tr>`;
+            }).join('');
+
+            const latestReq = requests.find(r => r.filename === LATEST_FILENAME);
+            const actionWrap = document.getElementById('latest-nav-action-wrap');
+            if (actionWrap && latestReq) {
+                if (latestReq.status === 'Approved') {
+                    actionWrap.innerHTML = `<button type="button" onclick="openNavImageModal('${escHtml(LATEST_FILENAME)}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
+                    <a href="/view-archive-secured/${encodeURIComponent(LATEST_FILENAME)}?role=user" class="btn-batch" style="background: var(--green); color: #000; text-decoration: none; flex: 1; text-align: center;" download>Download Now</a>`;
+                } else if (latestReq.status === 'Pending') {
+                    actionWrap.innerHTML = `<button type="button" onclick="openNavImageModal('${escHtml(LATEST_FILENAME)}')" class="btn-batch" style="background: #0d9488; color: #fff; flex: 1;">View NAV</button>
+                    <button type="button" class="btn-batch" style="background: #374151; color: var(--text-muted); cursor: not-allowed; flex: 1;" disabled>Request Pending</button>`;
+                }
+            }
+        }
+
+        async function syncUserState() {
+            try {
+                const res = await fetch('/api/user-state', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Portal-Role': PORTAL_ROLE }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data || !data.success) return;
+                if (Array.isArray(data.download_requests)) {
+                    renderUserRequestsTable(data.download_requests);
+                }
+                const adminWrap = document.getElementById('admin-presence-wrap');
+                if (adminWrap) {
+                    adminWrap.innerHTML = data.admin_online
+                        ? '<span style="color: var(--green);">● Admin Online</span>'
+                        : '<span style="color: var(--text-muted);">● Admin Offline</span>';
+                }
+            } catch (e) {}
+        }
+
         const latestBtn = document.getElementById('btn-request-latest');
-        if(latestBtn) {
+        if (latestBtn) {
             latestBtn.addEventListener('click', () => {
                 fetch('/request-download', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename: '{{ latest_filename }}', type: 'download'})
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Portal-Role': PORTAL_ROLE
+                    },
+                    body: JSON.stringify({ filename: LATEST_FILENAME, type: 'download', role: PORTAL_ROLE })
                 }).then(r => r.json()).then(d => {
+                    if (!d.success) {
+                        alert(d.message || 'Unable to submit request.');
+                        return;
+                    }
                     alert(d.message);
                     latestBtn.innerText = "Request Pending";
                     latestBtn.style.background = "#374151";
                     latestBtn.style.color = "#9ca3af";
                     latestBtn.style.cursor = "not-allowed";
                     latestBtn.disabled = true;
-                    location.reload();
+                    appendDownloadRequestRow(LATEST_FILENAME, 'download');
                 });
             });
         }
@@ -938,9 +929,17 @@
             }
             fetch('/request-download', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename: filename, type: 'download'})
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Portal-Role': PORTAL_ROLE
+                },
+                body: JSON.stringify({ filename: filename, type: 'download', role: PORTAL_ROLE })
             }).then(r => r.json()).then(d => {
+                if (!d.success) {
+                    alert(d.message || 'Unable to submit request.');
+                    return;
+                }
                 alert(d.message);
                 const btn = document.getElementById('btn-request-archive');
                 btn.innerText = "Request Pending";
@@ -948,6 +947,7 @@
                 btn.style.color = "#9ca3af";
                 btn.style.cursor = "not-allowed";
                 btn.disabled = true;
+                appendDownloadRequestRow(filename, 'download');
             });
         });
 
@@ -956,7 +956,10 @@
             const month = document.getElementById('archive-month-select').value;
             const fileSelect = document.getElementById('archive-file-select');
 
-            fetch(`/get-archive-files?year=${year}&month=${month}`)
+            fetch(`/get-archive-files?year=${year}&month=${month}`, {
+                credentials: 'same-origin',
+                headers: { 'X-Portal-Role': PORTAL_ROLE }
+            })
                 .then(response => response.json())
                 .then(data => {
                     fileSelect.innerHTML = '<option value="">-- Select specific date/file --</option>';
@@ -986,12 +989,52 @@
 
         loadArchiveFiles();
 
+        // AJAX Feedback submission (keeps user on user_dashboard without reload)
+        const feedbackForm = document.getElementById('user-feedback-form');
+        if (feedbackForm) {
+            feedbackForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const feedbackInput = document.getElementById('user-feedback-input');
+                const ratingChecked = feedbackForm.querySelector('input[name="rating"]:checked');
+                const text = feedbackInput ? feedbackInput.value.trim() : '';
+                if (!text) return;
+
+                try {
+                    const res = await fetch('/submit-feedback', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Portal-Role': PORTAL_ROLE
+                        },
+                        body: JSON.stringify({
+                            feedback: text,
+                            rating: ratingChecked ? ratingChecked.value : '5',
+                            role: PORTAL_ROLE
+                        })
+                    });
+                    const data = await res.json();
+                    if (data && data.success) {
+                        feedbackInput.value = '';
+                        alert(data.message || 'Feedback submitted successfully!');
+                    } else {
+                        alert((data && data.message) || 'Could not submit feedback.');
+                    }
+                } catch (err) {
+                    console.error('Feedback submit error:', err);
+                }
+            });
+        }
+
         // Chat Polling & Sending
         function loadMessages() {
-            fetch('/api/get-messages').then(r => r.json()).then(data => {
+            fetch('/api/get-messages', {
+                credentials: 'same-origin',
+                headers: { 'X-Portal-Role': PORTAL_ROLE }
+            }).then(r => r.json()).then(data => {
                 if (data.success) {
                     const c = document.getElementById('chat-messages-container');
-                    c.innerHTML = data.messages.map(m => `<div><b>${m.username}:</b> ${m.message} <span style="font-size:10px; color:#888;">(${m.timestamp})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
+                    c.innerHTML = data.messages.map(m => `<div><b>${escHtml(m.username)}:</b> ${escHtml(m.message)} <span style="font-size:10px; color:#888;">(${escHtml(m.timestamp)})</span></div>`).join('') || '<div style="color:var(--text-muted);">No messages yet. Send a message to Admin.</div>';
                     c.scrollTop = c.scrollHeight;
                 }
             }).catch(() => {});
@@ -1001,12 +1044,31 @@
             if(!input.value.trim()) return;
             fetch('/api/send-message', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({message: input.value, recipient: 'Admin'})
-            }).then(r => r.json()).then(d => { if(d.success) { input.value=''; loadMessages(); } });
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Portal-Role': PORTAL_ROLE
+                },
+                body: JSON.stringify({
+                    message: input.value,
+                    username: '{{ username }}',
+                    mobile: '{{ mobile }}',
+                    recipient: 'Admin',
+                    role: PORTAL_ROLE
+                })
+            }).then(r => r.json()).then(d => {
+                if(d.success) {
+                    input.value = '';
+                    loadMessages();
+                } else if (d.message) {
+                    alert(d.message);
+                }
+            });
         }
         setInterval(loadMessages, 5000);
+        setInterval(syncUserState, 6000);
         loadMessages();
+        syncUserState();
     </script>
 </body>
 </html>
