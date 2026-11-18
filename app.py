@@ -66,19 +66,24 @@ auth_serializer = URLSafeTimedSerializer(app.secret_key)
 
 
 def set_admin_cookie(response):
-    token = auth_serializer.dumps({'is_admin': True, 'ts': datetime.now().isoformat()})
+    token = auth_serializer.dumps({
+        'is_admin': True,
+        'role': 'admin',
+        'ts': datetime.now().isoformat(),
+    })
     response.set_cookie(
         ADMIN_COOKIE_NAME,
         token,
         max_age=30 * 24 * 3600,
         httponly=True,
         samesite='Lax',
+        path='/',
     )
     return response
 
 
 def clear_admin_cookie(response):
-    response.delete_cookie(ADMIN_COOKIE_NAME)
+    response.delete_cookie(ADMIN_COOKIE_NAME, path='/')
     return response
 
 
@@ -86,6 +91,7 @@ def set_user_cookie(response, username, mobile, login_ts):
     token = auth_serializer.dumps({
         'username': username,
         'mobile': mobile,
+        'role': 'user',
         'login_ts': login_ts,
     })
     response.set_cookie(
@@ -94,6 +100,7 @@ def set_user_cookie(response, username, mobile, login_ts):
         max_age=30 * 24 * 3600,
         httponly=True,
         samesite='Lax',
+        path='/',
     )
     return response
 
@@ -111,6 +118,7 @@ def get_user_auth():
         return {
             'username': session.get('user_username'),
             'mobile': session.get('user_mobile'),
+            'role': 'user',
             'login_ts': session.get('user_login_ts') or datetime.now().isoformat(),
         }
     return None
@@ -244,20 +252,21 @@ DOWNLOAD_REQUESTS = load_download_requests()
 save_download_requests()
 
 
-def ensure_user_record(username, mobile):
+def ensure_user_record(username, mobile, preserve_approved=True):
     clean_mob = re.sub(r'\D', '', str(mobile or ''))
     user_record = next(
         (u for u in REGISTERED_USERS if re.sub(r'\D', '', str(u.get('mobile', ''))) == clean_mob and clean_mob),
         None,
     )
     if not user_record and username:
+        is_approved = preserve_approved or ADMIN_SETTINGS.get('auto_approval_enabled', True)
         user_record = {
             'id': len(REGISTERED_USERS) + 1,
             'name': username,
             'mobile': mobile,
-            'status': 'Approved' if ADMIN_SETTINGS.get('auto_approval_enabled', True) else 'Pending',
+            'status': 'Approved' if is_approved else 'Pending',
             'registered_at': datetime.now(),
-            'approved_at': datetime.now().isoformat() if ADMIN_SETTINGS.get('auto_approval_enabled', True) else None,
+            'approved_at': datetime.now().isoformat() if is_approved else None,
             'last_seen': datetime.now(),
             'is_online': True,
         }
@@ -817,24 +826,27 @@ def send_message():
     if not text:
         return jsonify({'success': False, 'message': 'Message cannot be empty.'}), 400
 
-    sender_hint = str(data.get('username') or data.get('user') or data.get('sender') or '').strip()
-    is_admin_post = (sender_hint.startswith('Admin') or data.get('role') == 'admin') and is_admin_authenticated()
+    portal_role = str(
+        data.get('role')
+        or request.headers.get('X-Portal-Role')
+        or ('admin' if str(data.get('username', '')).startswith('Admin') else 'user')
+    ).strip().lower()
 
-    if is_admin_post:
+    if portal_role == 'admin':
+        if not is_admin_authenticated():
+            return jsonify({'success': False, 'message': 'Admin session expired. Please log in again.'}), 401
         sender_name = 'Admin - Bijoosh Padmakumar'
         role = 'admin'
         mobile = ADMIN_MOBILE
         ADMIN_ACTIVITY['last_active'] = datetime.now()
     else:
-        user_auth = get_user_auth() or {}
-        sender_name = (
-            sender_hint
-            or str(user_auth.get('username') or '').strip()
-            or 'biju'
-        )
+        user_auth = get_user_auth()
+        if not user_auth:
+            return jsonify({'success': False, 'message': 'User session expired. Please log in again.'}), 401
+        sender_name = str(user_auth.get('username') or data.get('username') or 'Client').strip()
         role = 'user'
-        mobile = str(user_auth.get('mobile') or data.get('mobile') or '+917034788666').strip()
-        ensure_user_record(sender_name, mobile)
+        mobile = str(user_auth.get('mobile') or data.get('mobile') or '').strip()
+        ensure_user_record(sender_name, mobile, preserve_approved=True)
         touch_user_online(mobile)
 
     entry = _normalize_chat_message({
@@ -1011,9 +1023,9 @@ def login():
                         'id': len(REGISTERED_USERS) + 1,
                         'name': username,
                         'mobile': mobile,
-                        'status': 'Pending',
+                        'status': 'Approved' if ADMIN_SETTINGS.get('auto_approval_enabled', True) else 'Pending',
                         'registered_at': datetime.now(),
-                        'approved_at': None,
+                        'approved_at': datetime.now().isoformat() if ADMIN_SETTINGS.get('auto_approval_enabled', True) else None,
                         'last_seen': datetime.now(),
                         'is_online': True,
                     }
@@ -1058,7 +1070,7 @@ def user_dashboard():
     username = user_auth.get('username', 'Client')
     mobile = user_auth.get('mobile', '')
 
-    user_record = ensure_user_record(username, mobile)
+    user_record = ensure_user_record(username, mobile, preserve_approved=True)
     touch_user_online(mobile)
     refresh_all_users_online_status()
 
@@ -1130,6 +1142,23 @@ def user_dashboard():
     )
 
 
+@app.route('/api/user-state')
+@limiter.exempt
+def api_user_state():
+    user_auth = get_user_auth()
+    if not user_auth:
+        return jsonify({'success': False, 'message': 'Session expired.'}), 401
+    username = user_auth.get('username', 'Client')
+    touch_user_online(user_auth.get('mobile'))
+    user_requests = [r for r in DOWNLOAD_REQUESTS if r.get('username', '').lower() == username.lower()]
+    admin_online = (datetime.now() - ADMIN_ACTIVITY['last_active']) < timedelta(minutes=5)
+    return jsonify({
+        'success': True,
+        'download_requests': user_requests,
+        'admin_online': admin_online,
+    })
+
+
 @app.route('/request-download', methods=['POST'])
 def request_download():
     user_auth = get_user_auth()
@@ -1141,20 +1170,22 @@ def request_download():
     username = user_auth.get('username', 'Client')
 
     req_id = len(DOWNLOAD_REQUESTS) + 1
-    DOWNLOAD_REQUESTS.append({
+    entry = {
         'id': req_id,
         'username': username,
         'filename': file_name,
         'type': download_type,
         'status': 'Pending',
         'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
-    })
+    }
+    DOWNLOAD_REQUESTS.append(entry)
     save_download_requests()
     touch_user_online(user_auth.get('mobile'))
     send_whatsapp_notification(f'Download Request from {username}: {file_name} ({download_type})')
     return jsonify({
         'success': True,
         'message': 'Approval request sent to Admin successfully.',
+        'request': entry,
     })
 
 
@@ -1180,7 +1211,17 @@ def get_nav_image_base64(filename):
 
 @app.route('/view-archive-secured/<path:filename>')
 def view_archive_secured(filename):
+    portal_role = request.args.get('role', '').strip().lower()
     user_auth = get_user_auth()
+
+    if portal_role == 'admin':
+        if not is_admin_authenticated():
+            return redirect(url_for('admin_login'))
+        for root, _, files in os.walk(ARCHIVE_FOLDER):
+            if filename in files:
+                return send_from_directory(root, filename)
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
     if not user_auth and not is_admin_authenticated():
         return redirect(url_for('login'))
 
@@ -1201,7 +1242,7 @@ def view_archive_secured(filename):
         ),
         None,
     )
-    if approved_req or is_admin_authenticated():
+    if approved_req:
         for root, _, files in os.walk(ARCHIVE_FOLDER):
             if filename in files:
                 return send_from_directory(root, filename)
@@ -1215,19 +1256,37 @@ def view_archive_secured(filename):
 def submit_feedback():
     user_auth = get_user_auth()
     if not user_auth:
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Session expired. Please log in again.'}), 401
         return redirect(url_for('login'))
-    feedback_text = request.form.get('feedback')
-    rating = request.form.get('rating', '5')
-    if feedback_text:
-        USER_FEEDBACKS.append({
-            'id': len(USER_FEEDBACKS) + 1,
-            'username': user_auth.get('username', 'Client'),
-            'feedback': feedback_text,
-            'rating': int(rating) if str(rating).isdigit() else 5,
-            'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+
+    data = request.get_json(silent=True) or request.form or {}
+    feedback_text = str(data.get('feedback') or '').strip()
+    rating = str(data.get('rating') or '5').strip()
+
+    if not feedback_text:
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Feedback cannot be empty.'}), 400
+        return redirect(url_for('user_dashboard'))
+
+    entry = {
+        'id': len(USER_FEEDBACKS) + 1,
+        'username': user_auth.get('username', 'Client'),
+        'feedback': feedback_text,
+        'rating': int(rating) if rating.isdigit() else 5,
+        'timestamp': datetime.now().strftime('%b %d, %Y, %I:%M %p'),
+    }
+    USER_FEEDBACKS.append(entry)
+    touch_user_online(user_auth.get('mobile'))
+
+    if request.is_json:
+        return jsonify({
+            'success': True,
+            'message': 'Feedback submitted successfully!',
+            'feedback': entry,
         })
-        touch_user_online(user_auth.get('mobile'))
-        flash('Feedback submitted successfully!', 'success')
+
+    flash('Feedback submitted successfully!', 'success')
     return redirect(url_for('user_dashboard'))
 
 
@@ -1312,41 +1371,63 @@ def api_admin_state():
         'users': users_payload,
         'download_requests': DOWNLOAD_REQUESTS,
         'feedbacks': USER_FEEDBACKS,
+        'auto_approval_enabled': ADMIN_SETTINGS.get('auto_approval_enabled', True),
     })
 
 
 @app.route('/admin/approve-download/<int:req_id>', methods=['POST'])
 def approve_download(req_id):
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
+    ADMIN_ACTIVITY['last_active'] = datetime.now()
     for req in DOWNLOAD_REQUESTS:
         if req['id'] == req_id:
             req['status'] = 'Approved'
             save_download_requests()
-            flash(f"Download request for {req['filename']} approved!", 'success')
+            if not request.is_json:
+                flash(f"Download request for {req['filename']} approved!", 'success')
             break
+    if request.is_json:
+        return jsonify({'success': True})
     return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/reject-download/<int:req_id>', methods=['POST'])
 def reject_download(req_id):
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
+    ADMIN_ACTIVITY['last_active'] = datetime.now()
     for req in DOWNLOAD_REQUESTS:
         if req['id'] == req_id:
             req['status'] = 'Rejected'
             save_download_requests()
-            flash(f"Download request for {req['filename']} rejected.", 'danger')
+            if not request.is_json:
+                flash(f"Download request for {req['filename']} rejected.", 'danger')
             break
+    if request.is_json:
+        return jsonify({'success': True})
     return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/toggle-auto-approval', methods=['POST'])
 def toggle_auto_approval():
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
+    ADMIN_ACTIVITY['last_active'] = datetime.now()
     ADMIN_SETTINGS['auto_approval_enabled'] = not ADMIN_SETTINGS.get('auto_approval_enabled', True)
     status_text = 'Enabled' if ADMIN_SETTINGS['auto_approval_enabled'] else 'Disabled'
+    if request.is_json:
+        return jsonify({
+            'success': True,
+            'auto_approval_enabled': ADMIN_SETTINGS['auto_approval_enabled'],
+            'message': f'Auto-approval has been {status_text} successfully!',
+        })
     flash(f'Auto-approval has been {status_text} successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
@@ -1354,6 +1435,8 @@ def toggle_auto_approval():
 @app.route('/update-user-status/<int:user_id>/<status>', methods=['POST'])
 def update_user_status(user_id, status):
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
 
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1367,12 +1450,16 @@ def update_user_status(user_id, status):
                 user['approved_at'] = None
             save_registered_users()
             break
+    if request.is_json:
+        return jsonify({'success': True})
     return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/approve-all-users', methods=['POST'])
 def approve_all_users():
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
 
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1382,6 +1469,8 @@ def approve_all_users():
             user['status'] = 'Approved'
             user['approved_at'] = now_iso
     save_registered_users()
+    if request.is_json:
+        return jsonify({'success': True, 'message': 'All pending users approved successfully!'})
     flash('All pending users approved successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
@@ -1389,6 +1478,8 @@ def approve_all_users():
 @app.route('/decline-all-users', methods=['POST'])
 def decline_all_users():
     if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
         return redirect(url_for('admin_login'))
 
     ADMIN_ACTIVITY['last_active'] = datetime.now()
@@ -1397,6 +1488,8 @@ def decline_all_users():
             user['status'] = 'Pending'
             user['approved_at'] = None
     save_registered_users()
+    if request.is_json:
+        return jsonify({'success': True, 'message': 'All pending users declined successfully!'})
     flash('All pending users declined successfully!', 'success')
     return redirect(url_for('admin_dashboard'))
 
@@ -1574,6 +1667,18 @@ def api_fund_portfolio(category, fund_name):
 
 
 def _resolve_fund_viewer_and_back():
+    role_hint = (
+        request.args.get('role')
+        or request.headers.get('X-Portal-Role')
+        or ''
+    ).strip().lower()
+    if role_hint == 'admin' and is_admin_authenticated():
+        return True, 'Admin - Bijoosh Padmakumar', url_for('admin_dashboard')
+    if role_hint == 'user':
+        user_auth = get_user_auth()
+        if user_auth:
+            touch_user_online(user_auth.get('mobile'))
+            return False, user_auth.get('username', 'Client'), url_for('user_dashboard')
     if is_admin_authenticated() and request.referrer and '/admin' in request.referrer:
         return True, 'Admin - Bijoosh Padmakumar', url_for('admin_dashboard')
     user_auth = get_user_auth()
