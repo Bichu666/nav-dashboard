@@ -1853,6 +1853,7 @@ def upload_nav():
                 Image.MAX_IMAGE_PIXELS = None
                 try:
                     with Image.open(file) as img:
+                        img.draft('RGB', (1200, 1200))
                         if img.mode in ("RGBA", "P"):
                             img = img.convert("RGB")
                         img.thumbnail((1200, 1200))
