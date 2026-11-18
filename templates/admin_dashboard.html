@@ -351,7 +351,7 @@
         <header class="main-header">
             <div class="header-left">
                 <h2>Admin Portal</h2>
-                <span class="control-center-text">Admin Control Center (Auto-refreshes every 30 secs)</span>
+                <span class="control-center-text">Admin Control Center (Live Auto-Sync Active)</span>
                 <p class="admin-identity" style="margin-top: 6px;">Admin - Bijoosh Padmakumar</p>
             </div>
             <div class="header-center-banner text-center">
@@ -492,7 +492,7 @@
                         <th>Timestamp</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-feedback-body">
                     {% for item in feedbacks %}
                     <tr>
                         <td>{{ item.username }}</td>
@@ -551,7 +551,7 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-download-requests-body">
                     {% for req in download_requests %}
                     <tr>
                         <td>{{ req.username }}</td>
@@ -560,12 +560,8 @@
                         <td>{{ req.status }}</td>
                         <td>
                             {% if req.status == 'Pending' %}
-                            <form action="{{ url_for('approve_download', req_id=req.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-app">Approve</button>
-                            </form>
-                            <form action="{{ url_for('reject_download', req_id=req.id) }}" method="POST" style="display:inline;">
-                                <button type="submit" class="btn-dec">Reject</button>
-                            </form>
+                            <button type="button" class="btn-app" onclick="adminPostAction('{{ url_for('approve_download', req_id=req.id) }}')">Approve</button>
+                            <button type="button" class="btn-dec" onclick="adminPostAction('{{ url_for('reject_download', req_id=req.id) }}')">Reject</button>
                             {% else %}
                             <span style="color: var(--text-muted);">Processed</span>
                             {% endif %}
@@ -587,17 +583,11 @@
                     <a href="{{ url_for('admin_dashboard', user_filter='all') }}" class="btn-batch" style="padding: 8px 16px; font-size: 13px; text-decoration: none; color: #000; display: inline-block;">All Users</a>
                     <a href="{{ url_for('admin_dashboard', user_filter='approved') }}" class="btn-batch" style="background: var(--green); color: #000; padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-block;">Approved Users List</a>
                     <a href="{{ url_for('admin_dashboard', user_filter='pending') }}" class="btn-batch" style="background: var(--accent-orange); color: #000; padding: 8px 16px; font-size: 13px; text-decoration: none; display: inline-block;">Pending Users List</a>
-                    <form action="{{ url_for('toggle_auto_approval') }}" method="POST" style="margin: 0;">
-                        <button type="submit" style="background: {% if auto_approval_enabled %}var(--green){% else %}var(--red){% endif %}; color: {% if auto_approval_enabled %}#000{% else %}#fff{% endif %}; border: none; padding: 8px 16px; border-radius: 5px; font-weight: 700; cursor: pointer; font-size: 13px;">
-                            Auto-Approval: {% if auto_approval_enabled %}Enabled (ON){% else %}Disabled (OFF){% endif %}
-                        </button>
-                    </form>
-                    <form action="{{ url_for('approve_all_users') }}" method="POST" style="margin: 0;">
-                        <button type="submit" class="btn-app" style="padding: 8px 16px; font-size: 13px;">Bulk Approve All</button>
-                    </form>
-                    <form action="{{ url_for('decline_all_users') }}" method="POST" style="margin: 0;">
-                        <button type="submit" class="btn-dec" style="padding: 8px 16px; font-size: 13px;">Bulk Decline All</button>
-                    </form>
+                    <button type="button" id="btn-toggle-auto-approval" onclick="toggleAutoApprovalAjax()" style="background: {% if auto_approval_enabled %}var(--green){% else %}var(--red){% endif %}; color: {% if auto_approval_enabled %}#000{% else %}#fff{% endif %}; border: none; padding: 8px 16px; border-radius: 5px; font-weight: 700; cursor: pointer; font-size: 13px;">
+                        Auto-Approval: {% if auto_approval_enabled %}Enabled (ON){% else %}Disabled (OFF){% endif %}
+                    </button>
+                    <button type="button" class="btn-app" style="padding: 8px 16px; font-size: 13px;" onclick="adminPostAction('{{ url_for('approve_all_users') }}')">Bulk Approve All</button>
+                    <button type="button" class="btn-dec" style="padding: 8px 16px; font-size: 13px;" onclick="adminPostAction('{{ url_for('decline_all_users') }}')">Bulk Decline All</button>
                 </div>
             </div>
             <table class="approval-table">
@@ -611,7 +601,7 @@
                         <th>Action</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="admin-users-body">
                     {% for user in users %}
                         {% if user_filter == 'all' or (user_filter == 'approved' and user.status == 'Approved') or (user_filter == 'pending' and user.status == 'Pending') %}
                         <tr>
@@ -627,12 +617,8 @@
                             <td>{{ user.last_seen.strftime('%b %d, %Y, %I:%M %p') if user.last_seen else user.last_login | default('N/A') }}</td>
                             <td><span class="status-badge {{ user.status | lower }}">{{ user.status }}</span></td>
                             <td>
-                                <form action="{{ url_for('update_user_status', user_id=user.id, status='Approved') }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn-app">Approve</button>
-                                </form>
-                                <form action="{{ url_for('update_user_status', user_id=user.id, status='Pending') }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn-dec">Decline</button>
-                                </form>
+                                <button type="button" class="btn-app" onclick="adminPostAction('{{ url_for('update_user_status', user_id=user.id, status='Approved') }}')">Approve</button>
+                                <button type="button" class="btn-dec" onclick="adminPostAction('{{ url_for('update_user_status', user_id=user.id, status='Pending') }}')">Decline</button>
                             </td>
                         </tr>
                         {% endif %}
@@ -785,6 +771,8 @@
     </div>
 
     <script>
+        const PORTAL_ROLE = 'admin';
+        const CURRENT_USER_FILTER = "{{ user_filter | default('all') }}";
         const adminClockFace = document.getElementById('admin-clock-face');
         if (adminClockFace) {
             for (let i = 0; i < 12; i++) {
@@ -828,7 +816,7 @@
 
             const detailLink = document.getElementById('modal-full-detail-link');
             if (detailLink) {
-                detailLink.href = `/admin/fund/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}`;
+                detailLink.href = `/admin/fund/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}?role=admin`;
             }
 
             const percentageFields = [
@@ -862,7 +850,10 @@
             holdWrap.innerHTML = 'Loading holdings...';
             debtWrap.innerHTML = 'Loading debt metrics...';
 
-            fetch(`/api/fund-portfolio/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}`)
+            fetch(`/api/fund-portfolio/${encodeURIComponent(category)}/${encodeURIComponent(data.fund)}`, {
+                credentials: 'same-origin',
+                headers: { 'X-Portal-Role': PORTAL_ROLE }
+            })
                 .then(r => r.json())
                 .then(res => {
                     if (!res || !res.success) {
@@ -922,7 +913,10 @@
 
         async function loadAdminChat() {
             try {
-                const res = await fetch('/api/get-messages');
+                const res = await fetch('/api/get-messages', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Portal-Role': PORTAL_ROLE }
+                });
                 const data = await res.json();
                 if (data && data.success) renderAdminChat(data.messages);
             } catch (e) {}
@@ -935,10 +929,15 @@
             if (!msg) return;
             const res = await fetch('/api/send-message', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Portal-Role': PORTAL_ROLE
+                },
                 body: JSON.stringify({
                     message: rec ? `[@${rec}] ${msg}` : msg,
-                    username: 'Admin - Bijoosh Padmakumar'
+                    username: 'Admin - Bijoosh Padmakumar',
+                    role: PORTAL_ROLE
                 })
             });
             const data = await res.json();
@@ -948,8 +947,114 @@
             }
         }
 
+        async function adminPostAction(url) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Portal-Role': PORTAL_ROLE
+                    },
+                    body: JSON.stringify({ role: PORTAL_ROLE })
+                });
+                if (res.ok) {
+                    await syncAdminTables();
+                }
+            } catch (e) {
+                console.error('Admin action error:', e);
+            }
+        }
+
+        async function toggleAutoApprovalAjax() {
+            try {
+                const res = await fetch('/toggle-auto-approval', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Portal-Role': PORTAL_ROLE
+                    },
+                    body: JSON.stringify({ role: PORTAL_ROLE })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    const btn = document.getElementById('btn-toggle-auto-approval');
+                    if (btn) {
+                        const enabled = !!data.auto_approval_enabled;
+                        btn.style.background = enabled ? 'var(--green)' : 'var(--red)';
+                        btn.style.color = enabled ? '#000' : '#fff';
+                        btn.innerText = enabled ? 'Auto-Approval: Enabled (ON)' : 'Auto-Approval: Disabled (OFF)';
+                    }
+                }
+            } catch (e) {
+                console.error('Toggle auto approval error:', e);
+            }
+        }
+
+        async function syncAdminTables() {
+            try {
+                const res = await fetch('/api/admin-state', {
+                    credentials: 'same-origin',
+                    headers: { 'X-Portal-Role': PORTAL_ROLE }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data || !data.success) return;
+
+                const reqBody = document.getElementById('admin-download-requests-body');
+                if (reqBody && Array.isArray(data.download_requests)) {
+                    if (!data.download_requests.length) {
+                        reqBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No pending requests.</td></tr>';
+                    } else {
+                        reqBody.innerHTML = data.download_requests.map(req => {
+                            const actions = req.status === 'Pending'
+                                ? `<button type="button" class="btn-app" onclick="adminPostAction('/admin/approve-download/${req.id}')">Approve</button> <button type="button" class="btn-dec" onclick="adminPostAction('/admin/reject-download/${req.id}')">Reject</button>`
+                                : '<span style="color: var(--text-muted);">Processed</span>';
+                            return `<tr><td>${escHtml(req.username)}</td><td>${escHtml(req.filename)}</td><td>${escHtml(req.type)}</td><td>${escHtml(req.status)}</td><td>${actions}</td></tr>`;
+                        }).join('');
+                    }
+                }
+
+                const fbBody = document.getElementById('admin-feedback-body');
+                if (fbBody && Array.isArray(data.feedbacks) && data.feedbacks.length) {
+                    fbBody.innerHTML = data.feedbacks.map(item =>
+                        `<tr><td>${escHtml(item.username)}</td><td>${escHtml(item.feedback)}</td><td>${escHtml(item.timestamp)}</td></tr>`
+                    ).join('');
+                }
+
+                const usersBody = document.getElementById('admin-users-body');
+                if (usersBody && Array.isArray(data.users)) {
+                    const filtered = data.users.filter(u =>
+                        CURRENT_USER_FILTER === 'all' ||
+                        (CURRENT_USER_FILTER === 'approved' && u.status === 'Approved') ||
+                        (CURRENT_USER_FILTER === 'pending' && u.status === 'Pending')
+                    );
+                    usersBody.innerHTML = filtered.map(u => {
+                        const presence = u.is_online
+                            ? '<span style="color: var(--green); font-weight: bold;">Online</span>'
+                            : '<span style="color: var(--text-muted);">Offline</span>';
+                        return `<tr>
+                            <td>${escHtml(u.name)} (ID: ${u.id})</td>
+                            <td>${escHtml(u.mobile)}</td>
+                            <td>${presence}</td>
+                            <td>${escHtml(u.last_seen)}</td>
+                            <td><span class="status-badge ${escHtml(u.status.toLowerCase())}">${escHtml(u.status)}</span></td>
+                            <td>
+                                <button type="button" class="btn-app" onclick="adminPostAction('/update-user-status/${u.id}/Approved')">Approve</button>
+                                <button type="button" class="btn-dec" onclick="adminPostAction('/update-user-status/${u.id}/Pending')">Decline</button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+            } catch (e) {}
+        }
+
         setInterval(() => {
-            fetch('/api/market-live')
+            fetch('/api/market-live', {
+                credentials: 'same-origin',
+                headers: { 'X-Portal-Role': PORTAL_ROLE }
+            })
                 .then(response => response.json())
                 .then(data => {
                     const statusLabel = document.getElementById('market-status-label');
@@ -997,15 +1102,9 @@
         }, 10000);
 
         loadAdminChat();
+        syncAdminTables();
         setInterval(loadAdminChat, 4000);
-
-        // Auto-refresh Admin Dashboard every 30 seconds without opening modals or switching tabs
-        setInterval(() => {
-            if (document.getElementById('fundModal').style.display === 'flex') return;
-            const activeEl = document.activeElement;
-            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) return;
-            window.location.reload();
-        }, 30000);
+        setInterval(syncAdminTables, 5000);
     </script>
 </body>
 </html>
