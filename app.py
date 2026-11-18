@@ -1850,14 +1850,27 @@ def upload_nav():
                 file_path_upload = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 latest_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_nav.jpg')
 
+                Image.MAX_IMAGE_PIXELS = None
+                saved_successfully = False
+
                 try:
-                    img = Image.open(file)
-                    img.thumbnail((1600, 1600))
-                    img.save(file_path_upload, optimize=True, quality=85)
-                    img.save(latest_ref_path, optimize=True, quality=85)
-                except Exception:
+                    with Image.open(file) as img:
+                        if img.mode in ("RGBA", "P"):
+                            img = img.convert("RGB")
+                        img.thumbnail((1600, 1600))
+                        img.save(file_path_upload, "JPEG", optimize=True, quality=85)
+                        img.save(latest_ref_path, "JPEG", optimize=True, quality=85)
+                        saved_successfully = True
+                except Exception as img_err:
+                    print(f"Pillow processing warning: {img_err}")
+
+                if not saved_successfully:
                     file.seek(0)
                     file_bytes = file.read()
+                    if len(file_bytes) > 25 * 1024 * 1024:
+                        flash('Uploaded image file is too large (>25MB). Please compress it first.', 'danger')
+                        return redirect(url_for('admin_dashboard'))
+
                     with open(file_path_upload, 'wb') as f:
                         f.write(file_bytes)
                     with open(latest_ref_path, 'wb') as f:
