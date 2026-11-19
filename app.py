@@ -458,6 +458,41 @@ WHATSAPP_LOGS = []
 
 
 def _dispatch_whatsapp_sync(message, to_phone=None):
+    now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
+
+    green_id = (os.getenv('GREEN_API_INSTANCE') or os.getenv('GREENAPI_ID_INSTANCE') or '').strip()
+    green_token = (os.getenv('GREEN_API_TOKEN') or os.getenv('GREENAPI_API_TOKEN') or '').strip()
+    green_url = (os.getenv('GREEN_API_URL') or 'https://7107.api.greenapi.com').strip().rstrip('/')
+    green_recipient = (
+        to_phone
+        or os.getenv('GREEN_API_RECIPIENT')
+        or os.getenv('ADMIN_WHATSAPP_NUMBER')
+        or os.getenv('WHATSAPP_TO')
+        or ''
+    ).strip()
+
+    if green_id and green_token and green_recipient:
+        if '@' in green_recipient:
+            chat_id = green_recipient
+        else:
+            digits = re.sub(r'\D', '', green_recipient)
+            if len(digits) == 10:
+                digits = '91' + digits
+            chat_id = f'{digits}@c.us'
+
+        try:
+            resp = requests.post(
+                f'{green_url}/waInstance{green_id}/sendMessage/{green_token}',
+                headers={'Content-Type': 'application/json'},
+                json={'chatId': chat_id, 'message': message},
+                timeout=15,
+            )
+            WHATSAPP_LOGS.append({'time': now_str, 'provider': 'greenapi', 'status': resp.status_code, 'message': message})
+            if resp.status_code in (200, 201):
+                return True
+        except Exception as e:
+            WHATSAPP_LOGS.append({'time': now_str, 'provider': 'greenapi', 'status': f'error: {e}', 'message': message})
+
     target_phone = (
         to_phone
         or os.getenv('WHATSAPP_TO')
@@ -468,8 +503,6 @@ def _dispatch_whatsapp_sync(message, to_phone=None):
     clean_digits = re.sub(r'\D', '', target_phone)
     if len(clean_digits) == 10:
         clean_digits = '91' + clean_digits
-
-    now_str = datetime.now().strftime('%b %d, %Y, %I:%M:%S %p')
 
     callmebot_key = (
         os.getenv('CALLMEBOT_APIKEY')
@@ -1854,15 +1887,18 @@ def upload_nav():
                 try:
                     with Image.open(file) as img:
                         img.draft('RGB', (1200, 1200))
-                        if img.mode in ("RGBA", "P"):
-                            img = img.convert("RGB")
+                        if img.mode in ('RGBA', 'P'):
+                            img = img.convert('RGB')
                         img.thumbnail((1200, 1200))
-                        img.save(file_path_upload, "JPEG", optimize=True, quality=80)
-                        img.save(latest_ref_path, "JPEG", optimize=True, quality=80)
-                except Exception as img_err:
-                    print(f"Pillow critical error: {img_err}")
-                    flash('Failed to process image format. Please upload a standard JPEG/PNG.', 'danger')
-                    return redirect(url_for('admin_dashboard'))
+                        img.save(file_path_upload, 'JPEG', optimize=True, quality=80)
+                        img.save(latest_ref_path, 'JPEG', optimize=True, quality=80)
+                except Exception:
+                    file.seek(0)
+                    file_bytes = file.read()
+                    with open(file_path_upload, 'wb') as f:
+                        f.write(file_bytes)
+                    with open(latest_ref_path, 'wb') as f:
+                        f.write(file_bytes)
 
                 meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
                 with open(meta_path, 'w', encoding='utf-8') as mf:
