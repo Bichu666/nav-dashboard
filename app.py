@@ -57,6 +57,52 @@ os.makedirs(ARCHIVE_FOLDER, exist_ok=True)
 CHAT_FILE = 'chat_messages.json'
 USERS_FILE = 'registered_users.json'
 REQUESTS_FILE = 'download_requests.json'
+ACTIVITY_FILE = 'daily_activity.json'
+
+
+def _ist_now():
+    return datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+
+
+def load_daily_activity():
+    if os.path.exists(ACTIVITY_FILE):
+        try:
+            with open(ACTIVITY_FILE, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+                if isinstance(raw, list):
+                    return raw
+        except Exception as e:
+            print(f'Error loading daily activity: {e}')
+    return []
+
+
+def save_daily_activity():
+    try:
+        with open(ACTIVITY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(DAILY_ACTIVITY[-2000:], f, indent=2)
+    except Exception as e:
+        print(f'Error saving daily activity: {e}')
+
+
+DAILY_ACTIVITY = load_daily_activity()
+
+
+def log_user_activity(event_type, username, mobile='', detail=''):
+    now_ist = _ist_now()
+    entry = {
+        'id': len(DAILY_ACTIVITY) + 1,
+        'date': now_ist.strftime('%Y-%m-%d'),
+        'time': now_ist.strftime('%I:%M %p'),
+        'timestamp': now_ist.isoformat(),
+        'event_type': event_type,
+        'username': str(username or 'Client').strip(),
+        'mobile': str(mobile or 'N/A').strip() or 'N/A',
+        'detail': str(detail or '').strip(),
+    }
+    DAILY_ACTIVITY.append(entry)
+    save_daily_activity()
+    return entry
+
 
 ADMIN_ACTIVITY = {'last_active': datetime.now()}
 
@@ -597,35 +643,116 @@ def send_email_notification(subject, body):
         print(f'Failed to send email: {e}')
 
 
+def has_today_nav_uploaded():
+    try:
+        meta_path = os.path.join(app.config['UPLOAD_FOLDER'], 'nav_meta.json')
+        if os.path.exists(meta_path):
+            with open(meta_path, 'r', encoding='utf-8') as mf:
+                meta = json.load(mf)
+                latest_fn = meta.get('filename', '')
+                last_time = meta.get('upload_time', '')
+                if latest_fn and is_today_filename(latest_fn, last_time):
+                    return True
+    except Exception as e:
+        print(f'Error checking today NAV upload status: {e}')
+    return False
+
+
+def build_eod_whatsapp_report(target_date_str=None):
+    ist_now = _ist_now()
+    date_key = target_date_str or ist_now.strftime('%Y-%m-%d')
+    display_date = ist_now.strftime('%d %b %Y')
+
+    todays_events = [e for e in DAILY_ACTIVITY if e.get('date') == date_key]
+    logins = [e for e in todays_events if e.get('event_type') == 'login']
+    nav_views = [e for e in todays_events if e.get('event_type') == 'nav_view']
+    downloads = [e for e in todays_events if e.get('event_type') in ('download_request', 'download')]
+    messages = [e for e in todays_events if e.get('event_type') == 'message']
+
+    lines = [
+        f"📊 *Daily EOD Portal Report — {display_date}*",
+        "",
+        "*Summary:*",
+        f"• Total Logins: {len(logins)}",
+        f"• Total NAV Views: {len(nav_views)}",
+        f"• Total Downloads/Requests: {len(downloads)}",
+        f"• Total Messages: {len(messages)}",
+        "",
+        f"*1. Logins ({len(logins)}):*",
+    ]
+    if logins:
+        for idx, item in enumerate(logins, 1):
+            lines.append(f"{idx}. {item['username']} ({item['mobile']}) — {item['time']}")
+    else:
+        lines.append("• No logins recorded today")
+
+    lines.extend(["", f"*2. NAV Views ({len(nav_views)}):*"])
+    if nav_views:
+        for idx, item in enumerate(nav_views, 1):
+            det = f" — {item['detail']}" if item.get('detail') else ""
+            lines.append(f"{idx}. {item['username']} ({item['mobile']}){det} [{item['time']}]")
+    else:
+        lines.append("• No NAV views recorded today")
+
+    lines.extend(["", f"*3. Downloads & Requests ({len(downloads)}):*"])
+    if downloads:
+        for idx, item in enumerate(downloads, 1):
+            det = f" — {item['detail']}" if item.get('detail') else ""
+            lines.append(f"{idx}. {item['username']} ({item['mobile']}){det} [{item['time']}]")
+    else:
+        lines.append("• No downloads/requests recorded today")
+
+    lines.extend(["", f"*4. Messages ({len(messages)}):*"])
+    if messages:
+        for idx, item in enumerate(messages, 1):
+            detail_val = item.get('detail', '')
+            det = f': "{detail_val}"' if detail_val else ""
+            lines.append(f"{idx}. {item['username']} ({item['mobile']}) [{item['time']}]{det}")
+    else:
+        lines.append("• No user messages recorded today")
+
+    return "\n".join(lines)
+
+
+def send_eod_and_goodnight_whatsapp(include_goodnight=True):
+    eod_report = build_eod_whatsapp_report()
+    send_whatsapp_notification(eod_report)
+    if include_goodnight:
+        def _delayed_gn():
+            time.sleep(3)
+            send_whatsapp_notification("🌙 Gd nght Bijoosh padmakumar")
+        threading.Thread(target=_delayed_gn, daemon=True).start()
+    return eod_report
+
+
 def daily_scheduler():
-    last_8am_sent = None
-    last_10pm_sent = None
+    last_9am_sent = None
+    last_11pm_sent = None
     while True:
         try:
-            now_utc = datetime.now(timezone.utc)
-            ist_now = now_utc + timedelta(hours=5, minutes=30)
+            ist_now = _ist_now()
             current_date = ist_now.date()
             current_hour = ist_now.hour
             current_minute = ist_now.minute
 
-            if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
-                body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
-                send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
-                send_whatsapp_notification(
-                    "⏰ *Daily NAV Reminder (8:00 AM)*\n\n"
-                    "Please upload today's latest NAV data on the Admin Portal."
-                )
-                last_8am_sent = current_date
+            if current_hour == 9 and current_minute == 0 and last_9am_sent != current_date:
+                if has_today_nav_uploaded():
+                    wa_msg = "Gd mrng Bijoosh padmakumar u upload latest NAV for user have a nice day"
+                    email_body = f"Good Morning Bijoosh Padmakumar,\n\n{wa_msg}"
+                else:
+                    wa_msg = "Gd mrng Bijoosh padmakumar NAV of today not prepaired Useres are waiting pls update"
+                    email_body = f"Good Morning Bijoosh Padmakumar,\n\n{wa_msg}"
+                send_email_notification("9:00 AM Daily NAV Status Check", email_body)
+                send_whatsapp_notification(wa_msg)
+                last_9am_sent = current_date
 
-            if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
-                user_summary = 'Here is the daily summary of registered users and their details:\n\n'
-                wa_lines = ["📋 *Daily User Summary (10:00 PM)*", ""]
-                for u in REGISTERED_USERS:
-                    user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
-                    wa_lines.append(f"• *{u['name']}* ({u['mobile']}) — {u['status']}")
-                send_email_notification('Daily User Details Report (10:00 PM)', user_summary)
-                send_whatsapp_notification("\n".join(wa_lines))
-                last_10pm_sent = current_date
+            if current_hour == 23 and current_minute == 0 and last_11pm_sent != current_date:
+                eod_text = send_eod_and_goodnight_whatsapp(include_goodnight=True)
+                send_email_notification(
+                    f"Daily EOD Portal Report ({ist_now.strftime('%d %b %Y')})",
+                    eod_text + "\n\nGd nght Bijoosh padmakumar",
+                )
+                last_11pm_sent = current_date
         except Exception as e:
             print(f'Scheduler error: {e}')
 
@@ -901,6 +1028,7 @@ def send_message():
     save_chat_messages(CHAT_MESSAGES)
 
     if role == 'user':
+        log_user_activity('message', sender_name, mobile, text[:160])
         send_whatsapp_notification(
             f"💬 *User Message*\n\n"
             f"*User:* {sender_name}\n"
@@ -1086,6 +1214,7 @@ def login():
                     check_user_validity(user_record)
                     save_registered_users()
                 touch_user_online(mobile)
+                log_user_activity('login', username, mobile, f"Status: {user_record.get('status', 'Approved')}")
                 resp = redirect(url_for('pending_approval') if user_record['status'] == 'Pending' else url_for('user_dashboard'))
                 return set_user_cookie(resp, username, mobile, login_ts)
             else:
@@ -1230,6 +1359,7 @@ def request_download():
     DOWNLOAD_REQUESTS.append(entry)
     save_download_requests()
     touch_user_online(user_auth.get('mobile'))
+    log_user_activity('download_request', username, user_auth.get('mobile', ''), f"{file_name} ({download_type})")
     send_whatsapp_notification(
         f"📥 *Download Request*\n\n"
         f"*User:* {username}\n"
@@ -1245,8 +1375,13 @@ def request_download():
 
 @app.route('/get-nav-image-base64/<path:filename>')
 def get_nav_image_base64(filename):
-    if not get_user_auth() and not is_admin_authenticated():
+    user_auth = get_user_auth()
+    if not user_auth and not is_admin_authenticated():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    role_hint = (request.args.get('role') or request.headers.get('X-Portal-Role') or '').strip().lower()
+    if user_auth and role_hint != 'admin':
+        log_user_activity('nav_view', user_auth.get('username', 'Client'), user_auth.get('mobile', ''), filename)
 
     target_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if not os.path.exists(target_path):
@@ -1297,6 +1432,7 @@ def view_archive_secured(filename):
         None,
     )
     if approved_req:
+        log_user_activity('download', username, (user_auth or {}).get('mobile', ''), f"{filename} [Downloaded]")
         for root, _, files in os.walk(ARCHIVE_FOLDER):
             if filename in files:
                 return send_from_directory(root, filename)
@@ -1464,6 +1600,24 @@ def reject_download(req_id):
             break
     if request.is_json:
         return jsonify({'success': True})
+    return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/send-eod-now', methods=['POST'])
+def admin_send_eod_now():
+    if not is_admin_authenticated():
+        if request.is_json:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+        return redirect(url_for('admin_login'))
+    ADMIN_ACTIVITY['last_active'] = datetime.now()
+    report_text = send_eod_and_goodnight_whatsapp(include_goodnight=True)
+    if request.is_json:
+        return jsonify({
+            'success': True,
+            'message': 'EOD WhatsApp report and Good Night message sent!',
+            'report': report_text,
+        })
+    flash('EOD WhatsApp report and Good Night message sent!', 'success')
     return redirect(url_for('admin_dashboard'))
 
 
