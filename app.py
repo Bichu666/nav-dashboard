@@ -611,15 +611,20 @@ def daily_scheduler():
             if current_hour == 8 and current_minute == 0 and last_8am_sent != current_date:
                 body = "Good Morning Bijoosh,\n\nThis is your daily reminder to upload today's latest NAV data on the Admin Portal."
                 send_email_notification("Reminder: Upload Today's Latest NAV Data (8:00 AM)", body)
-                send_whatsapp_notification("Reminder: Upload Today's Latest NAV Data on the Admin Portal.")
+                send_whatsapp_notification(
+                    "⏰ *Daily NAV Reminder (8:00 AM)*\n\n"
+                    "Please upload today's latest NAV data on the Admin Portal."
+                )
                 last_8am_sent = current_date
 
             if current_hour == 22 and current_minute == 0 and last_10pm_sent != current_date:
                 user_summary = 'Here is the daily summary of registered users and their details:\n\n'
+                wa_lines = ["📋 *Daily User Summary (10:00 PM)*", ""]
                 for u in REGISTERED_USERS:
                     user_summary += f"- Name: {u['name']} | Mobile: {u['mobile']} | Status: {u['status']}\n"
+                    wa_lines.append(f"• *{u['name']}* ({u['mobile']}) — {u['status']}")
                 send_email_notification('Daily User Details Report (10:00 PM)', user_summary)
-                send_whatsapp_notification(user_summary)
+                send_whatsapp_notification("\n".join(wa_lines))
                 last_10pm_sent = current_date
         except Exception as e:
             print(f'Scheduler error: {e}')
@@ -896,7 +901,12 @@ def send_message():
     save_chat_messages(CHAT_MESSAGES)
 
     if role == 'user':
-        send_whatsapp_notification(f'User Message from {sender_name} ({mobile}): {text}')
+        send_whatsapp_notification(
+            f"💬 *User Message*\n\n"
+            f"*User:* {sender_name}\n"
+            f"*Mobile:* {mobile}\n"
+            f"*Message:* {text}"
+        )
 
     return jsonify({
         'success': True,
@@ -1064,7 +1074,13 @@ def login():
                     }
                     REGISTERED_USERS.append(user_record)
                     save_registered_users()
-                    send_whatsapp_notification(f'New User Login/Approval Request: {username} ({mobile})')
+                    status_label = user_record.get('status', 'Pending')
+                    send_whatsapp_notification(
+                        f"🟢 *User Login Alert*\n\n"
+                        f"*Name:* {username}\n"
+                        f"*Mobile:* {mobile}\n"
+                        f"*Status:* {status_label}"
+                    )
                 else:
                     user_record['name'] = username
                     check_user_validity(user_record)
@@ -1214,7 +1230,12 @@ def request_download():
     DOWNLOAD_REQUESTS.append(entry)
     save_download_requests()
     touch_user_online(user_auth.get('mobile'))
-    send_whatsapp_notification(f'Download Request from {username}: {file_name} ({download_type})')
+    send_whatsapp_notification(
+        f"📥 *Download Request*\n\n"
+        f"*User:* {username}\n"
+        f"*File:* {file_name}\n"
+        f"*Type:* {download_type}"
+    )
     return jsonify({
         'success': True,
         'message': 'Approval request sent to Admin successfully.',
@@ -1857,7 +1878,11 @@ def upload_master_category():
                     if not debt_df.empty:
                         debt_df.to_sql(f'{category}_debt_metrics', engine, if_exists='replace', index=False)
 
-                    send_whatsapp_notification(f'{category.capitalize()} Master Excel updated in Supabase!')
+                    send_whatsapp_notification(
+                        f"📊 *Master Excel Updated*\n\n"
+                        f"*Category:* {category.capitalize()}\n"
+                        f"*Storage:* Supabase"
+                    )
                     flash(f'{category.capitalize()} funds, sectors & holdings updated permanently in Supabase!', 'success')
         except Exception as e:
             flash(f'Error updating category: {e}', 'danger')
@@ -1915,7 +1940,11 @@ def upload_nav():
                 if os.path.exists(file_path_upload):
                     shutil.copy(file_path_upload, archive_file_path)
 
-                send_whatsapp_notification(f'NAV Published: {filename} (Archived to {target_year}/{target_month})')
+                send_whatsapp_notification(
+                    f"📈 *NAV Published*\n\n"
+                    f"*File:* {filename}\n"
+                    f"*Archive:* {target_year}/{target_month}"
+                )
                 flash(f'Successfully published & optimized NAV: {filename} (Archived to {target_year}/{target_month})', 'success')
             else:
                 flash('No file selected for NAV upload.', 'warning')
