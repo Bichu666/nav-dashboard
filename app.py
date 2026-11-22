@@ -27,7 +27,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 import pandas as pd
 from PIL import Image
 import requests
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from werkzeug.utils import secure_filename
 import yfinance as yf
 
@@ -64,12 +64,55 @@ def _ist_now():
     return datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
 
 
-def load_daily_activity():
+def _ensure_activity_table():
+    if not engine:
+        return
+    try:
+        with engine.begin() as conn:
+            conn.execute(text('''
+                CREATE TABLE IF NOT EXISTS daily_activity (
+                    id SERIAL PRIMARY KEY,
+                    date VARCHAR(20) NOT NULL,
+                    time VARCHAR(20) NOT NULL,
+                    timestamp VARCHAR(64) NOT NULL,
+                    event_type VARCHAR(50) NOT NULL,
+                    username VARCHAR(150) NOT NULL,
+                    mobile VARCHAR(50),
+                    detail TEXT
+                )
+            '''))
+    except Exception as e:
+        print(f'Error ensuring daily_activity table: {e}')
+
+
+_ensure_activity_table()
+
+
+def load_daily_activity(target_date_str=None):
+    if engine:
+        try:
+            _ensure_activity_table()
+            with engine.connect() as conn:
+                if target_date_str:
+                    rows = conn.execute(
+                        text('SELECT id, date, time, timestamp, event_type, username, mobile, detail FROM daily_activity WHERE date = :d ORDER BY id ASC'),
+                        {'d': target_date_str},
+                    ).mappings().all()
+                else:
+                    rows = conn.execute(
+                        text('SELECT id, date, time, timestamp, event_type, username, mobile, detail FROM daily_activity ORDER BY id DESC LIMIT 500')
+                    ).mappings().all()
+                return [dict(r) for r in rows]
+        except Exception as e:
+            print(f'Error loading daily activity from DB: {e}')
+
     if os.path.exists(ACTIVITY_FILE):
         try:
             with open(ACTIVITY_FILE, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
                 if isinstance(raw, list):
+                    if target_date_str:
+                        return [e for e in raw if e.get('date') == target_date_str]
                     return raw
         except Exception as e:
             print(f'Error loading daily activity: {e}')
@@ -94,11 +137,25 @@ def log_user_activity(event_type, username, mobile='', detail=''):
         'date': now_ist.strftime('%Y-%m-%d'),
         'time': now_ist.strftime('%I:%M %p'),
         'timestamp': now_ist.isoformat(),
-        'event_type': event_type,
+        'event_type': str(event_type).strip(),
         'username': str(username or 'Client').strip(),
         'mobile': str(mobile or 'N/A').strip() or 'N/A',
         'detail': str(detail or '').strip(),
     }
+    if engine:
+        try:
+            _ensure_activity_table()
+            with engine.begin() as conn:
+                conn.execute(
+                    text('''
+                        INSERT INTO daily_activity (date, time, timestamp, event_type, username, mobile, detail)
+                        VALUES (:date, :time, :timestamp, :event_type, :username, :mobile, :detail)
+                    '''),
+                    entry,
+                )
+        except Exception as e:
+            print(f'Error inserting daily activity to DB: {e}')
+
     DAILY_ACTIVITY.append(entry)
     save_daily_activity()
     return entry
@@ -663,7 +720,7 @@ def build_eod_whatsapp_report(target_date_str=None):
     date_key = target_date_str or ist_now.strftime('%Y-%m-%d')
     display_date = ist_now.strftime('%d %b %Y')
 
-    todays_events = [e for e in DAILY_ACTIVITY if e.get('date') == date_key]
+    todays_events = load_daily_activity(target_date_str=date_key)
     logins = [e for e in todays_events if e.get('event_type') == 'login']
     nav_views = [e for e in todays_events if e.get('event_type') == 'nav_view']
     downloads = [e for e in todays_events if e.get('event_type') in ('download_request', 'download')]
